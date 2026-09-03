@@ -8,6 +8,7 @@ import ParcelFormModal from './components/ParcelFormModal';
 import KmlImporter from './components/KmlImporter';
 import KmlParcelImporterModal from './components/KmlParcelImporterModal';
 import GeoJsonImporterModal from './components/GeoJsonImporterModal';
+import SupabaseModal from './components/SupabaseModal';
 
 import { DEFAULT_KML_DATA } from './data/defaultConcession';
 import { INITIAL_PARCELS } from './data/initialParcels';
@@ -16,11 +17,20 @@ import { parseKMLToGeoJSON, extractMainConcessionPolygon, extractSubZones } from
 import { calculateArea, exportParcelsToGeoJSON } from './utils/geoUtils';
 import { Layers3, ArrowLeft, PanelRightClose, PanelRightOpen, Layers } from 'lucide-react';
 
+import {
+  fetchParcelsFromSupabase,
+  saveParcelToSupabase,
+  deleteParcelFromSupabase,
+  bulkSaveParcelsToSupabase,
+  bulkDeleteParcelsFromSupabase,
+  saveConcessionToSupabase
+} from './services/supabaseClient';
+
 const STORAGE_KEY_PARCELS = 'geocadastre_parcels_v3';
 const STORAGE_KEY_CONCESSION = 'geocadastre_concession_v3';
 
 export default function App() {
-  // Visitor Read-Only Mode State (Default: Visitor Mode for safe consultation)
+  // Visitor Read-Only Mode State
   const [isVisitorMode, setIsVisitorMode] = useState(false);
 
   // Navigation View Mode: 'global' | 'isetech'
@@ -51,50 +61,69 @@ export default function App() {
   const [isKmlImporterOpen, setIsKmlImporterOpen] = useState(false);
   const [isKmlParcelImporterOpen, setIsKmlParcelImporterOpen] = useState(false);
   const [isGeoJsonImporterOpen, setIsGeoJsonImporterOpen] = useState(false);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
-  // Initialize Concession & Parcels from LocalStorage or Defaults
+  // Initialize Concession & Parcels from Supabase Cloud with LocalStorage/Default Fallback
   useEffect(() => {
-    const savedConcession = localStorage.getItem(STORAGE_KEY_CONCESSION);
-    if (savedConcession) {
-      try {
-        setConcessionPolygon(JSON.parse(savedConcession));
-      } catch (e) {
+    async function initCloudData() {
+      // Load Concession
+      const savedConcession = localStorage.getItem(STORAGE_KEY_CONCESSION);
+      if (savedConcession) {
+        try {
+          setConcessionPolygon(JSON.parse(savedConcession));
+        } catch (e) {
+          loadDefaultConcession();
+        }
+      } else {
         loadDefaultConcession();
       }
-    } else {
-      loadDefaultConcession();
+
+      // Load Parcels from Supabase Cloud first
+      const cloudParcels = await fetchParcelsFromSupabase();
+      if (cloudParcels && cloudParcels.length > 0) {
+        setGlobalParcels(cloudParcels);
+        return;
+      }
+
+      // Fallback to LocalStorage
+      const savedParcels = localStorage.getItem(STORAGE_KEY_PARCELS);
+      if (savedParcels) {
+        try {
+          const loaded = JSON.parse(savedParcels);
+          const healed = loaded.map((p) => {
+            const area = calculateArea(p);
+            return {
+              ...p,
+              properties: {
+                ...p.properties,
+                areaSqM: area.sqMeters > 0 ? area.sqMeters : p.properties.areaSqM || 10026098,
+                areaHa: area.hectares > 0 ? area.hectares : p.properties.areaHa || 1002.61,
+                formattedSqM: area.sqMeters > 0 ? area.formattedSqM : p.properties.formattedSqM || '10 026 098 m²',
+                formattedHa: area.hectares > 0 ? area.formattedHa : p.properties.formattedHa || '1 002,61 ha'
+              }
+            };
+          });
+          setGlobalParcels(healed);
+          // Sync default/healed parcels up to Supabase Cloud
+          bulkSaveParcelsToSupabase(healed);
+        } catch (e) {
+          setGlobalParcels(INITIAL_PARCELS);
+          bulkSaveParcelsToSupabase(INITIAL_PARCELS);
+        }
+      } else {
+        setGlobalParcels(INITIAL_PARCELS);
+        bulkSaveParcelsToSupabase(INITIAL_PARCELS);
+      }
     }
 
-    const savedParcels = localStorage.getItem(STORAGE_KEY_PARCELS);
-    if (savedParcels) {
-      try {
-        const loaded = JSON.parse(savedParcels);
-        const healed = loaded.map((p) => {
-          const area = calculateArea(p);
-          return {
-            ...p,
-            properties: {
-              ...p.properties,
-              areaSqM: area.sqMeters > 0 ? area.sqMeters : p.properties.areaSqM || 10026098,
-              areaHa: area.hectares > 0 ? area.hectares : p.properties.areaHa || 1002.61,
-              formattedSqM: area.sqMeters > 0 ? area.formattedSqM : p.properties.formattedSqM || '10 026 098 m²',
-              formattedHa: area.hectares > 0 ? area.formattedHa : p.properties.formattedHa || '1 002,61 ha'
-            }
-          };
-        });
-        setGlobalParcels(healed);
-      } catch (e) {
-        setGlobalParcels(INITIAL_PARCELS);
-      }
-    } else {
-      setGlobalParcels(INITIAL_PARCELS);
-    }
+    initCloudData();
   }, []);
 
-  // Save to LocalStorage
+  // Save to LocalStorage & Supabase Cloud
   useEffect(() => {
     if (concessionPolygon) {
       localStorage.setItem(STORAGE_KEY_CONCESSION, JSON.stringify(concessionPolygon));
+      saveConcessionToSupabase(concessionPolygon);
     }
   }, [concessionPolygon]);
 
@@ -114,45 +143,53 @@ export default function App() {
 
   const currentParcels = activeView === 'isetech' ? isetechParcels : globalParcels;
 
+  // Add new single parcel
   const handleAddParcel = (newParcel) => {
     if (isVisitorMode) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => [newParcel, ...prev]);
     } else {
       setGlobalParcels((prev) => [newParcel, ...prev]);
+      saveParcelToSupabase(newParcel);
     }
     setSelectedParcel(newParcel);
     setInitialFormPoints(null);
   };
 
+  // Bulk add parcels imported from KML or GeoJSON
   const handleAddParcelsFromExternal = (newParcelsList) => {
     if (isVisitorMode) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => [...newParcelsList, ...prev]);
     } else {
       setGlobalParcels((prev) => [...newParcelsList, ...prev]);
+      bulkSaveParcelsToSupabase(newParcelsList);
     }
     if (newParcelsList.length > 0) {
       setSelectedParcel(newParcelsList[0]);
     }
   };
 
+  // Update existing parcel
   const handleUpdateParcel = (updatedParcel) => {
     if (isVisitorMode) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => prev.map((p) => (p.id === updatedParcel.id ? updatedParcel : p)));
     } else {
       setGlobalParcels((prev) => prev.map((p) => (p.id === updatedParcel.id ? updatedParcel : p)));
+      saveParcelToSupabase(updatedParcel);
     }
     setSelectedParcel(updatedParcel);
   };
 
+  // Delete single parcel
   const handleDeleteParcel = (parcelId) => {
     if (isVisitorMode) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => prev.filter((p) => p.id !== parcelId));
     } else {
       setGlobalParcels((prev) => prev.filter((p) => p.id !== parcelId));
+      deleteParcelFromSupabase(parcelId);
     }
     setSelectedParcel(null);
     setSelectedParcelIds((prev) => prev.filter((id) => id !== parcelId));
@@ -178,6 +215,7 @@ export default function App() {
       setIsetechParcels((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
     } else {
       setGlobalParcels((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
+      bulkDeleteParcelsFromSupabase(idsToDelete);
     }
     setSelectedParcel(null);
     setSelectedParcelIds([]);
@@ -192,6 +230,11 @@ export default function App() {
       setIsetechParcels(updater);
     } else {
       setGlobalParcels(updater);
+      const updatedParcels = globalParcels.filter((p) => idsToUpdate.includes(p.id)).map((p) => ({
+        ...p,
+        properties: { ...p.properties, status: newStatus }
+      }));
+      bulkSaveParcelsToSupabase(updatedParcels);
     }
   };
 
@@ -238,6 +281,16 @@ export default function App() {
       setSelectedParcel(null);
       setSelectedParcelIds([]);
       setInitialFormPoints(null);
+      bulkSaveParcelsToSupabase(INITIAL_PARCELS);
+    }
+  };
+
+  const handleSyncCloud = async () => {
+    const cloudParcels = await fetchParcelsFromSupabase();
+    if (cloudParcels && cloudParcels.length > 0) {
+      setGlobalParcels(cloudParcels);
+    } else {
+      await bulkSaveParcelsToSupabase(globalParcels);
     }
   };
 
@@ -258,9 +311,10 @@ export default function App() {
         onResetData={handleResetData}
         isVisitorMode={isVisitorMode}
         onToggleVisitorMode={() => setIsVisitorMode(!isVisitorMode)}
+        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
       />
 
-      {/* Sub-cadastre Breadcrumb Alert Bar when inside ISETECH View */}
+      {/* Sub-cadastre Breadcrumb Alert Bar */}
       {activeView === 'isetech' && (
         <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between gap-3 text-slate-200 text-xs">
           <div className="flex items-center gap-2 font-semibold">
@@ -336,7 +390,14 @@ export default function App() {
         isVisitorMode={isVisitorMode}
       />
 
-      {/* Modals (Only functional in Admin mode) */}
+      {/* Supabase Cloud Sync Modal */}
+      <SupabaseModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+        onSyncCloud={handleSyncCloud}
+      />
+
+      {/* Modals */}
       {!isVisitorMode && (
         <>
           <ParcelFormModal

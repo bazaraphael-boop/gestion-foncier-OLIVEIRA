@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Download, Upload, RefreshCw, FileCode, FileCode2, MoreVertical, ChevronDown, Eye, ShieldCheck, Lock } from 'lucide-react';
+import { Plus, Download, Upload, RefreshCw, FileCode, FileCode2, MoreVertical, ChevronDown, Eye, ShieldCheck, Lock, Cloud } from 'lucide-react';
 import { exportParcelsToGeoJSON, calculateArea } from '../utils/geoUtils';
 
 export default function Navbar({
@@ -11,7 +11,8 @@ export default function Navbar({
   concessionPolygon,
   onResetData,
   isVisitorMode,
-  onToggleVisitorMode
+  onToggleVisitorMode,
+  onOpenSupabaseModal
 }) {
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
 
@@ -77,8 +78,19 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* Role Switcher & Action Buttons */}
+      {/* Role Switcher, Supabase Cloud & Action Buttons */}
       <div className="flex items-center gap-2 flex-shrink-0">
+        {/* Supabase Cloud Storage Badge Button */}
+        <button
+          onClick={onOpenSupabaseModal}
+          className="px-2.5 py-1 rounded-md bg-emerald-950/60 text-emerald-400 border border-emerald-700/50 hover:bg-emerald-900/60 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+          title="Stockage Cloud Supabase Actif"
+        >
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+          <span className="hidden sm:inline font-mono">Supabase</span>
+        </button>
+
         {/* Role Access Mode Switcher Button */}
         <button
           onClick={onToggleVisitorMode}
@@ -87,18 +99,17 @@ export default function Navbar({
               ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
               : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
           }`}
-          title={isVisitorMode ? "Basculer en Mode Administrateur (Modification)" : "Basculer en Mode Visiteur (Lecture seule)"}
+          title={isVisitorMode ? "Basculer en Mode Administrateur" : "Basculer en Mode Visiteur"}
         >
           {isVisitorMode ? (
             <>
               <Eye className="w-3.5 h-3.5 text-amber-400" />
-              <span>Espace Visiteur (Consultation)</span>
+              <span>Visiteur</span>
             </>
           ) : (
             <>
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden sm:inline">Mode Admin (Gestion)</span>
-              <span className="sm:hidden">Admin</span>
+              <span className="hidden sm:inline">Admin</span>
             </>
           )}
         </button>
