@@ -169,6 +169,30 @@ export async function bulkDeleteParcelsFromSupabase(parcelIdsList) {
   }
 }
 
+// 6. Real-Time WebSockets Subscription for Automatic Sync
+export function subscribeToRealtimeParcels(onPayload) {
+  const client = getSupabaseInstance();
+  if (!client) return null;
+
+  try {
+    const channel = client
+      .channel('realtime:parcels')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'parcels' },
+        (payload) => {
+          if (onPayload) onPayload(payload);
+        }
+      )
+      .subscribe();
+
+    return channel;
+  } catch (err) {
+    console.warn('Realtime subscription warning:', err);
+    return null;
+  }
+}
+
 // --- CONCESSION SUPABASE CLOUD API SERVICES ---
 
 export async function fetchConcessionFromSupabase() {

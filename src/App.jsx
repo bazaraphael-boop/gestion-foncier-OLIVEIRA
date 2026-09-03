@@ -23,13 +23,13 @@ import {
   deleteParcelFromSupabase,
   bulkSaveParcelsToSupabase,
   bulkDeleteParcelsFromSupabase,
-  saveConcessionToSupabase
+  saveConcessionToSupabase,
+  subscribeToRealtimeParcels
 } from './services/supabaseClient';
 
 const STORAGE_KEY_PARCELS = 'geocadastre_parcels_v3';
 const STORAGE_KEY_CONCESSION = 'geocadastre_concession_v3';
 
-// Fast synchronous initializers for 0ms load time
 function getInitialConcession() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_CONCESSION);
@@ -87,23 +87,48 @@ export default function App() {
   const [isGeoJsonImporterOpen, setIsGeoJsonImporterOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
-  // Non-blocking background Cloud Refresh (Stale-While-Revalidate pattern)
+  // Automatic Real-Time WebSockets Subscription & Polling Sync
   useEffect(() => {
     let isMounted = true;
-    fetchParcelsFromSupabase().then((cloudParcels) => {
-      if (isMounted && cloudParcels && cloudParcels.length > 0) {
-        setGlobalParcels(cloudParcels);
+
+    const syncLatestParcels = async () => {
+      try {
+        const cloudParcels = await fetchParcelsFromSupabase();
+        if (isMounted && cloudParcels && cloudParcels.length > 0) {
+          setGlobalParcels(cloudParcels);
+        }
+      } catch (err) {
+        console.warn('Auto-sync error:', err);
       }
-    }).catch((err) => {
-      console.warn('Background Supabase sync skipped:', err);
+    };
+
+    // 1. Initial Cloud Sync
+    syncLatestParcels();
+
+    // 2. Realtime WebSocket Channel Subscription
+    const channel = subscribeToRealtimeParcels(() => {
+      if (isMounted) {
+        syncLatestParcels();
+      }
     });
+
+    // 3. Periodic Background Polling Sync (Every 8 Seconds for maximum freshness)
+    const intervalId = setInterval(() => {
+      if (isMounted) {
+        syncLatestParcels();
+      }
+    }, 8000);
 
     return () => {
       isMounted = false;
+      clearInterval(intervalId);
+      if (channel) {
+        channel.unsubscribe();
+      }
     };
   }, []);
 
-  // Save to LocalStorage & Supabase Cloud (Debounced / Non-blocking)
+  // Save to LocalStorage & Supabase Cloud
   useEffect(() => {
     if (concessionPolygon) {
       localStorage.setItem(STORAGE_KEY_CONCESSION, JSON.stringify(concessionPolygon));
