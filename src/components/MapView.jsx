@@ -218,7 +218,7 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
 
   return (
     <>
-      {/* Sleek Integrated Bottom HUD Bar (Mouse Coords + Live Satellite Sync + Zoom %) */}
+      {/* Sleek Integrated Bottom HUD Bar */}
       <div className="absolute bottom-2 left-4 right-20 z-[1000] bg-white/95 backdrop-blur-md px-3 py-1 rounded border border-slate-200 text-[11px] font-mono text-slate-700 flex items-center justify-between shadow-xs select-none pointer-events-auto">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1 text-slate-900 font-bold">
@@ -346,7 +346,8 @@ export default function MapView({
   onExploreSubZone,
   onReturnToGlobal,
   isSidebarCollapsed,
-  onToggleSidebar
+  onToggleSidebar,
+  isVisitorMode
 }) {
   const mapContainerRef = useRef(null);
   const [mapType, setMapType] = useState('google-pure');
@@ -432,7 +433,7 @@ export default function MapView({
     setDrawnPoints([]);
   };
 
-  // High-Resolution 4K Map Composite Exporter (Captures Satellite Tiles + Polygons + Header)
+  // High-Resolution 4K Map Composite Exporter
   const handleExportMapHD = async () => {
     if (!mapContainerRef.current) return;
     setIsExporting(true);
@@ -664,33 +665,35 @@ export default function MapView({
           <Sparkles className="w-4 h-4" />
         </button>
 
-        {/* Drawing Tool */}
-        {!isDrawing ? (
-          <button
-            onClick={handleStartDrawing}
-            className="p-2 bg-white text-slate-700 border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition-all cursor-pointer"
-            title="Dessiner une parcelle"
-          >
-            <Pencil className="w-4 h-4 text-emerald-600" />
-          </button>
-        ) : (
-          <div className="flex flex-col gap-1 p-1 bg-amber-50 rounded-lg border border-amber-200 shadow-md">
+        {/* Drawing Tool (Hidden in Visitor Read-Only Mode) */}
+        {!isVisitorMode && (
+          !isDrawing ? (
             <button
-              onClick={handleFinishDrawing}
-              disabled={drawnPoints.length < 3}
-              className="p-1.5 bg-emerald-600 text-white rounded font-bold text-xs flex items-center justify-center cursor-pointer"
-              title="Valider le polygone"
+              onClick={handleStartDrawing}
+              className="p-2 bg-white text-slate-700 border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition-all cursor-pointer"
+              title="Dessiner une parcelle"
             >
-              <Check className="w-3.5 h-3.5" />
+              <Pencil className="w-4 h-4 text-emerald-600" />
             </button>
-            <button
-              onClick={handleCancelDrawing}
-              className="p-1.5 bg-slate-200 text-slate-700 rounded hover:bg-slate-300 cursor-pointer"
-              title="Annuler"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          ) : (
+            <div className="flex flex-col gap-1 p-1 bg-amber-50 rounded-lg border border-amber-200 shadow-md">
+              <button
+                onClick={handleFinishDrawing}
+                disabled={drawnPoints.length < 3}
+                className="p-1.5 bg-emerald-600 text-white rounded font-bold text-xs flex items-center justify-center cursor-pointer"
+                title="Valider le polygone"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={handleCancelDrawing}
+                className="p-1.5 bg-slate-200 text-slate-700 rounded hover:bg-slate-300 cursor-pointer"
+                title="Annuler"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )
         )}
 
         {/* Concession Perimeter Boundary Toggle */}
@@ -781,7 +784,7 @@ export default function MapView({
         />
         <ProfessionalGisHud onAddPoint={handleAddDrawnPoint} isDrawing={isDrawing} mapType={mapType} />
 
-        {/* Clean Google Pure Satellite Layer (Without Huge Google POI Icons or Text Labels) */}
+        {/* Clean Google Pure Satellite Layer */}
         {mapType === 'google-pure' && (
           <TileLayer
             attribution='&copy; Google Satellite Pure HD'
@@ -837,7 +840,7 @@ export default function MapView({
           />
         )}
 
-        {/* Discrete Road Overlay with Standard Scaling */}
+        {/* Discrete Road Overlay */}
         {showRoadsOverlay && mapType !== 'google-roads' && mapType !== 'osm-roads' && (
           <TileLayer
             attribution='&copy; Google Roads Overlay'

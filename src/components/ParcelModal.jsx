@@ -21,7 +21,7 @@ import {
   Plus
 } from 'lucide-react';
 
-export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteParcel }) {
+export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteParcel, isVisitorMode }) {
   const [isEditing, setIsEditing] = useState(false);
   const [showCertificate, setShowCertificate] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -46,7 +46,6 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
       });
 
       const initialVerts = parcel.geometry?.coordinates?.[0] || [];
-      // Remove duplicate closing point if present
       const uniqueVerts = initialVerts.slice(0, initialVerts.length > 3 && initialVerts[0][0] === initialVerts[initialVerts.length - 1][0] && initialVerts[0][1] === initialVerts[initialVerts.length - 1][1] ? -1 : initialVerts.length);
 
       setEditVertices(
@@ -89,7 +88,6 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
   const handleSave = (e) => {
     e.preventDefault();
 
-    // Parse vertices
     const ringCoords = [];
     for (let i = 0; i < editVertices.length; i++) {
       const v = editVertices[i];
@@ -105,7 +103,6 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
       return;
     }
 
-    // Ensure closed ring
     if (
       ringCoords[0][0] !== ringCoords[ringCoords.length - 1][0] ||
       ringCoords[0][1] !== ringCoords[ringCoords.length - 1][1]
@@ -129,7 +126,6 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
       }
     };
 
-    // Recompute area
     const newArea = calculateArea(updated);
     updated.properties.areaSqM = newArea.sqMeters;
     updated.properties.areaHa = newArea.hectares;
@@ -178,7 +174,6 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
 
   return (
     <>
-      {/* Custom Professional Delete Confirmation Modal */}
       <DeleteConfirmModal
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
@@ -190,7 +185,6 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
       {showCertificate && (
         <div className="fixed inset-0 z-[3000] bg-slate-900/60 backdrop-blur-xs flex justify-center p-4 overflow-y-auto font-sans">
           <div className="bg-white text-slate-900 w-full max-w-3xl rounded-lg shadow-xl my-auto print:m-0 print:p-0 print:shadow-none print:w-full print:max-w-none overflow-hidden border border-slate-200">
-            {/* Action Bar (hidden when printing) */}
             <div className="flex justify-between items-center px-6 py-3 border-b border-slate-200 bg-slate-50 print:hidden">
               <div className="flex items-center gap-2 font-bold text-slate-800 text-xs">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
@@ -212,12 +206,9 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
               </div>
             </div>
 
-            {/* Original Image Header Banner Full Width */}
             <OfficialHeaderBanner />
 
-            {/* Document Content */}
             <div className="p-6 space-y-4 text-xs font-sans">
-              {/* Document Title */}
               <div className="text-center my-2 space-y-1">
                 <h1 className="text-base font-black uppercase text-slate-900 tracking-tight">
                   CERTIFICAT DE RELEVÉ PARCELLAIRE & D'OCCUPATION
@@ -227,7 +218,6 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 </div>
               </div>
 
-              {/* Certificate Details */}
               <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded border border-slate-200">
                 <div>
                   <span className="text-[10px] font-semibold text-slate-500 block uppercase">IDENTIFIANT DU LOT</span>
@@ -246,13 +236,12 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-semibold text-slate-500 block uppercase">SUPERFICIE CALCULÉE (TURF.JS)</span>
+                  <span className="text-[10px] font-semibold text-slate-500 block uppercase">SUPERFICIE CALCULÉE</span>
                   <span className="text-sm font-black text-emerald-700">{areaInfo.formattedHa}</span>
                   <span className="text-[11px] text-slate-600 ml-1">({areaInfo.formattedSqM})</span>
                 </div>
               </div>
 
-              {/* Vertices GPS Table */}
               <div>
                 <h3 className="font-bold text-slate-900 text-[11px] uppercase tracking-wider mb-1.5">
                   Coordonnées Géodésiques des Sommets GPS (WGS84)
@@ -281,7 +270,6 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 </table>
               </div>
 
-              {/* Notes */}
               {parcel.properties.notes && (
                 <div className="text-[11px] italic bg-slate-50 p-2.5 rounded border border-slate-200">
                   <span className="font-bold not-italic">Observations Concession : </span>
@@ -289,7 +277,6 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 </div>
               )}
 
-              {/* Official Signatures */}
               <div className="pt-6 border-t border-slate-300 mt-6">
                 <div className="grid grid-cols-2 gap-8 pt-4">
                   <div className="text-center space-y-12">
@@ -311,7 +298,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         </div>
       )}
 
-      {/* Main Sidebar Modal (Corporate Light Theme) */}
+      {/* Main Sidebar Modal */}
       <div className="fixed inset-y-0 right-0 z-[2000] w-full max-w-md bg-white border-l border-slate-200 shadow-xl flex flex-col text-slate-800 select-none animate-in slide-in-from-right duration-200">
         {/* Header */}
         <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
@@ -364,7 +351,6 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
 
           {!isEditing ? (
             <div className="space-y-4">
-              {/* Occupant Details */}
               <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-1">
                 <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
                   <User className="w-3.5 h-3.5 text-slate-400" /> Affectataire / Occupant
@@ -376,7 +362,6 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 </div>
               </div>
 
-              {/* Official Certificate Action Button */}
               <button
                 onClick={() => setShowCertificate(true)}
                 className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded text-xs flex items-center justify-center gap-2 shadow-2xs transition-all cursor-pointer"
@@ -384,7 +369,6 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 <Printer className="w-3.5 h-3.5 text-emerald-400" /> Imprimer Certificat d'Attribution (PDF)
               </button>
 
-              {/* Notes */}
               {parcel.properties.notes && (
                 <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-1">
                   <div className="text-[11px] text-slate-500 font-medium">Observations</div>
@@ -438,7 +422,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
               </div>
             </div>
           ) : (
-            /* Edit Form (Including Full Vertex Editing) */
+            /* Edit Form */
             <form onSubmit={handleSave} className="space-y-3.5 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
@@ -493,7 +477,6 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 ></textarea>
               </div>
 
-              {/* Vertex Coordinates Editor (Supports Hexagons / Any Polygon Shape) */}
               <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-slate-800 text-xs">
@@ -560,8 +543,8 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
           )}
         </div>
 
-        {/* Footer Actions */}
-        {!isEditing && (
+        {/* Footer Actions (Hidden in Visitor Read-Only Mode) */}
+        {!isVisitorMode && !isEditing && (
           <div className="p-3 border-t border-slate-200 bg-slate-50 flex gap-2">
             <button
               onClick={() => setIsEditing(true)}

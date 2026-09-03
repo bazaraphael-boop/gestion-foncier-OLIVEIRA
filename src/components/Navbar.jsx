@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Download, Upload, RefreshCw, FileCode, FileCode2, MoreVertical, ChevronDown } from 'lucide-react';
+import { Plus, Download, Upload, RefreshCw, FileCode, FileCode2, MoreVertical, ChevronDown, Eye, ShieldCheck, Lock } from 'lucide-react';
 import { exportParcelsToGeoJSON, calculateArea } from '../utils/geoUtils';
 
 export default function Navbar({
@@ -9,7 +9,9 @@ export default function Navbar({
   onOpenGeoJsonImporter,
   parcels,
   concessionPolygon,
-  onResetData
+  onResetData,
+  isVisitorMode,
+  onToggleVisitorMode
 }) {
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
 
@@ -60,7 +62,7 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* Streamlined Key Metrics Bar (Integrated directly in Header) */}
+      {/* Streamlined Key Metrics Bar */}
       <div className="hidden md:flex items-center gap-2 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700/60 text-xs font-sans">
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -75,70 +77,96 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* Primary Action Buttons & Dropdown */}
+      {/* Role Switcher & Action Buttons */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        {/* Primary Action Button */}
+        {/* Role Access Mode Switcher Button */}
         <button
-          onClick={onOpenCreateForm}
-          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-          title="Ajouter une nouvelle parcelle"
+          onClick={onToggleVisitorMode}
+          className={`px-2.5 py-1 rounded-md border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+            isVisitorMode
+              ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+              : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+          }`}
+          title={isVisitorMode ? "Basculer en Mode Administrateur (Modification)" : "Basculer en Mode Visiteur (Lecture seule)"}
         >
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Nouvelle Parcelle</span>
-        </button>
-
-        {/* GeoJSON Fast Importer */}
-        <button
-          onClick={onOpenGeoJsonImporter}
-          className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
-          title="Importer un fichier GeoJSON"
-        >
-          <FileCode2 className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="hidden sm:inline">Importer GeoJSON</span>
-        </button>
-
-        {/* Tools Dropdown Menu */}
-        <div className="relative">
-          <button
-            onClick={() => setShowToolsDropdown(!showToolsDropdown)}
-            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded text-xs font-medium flex items-center gap-1 transition-all cursor-pointer"
-            title="Options & Imports"
-          >
-            <span>Options</span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
-          </button>
-
-          {showToolsDropdown && (
-            <div className="absolute right-0 top-full mt-1.5 w-48 bg-slate-900 border border-slate-700 rounded shadow-xl p-1 z-[1200] space-y-0.5 text-xs font-sans">
-              <button
-                onClick={() => { onOpenKmlParcelImporter(); setShowToolsDropdown(false); }}
-                className="w-full text-left px-2.5 py-1.5 hover:bg-slate-800 text-emerald-400 rounded flex items-center gap-2 font-medium"
-              >
-                <FileCode className="w-3.5 h-3.5 text-emerald-400" /> Importer Parcelles KML
-              </button>
-              <button
-                onClick={() => { onOpenKmlImporter(); setShowToolsDropdown(false); }}
-                className="w-full text-left px-2.5 py-1.5 hover:bg-slate-800 text-slate-200 rounded flex items-center gap-2 font-medium"
-              >
-                <Upload className="w-3.5 h-3.5 text-slate-400" /> Périmètre KML
-              </button>
-              <button
-                onClick={() => { handleExportGeoJSON(); setShowToolsDropdown(false); }}
-                className="w-full text-left px-2.5 py-1.5 hover:bg-slate-800 text-slate-200 rounded flex items-center gap-2 font-medium"
-              >
-                <Download className="w-3.5 h-3.5 text-slate-400" /> Exporter GeoJSON
-              </button>
-              <div className="border-t border-slate-800 my-1 pt-1">
-                <button
-                  onClick={() => { onResetData(); setShowToolsDropdown(false); }}
-                  className="w-full text-left px-2.5 py-1.5 hover:bg-rose-900/30 text-rose-400 rounded flex items-center gap-2 font-medium"
-                >
-                  <RefreshCw className="w-3.5 h-3.5 text-rose-400" /> Réinitialiser Données
-                </button>
-              </div>
-            </div>
+          {isVisitorMode ? (
+            <>
+              <Eye className="w-3.5 h-3.5 text-amber-400" />
+              <span>Espace Visiteur (Consultation)</span>
+            </>
+          ) : (
+            <>
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Mode Admin (Gestion)</span>
+              <span className="sm:hidden">Admin</span>
+            </>
           )}
-        </div>
+        </button>
+
+        {/* Creation/Modification Controls (Hidden in Visitor Read-Only Mode) */}
+        {!isVisitorMode && (
+          <>
+            <button
+              onClick={onOpenCreateForm}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+              title="Ajouter une nouvelle parcelle"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Nouvelle Parcelle</span>
+            </button>
+
+            <button
+              onClick={onOpenGeoJsonImporter}
+              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Importer un fichier GeoJSON"
+            >
+              <FileCode2 className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden sm:inline">Importer GeoJSON</span>
+            </button>
+
+            <div className="relative">
+              <button
+                onClick={() => setShowToolsDropdown(!showToolsDropdown)}
+                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded text-xs font-medium flex items-center gap-1 transition-all cursor-pointer"
+                title="Options & Imports"
+              >
+                <span>Options</span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {showToolsDropdown && (
+                <div className="absolute right-0 top-full mt-1.5 w-48 bg-slate-900 border border-slate-700 rounded shadow-xl p-1 z-[1200] space-y-0.5 text-xs font-sans">
+                  <button
+                    onClick={() => { onOpenKmlParcelImporter(); setShowToolsDropdown(false); }}
+                    className="w-full text-left px-2.5 py-1.5 hover:bg-slate-800 text-emerald-400 rounded flex items-center gap-2 font-medium"
+                  >
+                    <FileCode className="w-3.5 h-3.5 text-emerald-400" /> Importer Parcelles KML
+                  </button>
+                  <button
+                    onClick={() => { onOpenKmlImporter(); setShowToolsDropdown(false); }}
+                    className="w-full text-left px-2.5 py-1.5 hover:bg-slate-800 text-slate-200 rounded flex items-center gap-2 font-medium"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-slate-400" /> Périmètre KML
+                  </button>
+                  <button
+                    onClick={() => { handleExportGeoJSON(); setShowToolsDropdown(false); }}
+                    className="w-full text-left px-2.5 py-1.5 hover:bg-slate-800 text-slate-200 rounded flex items-center gap-2 font-medium"
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-400" /> Exporter GeoJSON
+                  </button>
+                  <div className="border-t border-slate-800 my-1 pt-1">
+                    <button
+                      onClick={() => { onResetData(); setShowToolsDropdown(false); }}
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-rose-900/30 text-rose-400 rounded flex items-center gap-2 font-medium"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 text-rose-400" /> Réinitialiser Données
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </header>
   );

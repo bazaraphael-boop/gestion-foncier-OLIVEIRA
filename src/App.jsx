@@ -20,6 +20,9 @@ const STORAGE_KEY_PARCELS = 'geocadastre_parcels_v3';
 const STORAGE_KEY_CONCESSION = 'geocadastre_concession_v3';
 
 export default function App() {
+  // Visitor Read-Only Mode State (Default: Visitor Mode for safe consultation)
+  const [isVisitorMode, setIsVisitorMode] = useState(false);
+
   // Navigation View Mode: 'global' | 'isetech'
   const [activeView, setActiveView] = useState('global');
 
@@ -51,7 +54,6 @@ export default function App() {
 
   // Initialize Concession & Parcels from LocalStorage or Defaults
   useEffect(() => {
-    // 1. Load Concession
     const savedConcession = localStorage.getItem(STORAGE_KEY_CONCESSION);
     if (savedConcession) {
       try {
@@ -63,7 +65,6 @@ export default function App() {
       loadDefaultConcession();
     }
 
-    // 2. Load Parcels with Auto-Healing for calculated surface areas
     const savedParcels = localStorage.getItem(STORAGE_KEY_PARCELS);
     if (savedParcels) {
       try {
@@ -111,11 +112,10 @@ export default function App() {
     setSubZones(subs);
   };
 
-  // Active parcels depending on view mode
   const currentParcels = activeView === 'isetech' ? isetechParcels : globalParcels;
 
-  // Add new single parcel
   const handleAddParcel = (newParcel) => {
+    if (isVisitorMode) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => [newParcel, ...prev]);
     } else {
@@ -125,8 +125,8 @@ export default function App() {
     setInitialFormPoints(null);
   };
 
-  // Bulk add parcels imported from KML or GeoJSON
   const handleAddParcelsFromExternal = (newParcelsList) => {
+    if (isVisitorMode) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => [...newParcelsList, ...prev]);
     } else {
@@ -137,8 +137,8 @@ export default function App() {
     }
   };
 
-  // Update existing parcel
   const handleUpdateParcel = (updatedParcel) => {
+    if (isVisitorMode) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => prev.map((p) => (p.id === updatedParcel.id ? updatedParcel : p)));
     } else {
@@ -147,8 +147,8 @@ export default function App() {
     setSelectedParcel(updatedParcel);
   };
 
-  // Delete single parcel
   const handleDeleteParcel = (parcelId) => {
+    if (isVisitorMode) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => prev.filter((p) => p.id !== parcelId));
     } else {
@@ -158,7 +158,6 @@ export default function App() {
     setSelectedParcelIds((prev) => prev.filter((id) => id !== parcelId));
   };
 
-  // --- MULTI-SELECTION BATCH ACTIONS ---
   const handleToggleSelectParcel = (parcelId) => {
     setSelectedParcelIds((prev) =>
       prev.includes(parcelId) ? prev.filter((id) => id !== parcelId) : [...prev, parcelId]
@@ -174,6 +173,7 @@ export default function App() {
   };
 
   const handleBulkDeleteParcels = (idsToDelete) => {
+    if (isVisitorMode) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
     } else {
@@ -184,6 +184,7 @@ export default function App() {
   };
 
   const handleBulkChangeStatus = (idsToUpdate, newStatus) => {
+    if (isVisitorMode) return;
     const updater = (prev) =>
       prev.map((p) => (idsToUpdate.includes(p.id) ? { ...p, properties: { ...p.properties, status: newStatus } } : p));
 
@@ -205,13 +206,12 @@ export default function App() {
     a.click();
   };
 
-  // Open Form with pre-drawn points from map
   const handleOpenCreateFormWithPoints = (pointsList) => {
+    if (isVisitorMode) return;
     setInitialFormPoints(pointsList);
     setIsFormOpen(true);
   };
 
-  // Switch View to ISETECH Sub-cadastre
   const handleExploreSubZone = (zoneId) => {
     if (zoneId === 'isetech') {
       setActiveView('isetech');
@@ -220,15 +220,14 @@ export default function App() {
     }
   };
 
-  // Switch View back to Global Concession
   const handleReturnToGlobal = () => {
     setActiveView('global');
     setSelectedParcel(null);
     setSelectedParcelIds([]);
   };
 
-  // Reset to initial demo data
   const handleResetData = () => {
+    if (isVisitorMode) return;
     if (confirm('Voulez-vous réinitialiser toutes les données aux valeurs démo d\'origine ?')) {
       localStorage.removeItem(STORAGE_KEY_PARCELS);
       localStorage.removeItem(STORAGE_KEY_CONCESSION);
@@ -247,15 +246,18 @@ export default function App() {
       {/* Top Navbar Header */}
       <Navbar
         onOpenCreateForm={() => {
+          if (isVisitorMode) return;
           setInitialFormPoints(null);
           setIsFormOpen(true);
         }}
-        onOpenKmlImporter={() => setIsKmlImporterOpen(true)}
-        onOpenKmlParcelImporter={() => setIsKmlParcelImporterOpen(true)}
-        onOpenGeoJsonImporter={() => setIsGeoJsonImporterOpen(true)}
+        onOpenKmlImporter={() => !isVisitorMode && setIsKmlImporterOpen(true)}
+        onOpenKmlParcelImporter={() => !isVisitorMode && setIsKmlParcelImporterOpen(true)}
+        onOpenGeoJsonImporter={() => !isVisitorMode && setIsGeoJsonImporterOpen(true)}
         parcels={currentParcels}
         concessionPolygon={concessionPolygon}
         onResetData={handleResetData}
+        isVisitorMode={isVisitorMode}
+        onToggleVisitorMode={() => setIsVisitorMode(!isVisitorMode)}
       />
 
       {/* Sub-cadastre Breadcrumb Alert Bar when inside ISETECH View */}
@@ -276,15 +278,14 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Dashboard & Analytics Bar */}
+      {/* Dashboard Analytics */}
       <Dashboard
         concessionPolygon={activeView === 'isetech' ? subZones[0] || concessionPolygon : concessionPolygon}
         parcels={currentParcels}
       />
 
-      {/* Main Workspace (Map + Collapsible Parcel Sidebar List) */}
+      {/* Main Workspace */}
       <div className="flex-1 flex flex-col md:flex-row relative overflow-hidden">
-        {/* Interactive Map Area */}
         <main className="flex-1 h-[600px] md:h-auto relative transition-all duration-300">
           <MapView
             concessionPolygon={concessionPolygon}
@@ -292,19 +293,17 @@ export default function App() {
             parcels={currentParcels}
             selectedParcel={selectedParcel}
             selectedParcelIds={selectedParcelIds}
-            onSelectParcel={(p) => {
-              setSelectedParcel(p);
-            }}
+            onSelectParcel={(p) => setSelectedParcel(p)}
             onOpenCreateFormWithPoints={handleOpenCreateFormWithPoints}
             activeView={activeView}
             onExploreSubZone={handleExploreSubZone}
             onReturnToGlobal={handleReturnToGlobal}
             isSidebarCollapsed={isSidebarCollapsed}
             onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            isVisitorMode={isVisitorMode}
           />
         </main>
 
-        {/* Parcels List Sidebar with Collapse/Expand Toggle */}
         {!isSidebarCollapsed && (
           <ParcelList
             parcels={currentParcels}
@@ -318,10 +317,12 @@ export default function App() {
             onBulkChangeStatus={handleBulkChangeStatus}
             onBulkExportGeoJSON={handleBulkExportGeoJSON}
             onOpenCreateForm={() => {
+              if (isVisitorMode) return;
               setInitialFormPoints(null);
               setIsFormOpen(true);
             }}
             onToggleCollapse={() => setIsSidebarCollapsed(true)}
+            isVisitorMode={isVisitorMode}
           />
         )}
       </div>
@@ -332,39 +333,41 @@ export default function App() {
         onClose={() => setSelectedParcel(null)}
         onUpdateParcel={handleUpdateParcel}
         onDeleteParcel={handleDeleteParcel}
+        isVisitorMode={isVisitorMode}
       />
 
-      {/* Create Parcel Modal */}
-      <ParcelFormModal
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onAddParcel={handleAddParcel}
-        concessionPolygon={concessionPolygon}
-        existingParcels={currentParcels}
-        initialPoints={initialFormPoints}
-      />
+      {/* Modals (Only functional in Admin mode) */}
+      {!isVisitorMode && (
+        <>
+          <ParcelFormModal
+            isOpen={isFormOpen}
+            onClose={() => setIsFormOpen(false)}
+            onAddParcel={handleAddParcel}
+            concessionPolygon={concessionPolygon}
+            existingParcels={currentParcels}
+            initialPoints={initialFormPoints}
+          />
 
-      {/* GeoJSON Parcel Importer Modal */}
-      <GeoJsonImporterModal
-        isOpen={isGeoJsonImporterOpen}
-        onClose={() => setIsGeoJsonImporterOpen(false)}
-        onAddParcels={handleAddParcelsFromExternal}
-      />
+          <GeoJsonImporterModal
+            isOpen={isGeoJsonImporterOpen}
+            onClose={() => setIsGeoJsonImporterOpen(false)}
+            onAddParcels={handleAddParcelsFromExternal}
+          />
 
-      {/* KML Parcel Importer Modal */}
-      <KmlParcelImporterModal
-        isOpen={isKmlParcelImporterOpen}
-        onClose={() => setIsKmlParcelImporterOpen(false)}
-        onAddParcels={handleAddParcelsFromExternal}
-        concessionPolygon={concessionPolygon}
-      />
+          <KmlParcelImporterModal
+            isOpen={isKmlParcelImporterOpen}
+            onClose={() => setIsKmlParcelImporterOpen(false)}
+            onAddParcels={handleAddParcelsFromExternal}
+            concessionPolygon={concessionPolygon}
+          />
 
-      {/* KML Concession Importer Modal */}
-      <KmlImporter
-        isOpen={isKmlImporterOpen}
-        onClose={() => setIsKmlImporterOpen(false)}
-        onSetConcession={(poly) => setConcessionPolygon(poly)}
-      />
+          <KmlImporter
+            isOpen={isKmlImporterOpen}
+            onClose={() => setIsKmlImporterOpen(false)}
+            onSetConcession={(poly) => setConcessionPolygon(poly)}
+          />
+        </>
+      )}
     </div>
   );
 }

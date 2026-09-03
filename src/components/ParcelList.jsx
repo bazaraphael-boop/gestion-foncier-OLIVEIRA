@@ -15,7 +15,8 @@ export default function ParcelList({
   onBulkDelete,
   onBulkChangeStatus,
   onBulkExportGeoJSON,
-  onToggleCollapse
+  onToggleCollapse,
+  isVisitorMode
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -73,13 +74,15 @@ export default function ParcelList({
           </div>
 
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={onOpenCreateForm}
-              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1 transition-all shadow-xs cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Ajouter</span>
-            </button>
+            {!isVisitorMode && (
+              <button
+                onClick={onOpenCreateForm}
+                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1 transition-all shadow-xs cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Ajouter</span>
+              </button>
+            )}
 
             {/* Collapse Sidebar Button */}
             {onToggleCollapse && (
@@ -143,30 +146,32 @@ export default function ParcelList({
             </button>
           </div>
 
-          {/* Select All Checkbox Control Bar */}
-          <div className="flex items-center justify-between pt-1 text-xs text-slate-600">
-            <button
-              onClick={handleToggleSelectAll}
-              className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 cursor-pointer"
-            >
-              {allFilteredSelected ? (
-                <CheckSquare className="w-4 h-4 text-emerald-600" />
-              ) : (
-                <Square className="w-4 h-4 text-slate-300" />
-              )}
-              <span>Sélectionner tout ({filteredParcels.length})</span>
-            </button>
+          {/* Select All Checkbox Control Bar (Hidden in Visitor Mode) */}
+          {!isVisitorMode && (
+            <div className="flex items-center justify-between pt-1 text-xs text-slate-600">
+              <button
+                onClick={handleToggleSelectAll}
+                className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 cursor-pointer"
+              >
+                {allFilteredSelected ? (
+                  <CheckSquare className="w-4 h-4 text-emerald-600" />
+                ) : (
+                  <Square className="w-4 h-4 text-slate-300" />
+                )}
+                <span>Sélectionner tout ({filteredParcels.length})</span>
+              </button>
 
-            {selectedParcelIds.length > 0 && (
-              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                {selectedParcelIds.length} sélectionné(s)
-              </span>
-            )}
-          </div>
+              {selectedParcelIds.length > 0 && (
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  {selectedParcelIds.length} sélectionné(s)
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Floating Bulk Action Bar when 1+ parcels are checked */}
-        {selectedParcelIds.length > 0 && (
+        {!isVisitorMode && selectedParcelIds.length > 0 && (
           <div className="bg-slate-900 text-white p-2.5 px-3 border-b border-slate-800 shadow-md flex items-center justify-between gap-2 text-xs animate-in slide-in-from-top duration-200 sticky top-0 z-10">
             <div className="flex items-center gap-2 font-bold text-slate-100">
               <span className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-[10px]">
@@ -176,7 +181,6 @@ export default function ParcelList({
             </div>
 
             <div className="flex items-center gap-1">
-              {/* Bulk Status Change Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setShowStatusMenu(!showStatusMenu)}
@@ -220,7 +224,6 @@ export default function ParcelList({
                 )}
               </div>
 
-              {/* Bulk GeoJSON Export */}
               <button
                 onClick={() => onBulkExportGeoJSON(selectedParcelIds)}
                 className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded text-[11px] font-semibold flex items-center gap-1"
@@ -230,7 +233,6 @@ export default function ParcelList({
                 <span>Export</span>
               </button>
 
-              {/* Bulk Delete Button */}
               <button
                 onClick={() => setShowBulkDeleteConfirm(true)}
                 className="px-2 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded text-[11px] font-bold flex items-center gap-1"
@@ -240,7 +242,6 @@ export default function ParcelList({
                 <span>Supprimer</span>
               </button>
 
-              {/* Clear Selection Button */}
               <button
                 onClick={onClearSelection}
                 className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800"
@@ -277,20 +278,21 @@ export default function ParcelList({
                       : 'hover:bg-slate-50'
                   }`}
                 >
-                  {/* Multi-Selection Checkbox */}
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleSelectParcel(parcel.id);
-                    }}
-                    className="pt-0.5 cursor-pointer text-slate-400 hover:text-emerald-600 flex-shrink-0"
-                  >
-                    {isChecked ? (
-                      <CheckSquare className="w-4 h-4 text-emerald-600" />
-                    ) : (
-                      <Square className="w-4 h-4 text-slate-300 hover:text-slate-500" />
-                    )}
-                  </div>
+                  {!isVisitorMode && (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSelectParcel(parcel.id);
+                      }}
+                      className="pt-0.5 cursor-pointer text-slate-400 hover:text-emerald-600 flex-shrink-0"
+                    >
+                      {isChecked ? (
+                        <CheckSquare className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <Square className="w-4 h-4 text-slate-300 hover:text-slate-500" />
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex-1 flex flex-col gap-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
