@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+/* Leaflet Map Custom Styling */
+.leaflet-container {
+  background-color: #0f172a !important; /* Dark Slate background instead of ugly grey #ddd during zoom */
+  font-family: inherit;
+}
+
+/* High-Definition Tile Sharpness Filter */
+.leaflet-tile-pane img.leaflet-tile {
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: crisp-edges !important;
+  filter: contrast(1.08) brightness(1.02) saturate(1.05) !important;
+  will-change: transform;
+}
+
+/* Custom Cartographic Tooltip Styling */
+.custom-concession-tooltip {
+  background-color: #0f172a !important;
+  border: 1px solid #334155 !important;
+  color: #f8fafc !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Hide Leaflet Attribution Links clutter on small screens if needed */
+.leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(4px);
+  font-size: 9px !important;
+  color: #64748b !important;
+  border-top-left-radius: 4px;
+  padding: 2px 6px !important;
+}
