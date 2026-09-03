@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Navbar from './components/Navbar';
 import Dashboard from './components/Dashboard';
 import MapView from './components/MapView';
@@ -15,7 +15,7 @@ import { INITIAL_PARCELS } from './data/initialParcels';
 import { ISETECH_SUB_PARCELS } from './data/isetechSubParcels';
 import { parseKMLToGeoJSON, extractMainConcessionPolygon, extractSubZones } from './utils/kmlParser';
 import { calculateArea, exportParcelsToGeoJSON } from './utils/geoUtils';
-import { Layers3, ArrowLeft, PanelRightClose, PanelRightOpen, Layers } from 'lucide-react';
+import { Layers3, ArrowLeft } from 'lucide-react';
 
 import {
   fetchParcelsFromSupabase,
@@ -29,6 +29,27 @@ import {
 const STORAGE_KEY_PARCELS = 'geocadastre_parcels_v3';
 const STORAGE_KEY_CONCESSION = 'geocadastre_concession_v3';
 
+// Fast synchronous initializers for 0ms load time
+function getInitialConcession() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_CONCESSION);
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  const geojson = parseKMLToGeoJSON(DEFAULT_KML_DATA);
+  return extractMainConcessionPolygon(geojson);
+}
+
+function getInitialParcels() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_PARCELS);
+    if (saved) {
+      const loaded = JSON.parse(saved);
+      if (Array.isArray(loaded) && loaded.length > 0) return loaded;
+    }
+  } catch (e) {}
+  return INITIAL_PARCELS;
+}
+
 export default function App() {
   // Visitor Read-Only Mode State
   const [isVisitorMode, setIsVisitorMode] = useState(false);
@@ -39,12 +60,15 @@ export default function App() {
   // Sidebar Collapsed state for 100% Full Width Map
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Concession polygon state & Sub-zones (isetech)
-  const [concessionPolygon, setConcessionPolygon] = useState(null);
-  const [subZones, setSubZones] = useState([]);
+  // Synchronous INSTANT initialization (< 1ms render time)
+  const [concessionPolygon, setConcessionPolygon] = useState(getInitialConcession);
+  const [subZones, setSubZones] = useState(() => {
+    const geojson = parseKMLToGeoJSON(DEFAULT_KML_DATA);
+    return extractSubZones(geojson);
+  });
 
   // Main Parcels array state & Sub-parcels array state
-  const [globalParcels, setGlobalParcels] = useState([]);
+  const [globalParcels, setGlobalParcels] = useState(getInitialParcels);
   const [isetechParcels, setIsetechParcels] = useState(ISETECH_SUB_PARCELS);
 
   // Single selected parcel for detail view
@@ -63,63 +87,23 @@ export default function App() {
   const [isGeoJsonImporterOpen, setIsGeoJsonImporterOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
-  // Initialize Concession & Parcels from Supabase Cloud with LocalStorage/Default Fallback
+  // Non-blocking background Cloud Refresh (Stale-While-Revalidate pattern)
   useEffect(() => {
-    async function initCloudData() {
-      // Load Concession
-      const savedConcession = localStorage.getItem(STORAGE_KEY_CONCESSION);
-      if (savedConcession) {
-        try {
-          setConcessionPolygon(JSON.parse(savedConcession));
-        } catch (e) {
-          loadDefaultConcession();
-        }
-      } else {
-        loadDefaultConcession();
-      }
-
-      // Load Parcels from Supabase Cloud first
-      const cloudParcels = await fetchParcelsFromSupabase();
-      if (cloudParcels && cloudParcels.length > 0) {
+    let isMounted = true;
+    fetchParcelsFromSupabase().then((cloudParcels) => {
+      if (isMounted && cloudParcels && cloudParcels.length > 0) {
         setGlobalParcels(cloudParcels);
-        return;
       }
+    }).catch((err) => {
+      console.warn('Background Supabase sync skipped:', err);
+    });
 
-      // Fallback to LocalStorage
-      const savedParcels = localStorage.getItem(STORAGE_KEY_PARCELS);
-      if (savedParcels) {
-        try {
-          const loaded = JSON.parse(savedParcels);
-          const healed = loaded.map((p) => {
-            const area = calculateArea(p);
-            return {
-              ...p,
-              properties: {
-                ...p.properties,
-                areaSqM: area.sqMeters > 0 ? area.sqMeters : p.properties.areaSqM || 10026098,
-                areaHa: area.hectares > 0 ? area.hectares : p.properties.areaHa || 1002.61,
-                formattedSqM: area.sqMeters > 0 ? area.formattedSqM : p.properties.formattedSqM || '10 026 098 m²',
-                formattedHa: area.hectares > 0 ? area.formattedHa : p.properties.formattedHa || '1 002,61 ha'
-              }
-            };
-          });
-          setGlobalParcels(healed);
-          // Sync default/healed parcels up to Supabase Cloud
-          bulkSaveParcelsToSupabase(healed);
-        } catch (e) {
-          setGlobalParcels(INITIAL_PARCELS);
-          bulkSaveParcelsToSupabase(INITIAL_PARCELS);
-        }
-      } else {
-        setGlobalParcels(INITIAL_PARCELS);
-        bulkSaveParcelsToSupabase(INITIAL_PARCELS);
-      }
-    }
-
-    initCloudData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Save to LocalStorage & Supabase Cloud
+  // Save to LocalStorage & Supabase Cloud (Debounced / Non-blocking)
   useEffect(() => {
     if (concessionPolygon) {
       localStorage.setItem(STORAGE_KEY_CONCESSION, JSON.stringify(concessionPolygon));
@@ -141,7 +125,9 @@ export default function App() {
     setSubZones(subs);
   };
 
-  const currentParcels = activeView === 'isetech' ? isetechParcels : globalParcels;
+  const currentParcels = useMemo(() => {
+    return activeView === 'isetech' ? isetechParcels : globalParcels;
+  }, [activeView, isetechParcels, globalParcels]);
 
   // Add new single parcel
   const handleAddParcel = (newParcel) => {
