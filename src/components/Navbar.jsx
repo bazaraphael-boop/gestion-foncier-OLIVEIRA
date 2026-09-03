@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Download, Upload, RefreshCw, FileCode, FileCode2, MoreVertical, ChevronDown, Eye, ShieldCheck, Lock, Cloud } from 'lucide-react';
+import { Plus, Download, Upload, RefreshCw, FileCode, FileCode2, MoreVertical, ChevronDown, Eye, ShieldCheck, Lock, Cloud, Trash2 } from 'lucide-react';
 import { exportParcelsToGeoJSON, calculateArea } from '../utils/geoUtils';
 
 export default function Navbar({
@@ -10,6 +10,7 @@ export default function Navbar({
   parcels,
   concessionPolygon,
   onResetData,
+  onClearAllData,
   isVisitorMode,
   onToggleVisitorMode,
   onOpenSupabaseModal
@@ -146,7 +147,7 @@ export default function Navbar({
               </button>
 
               {showToolsDropdown && (
-                <div className="absolute right-0 top-full mt-1.5 w-48 bg-slate-900 border border-slate-700 rounded shadow-xl p-1 z-[1200] space-y-0.5 text-xs font-sans">
+                <div className="absolute right-0 top-full mt-1.5 w-52 bg-slate-900 border border-slate-700 rounded shadow-xl p-1 z-[1200] space-y-0.5 text-xs font-sans">
                   <button
                     onClick={() => { onOpenKmlParcelImporter(); setShowToolsDropdown(false); }}
                     className="w-full text-left px-2.5 py-1.5 hover:bg-slate-800 text-emerald-400 rounded flex items-center gap-2 font-medium"
@@ -165,12 +166,19 @@ export default function Navbar({
                   >
                     <Download className="w-3.5 h-3.5 text-slate-400" /> Exporter GeoJSON
                   </button>
-                  <div className="border-t border-slate-800 my-1 pt-1">
+
+                  <div className="border-t border-slate-800 my-1 pt-1 space-y-0.5">
+                    <button
+                      onClick={() => { onClearAllData(); setShowToolsDropdown(false); }}
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-rose-950/60 text-rose-400 rounded flex items-center gap-2 font-medium"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-500" /> Supprimer TOUTES les parcelles
+                    </button>
                     <button
                       onClick={() => { onResetData(); setShowToolsDropdown(false); }}
-                      className="w-full text-left px-2.5 py-1.5 hover:bg-rose-900/30 text-rose-400 rounded flex items-center gap-2 font-medium"
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-slate-800 text-slate-400 rounded flex items-center gap-2 font-medium"
                     >
-                      <RefreshCw className="w-3.5 h-3.5 text-rose-400" /> Réinitialiser Données
+                      <RefreshCw className="w-3.5 h-3.5 text-slate-400" /> Recharger Données Démo
                     </button>
                   </div>
                 </div>

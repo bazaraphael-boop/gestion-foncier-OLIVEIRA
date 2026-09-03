@@ -58,7 +58,7 @@ export async function fetchParcelsFromSupabase() {
       .order('updated_at', { ascending: false });
 
     if (error) throw error;
-    if (data && data.length > 0) {
+    if (data) {
       return data.map((row) => ({
         id: row.id,
         type: row.type || 'Feature',
@@ -169,7 +169,26 @@ export async function bulkDeleteParcelsFromSupabase(parcelIdsList) {
   }
 }
 
-// 6. Real-Time WebSockets Subscription for Automatic Sync
+// 6. Delete ALL parcels in Supabase Cloud
+export async function deleteAllParcelsInSupabase() {
+  const client = getSupabaseInstance();
+  if (!client) return false;
+
+  try {
+    const { error } = await client
+      .from('parcels')
+      .delete()
+      .neq('id', 'non_existent_id');
+
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.warn('Supabase deleteAllParcels fallback:', err.message);
+    return false;
+  }
+}
+
+// 7. Real-Time WebSockets Subscription for Automatic Sync
 export function subscribeToRealtimeParcels(onPayload) {
   const client = getSupabaseInstance();
   if (!client) return null;

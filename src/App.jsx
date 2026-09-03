@@ -23,6 +23,7 @@ import {
   deleteParcelFromSupabase,
   bulkSaveParcelsToSupabase,
   bulkDeleteParcelsFromSupabase,
+  deleteAllParcelsInSupabase,
   saveConcessionToSupabase,
   subscribeToRealtimeParcels
 } from './services/supabaseClient';
@@ -44,10 +45,10 @@ function getInitialParcels() {
     const saved = localStorage.getItem(STORAGE_KEY_PARCELS);
     if (saved !== null) {
       const loaded = JSON.parse(saved);
-      if (Array.isArray(loaded)) return loaded; // Respect [] empty array if user deleted demo data
+      if (Array.isArray(loaded)) return loaded;
     }
   } catch (e) {}
-  return INITIAL_PARCELS;
+  return [];
 }
 
 export default function App() {
@@ -280,9 +281,20 @@ export default function App() {
     setSelectedParcelIds([]);
   };
 
+  const handleClearAllData = async () => {
+    if (isVisitorMode) return;
+    if (confirm('Voulez-vous supprimer définitivement TOUTES les parcelles (Local & Supabase Cloud) ?')) {
+      localStorage.setItem(STORAGE_KEY_PARCELS, JSON.stringify([]));
+      setGlobalParcels([]);
+      setSelectedParcel(null);
+      setSelectedParcelIds([]);
+      await deleteAllParcelsInSupabase();
+    }
+  };
+
   const handleResetData = () => {
     if (isVisitorMode) return;
-    if (confirm('Voulez-vous réinitialiser toutes les données aux valeurs démo d\'origine ?')) {
+    if (confirm('Voulez-vous recharger les données démo d\'origine ?')) {
       localStorage.removeItem(STORAGE_KEY_PARCELS);
       localStorage.removeItem(STORAGE_KEY_CONCESSION);
       setGlobalParcels(INITIAL_PARCELS);
@@ -320,6 +332,7 @@ export default function App() {
         parcels={currentParcels}
         concessionPolygon={concessionPolygon}
         onResetData={handleResetData}
+        onClearAllData={handleClearAllData}
         isVisitorMode={isVisitorMode}
         onToggleVisitorMode={() => setIsVisitorMode(!isVisitorMode)}
         onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
