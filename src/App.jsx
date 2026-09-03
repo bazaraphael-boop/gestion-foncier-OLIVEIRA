@@ -42,9 +42,9 @@ function getInitialConcession() {
 function getInitialParcels() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_PARCELS);
-    if (saved) {
+    if (saved !== null) {
       const loaded = JSON.parse(saved);
-      if (Array.isArray(loaded) && loaded.length > 0) return loaded;
+      if (Array.isArray(loaded)) return loaded; // Respect [] empty array if user deleted demo data
     }
   } catch (e) {}
   return INITIAL_PARCELS;
@@ -60,7 +60,7 @@ export default function App() {
   // Sidebar Collapsed state for 100% Full Width Map
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Synchronous INSTANT initialization (< 1ms render time)
+  // Synchronous INSTANT initialization
   const [concessionPolygon, setConcessionPolygon] = useState(getInitialConcession);
   const [subZones, setSubZones] = useState(() => {
     const geojson = parseKMLToGeoJSON(DEFAULT_KML_DATA);
@@ -94,7 +94,7 @@ export default function App() {
     const syncLatestParcels = async () => {
       try {
         const cloudParcels = await fetchParcelsFromSupabase();
-        if (isMounted && cloudParcels && cloudParcels.length > 0) {
+        if (isMounted && cloudParcels !== null) {
           setGlobalParcels(cloudParcels);
         }
       } catch (err) {
@@ -112,7 +112,7 @@ export default function App() {
       }
     });
 
-    // 3. Periodic Background Polling Sync (Every 8 Seconds for maximum freshness)
+    // 3. Periodic Background Polling Sync (Every 8 Seconds)
     const intervalId = setInterval(() => {
       if (isMounted) {
         syncLatestParcels();
@@ -137,7 +137,7 @@ export default function App() {
   }, [concessionPolygon]);
 
   useEffect(() => {
-    if (globalParcels.length > 0) {
+    if (globalParcels !== null) {
       localStorage.setItem(STORAGE_KEY_PARCELS, JSON.stringify(globalParcels));
     }
   }, [globalParcels]);
@@ -298,7 +298,7 @@ export default function App() {
 
   const handleSyncCloud = async () => {
     const cloudParcels = await fetchParcelsFromSupabase();
-    if (cloudParcels && cloudParcels.length > 0) {
+    if (cloudParcels !== null) {
       setGlobalParcels(cloudParcels);
     } else {
       await bulkSaveParcelsToSupabase(globalParcels);
