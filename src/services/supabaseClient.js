@@ -1,14 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Default Supabase Credentials supplied by user
+// Official Supabase Credentials supplied by user
 export const DEFAULT_SUPABASE_KEY = 'sb_publishable_7Ns4c6xSjJ6RtxkPtzhXgg_poq0dI1x';
-export const DEFAULT_SUPABASE_URL = 'https://7Ns4c6xSjJ6RtxkPtzhXgg.supabase.co';
+export const DEFAULT_SUPABASE_URL = 'https://oliofshztausxckzmfce.supabase.co';
 
 const STORAGE_KEY_URL = 'geocadastre_supabase_url';
 const STORAGE_KEY_KEY = 'geocadastre_supabase_key';
 
 export function getSupabaseConfig() {
-  const url = localStorage.getItem(STORAGE_KEY_URL) || import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  let url = localStorage.getItem(STORAGE_KEY_URL) || import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  // Auto-migrate if legacy invalid URL is stored
+  if (!url || url.includes('7Ns4c6xSjJ6RtxkPtzhXgg')) {
+    url = DEFAULT_SUPABASE_URL;
+    try {
+      localStorage.setItem(STORAGE_KEY_URL, DEFAULT_SUPABASE_URL);
+    } catch (e) {}
+  }
   const key = localStorage.getItem(STORAGE_KEY_KEY) || import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY;
   return { url, key };
 }
@@ -18,6 +25,7 @@ export function saveSupabaseConfig(url, key) {
   localStorage.setItem(STORAGE_KEY_KEY, key);
   initSupabaseClient();
 }
+
 
 let supabase = null;
 

@@ -143,12 +143,26 @@ export default function App() {
       try {
         const cloudParcels = await fetchParcelsFromSupabase();
         if (isMounted && cloudParcels !== null) {
-          setGlobalParcels(cloudParcels);
+          if (cloudParcels.length > 0) {
+            setGlobalParcels(cloudParcels);
+          } else {
+            // Cloud is empty: auto-upload existing local parcels to Cloud
+            try {
+              const saved = localStorage.getItem(STORAGE_KEY_PARCELS);
+              if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  await bulkSaveParcelsToSupabase(parsed);
+                }
+              }
+            } catch (e) {}
+          }
         }
       } catch (err) {
         console.warn('Auto-sync error:', err);
       }
     };
+
 
     // 1. Initial Cloud Sync
     syncLatestParcels();
