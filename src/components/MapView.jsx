@@ -107,9 +107,13 @@ function MapBoundsController({ concessionPolygon, selectedParcel, activeView, is
   const map = useMap();
 
   useEffect(() => {
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 250);
+    map.invalidateSize();
+    const t1 = setTimeout(() => map.invalidateSize(), 200);
+    const t2 = setTimeout(() => map.invalidateSize(), 600);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [isSidebarCollapsed, map]);
 
   useEffect(() => {
@@ -138,9 +142,9 @@ function MapBoundsController({ concessionPolygon, selectedParcel, activeView, is
           [bbox[1], bbox[0]],
           [bbox[3], bbox[2]]
         ];
-        map.flyToBounds(bounds, { padding: [35, 35], maxZoom: 18, duration: 1.5 });
+        map.fitBounds(bounds, { padding: [20, 20], maxZoom: 17 });
       } catch (e) {
-        map.flyTo([-5.905, 12.336], 18);
+        map.setView([-5.903, 12.338], 15);
       }
     } else if (concessionPolygon && !selectedParcel && activeView === 'global') {
       try {
@@ -149,7 +153,7 @@ function MapBoundsController({ concessionPolygon, selectedParcel, activeView, is
           [bbox[1], bbox[0]],
           [bbox[3], bbox[2]]
         ];
-        map.fitBounds(bounds, { padding: [30, 30] });
+        map.fitBounds(bounds, { padding: [25, 25] });
       } catch (e) {
         console.warn('Could not fit bounds to concession', e);
       }
@@ -379,8 +383,8 @@ export default function MapView({
     return [];
   };
 
-  let defaultCenter = [-5.913, 12.335];
-  if (concessionPolygon) {
+  let defaultCenter = [-5.903, 12.338]; // Centered directly on Zone ISETECH cadastre
+  if (activeView === 'global' && concessionPolygon) {
     try {
       const center = turf.center(concessionPolygon);
       defaultCenter = [center.geometry.coordinates[1], center.geometry.coordinates[0]];
@@ -880,9 +884,16 @@ export default function MapView({
               fillColor: '#0284C7',
               fillOpacity: activeView === 'isetech' ? 0.02 : 0.12
             }}
+            eventHandlers={{
+              click: () => {
+                if (activeView === 'global' && onExploreSubZone) {
+                  onExploreSubZone('isetech');
+                }
+              }
+            }}
           >
             <Tooltip direction="top" className="bg-cyan-900 text-cyan-100 font-bold text-[11px] px-2.5 py-1 rounded shadow-md border border-cyan-400">
-              🔷 Périmètre Zone ISETECH (1 002,61 ha)
+              🔷 Périmètre Zone ISETECH (1 002,61 ha) {activeView === 'global' ? '• Cliquer pour explorer' : ''}
             </Tooltip>
           </Polygon>
         )}

@@ -21,7 +21,7 @@ import { INITIAL_PARCELS } from './data/initialParcels';
 import { ISETECH_SUB_PARCELS } from './data/isetechSubParcels';
 import { parseKMLToGeoJSON, extractMainConcessionPolygon, extractSubZones } from './utils/kmlParser';
 import { calculateArea, exportParcelsToGeoJSON } from './utils/geoUtils';
-import { Layers3, ArrowLeft } from 'lucide-react';
+import { Layers3, ArrowLeft, Globe, MapPin } from 'lucide-react';
 
 import {
   fetchParcelsFromSupabase,
@@ -54,10 +54,10 @@ function getInitialParcels() {
     const saved = localStorage.getItem(STORAGE_KEY_PARCELS);
     if (saved !== null) {
       const loaded = JSON.parse(saved);
-      if (Array.isArray(loaded)) return loaded;
+      if (Array.isArray(loaded) && loaded.length >= 6) return loaded;
     }
   } catch (e) {}
-  return [];
+  return INITIAL_PARCELS;
 }
 
 function getInitialIsetechParcels() {
@@ -65,10 +65,10 @@ function getInitialIsetechParcels() {
     const saved = localStorage.getItem(STORAGE_KEY_ISETECH);
     if (saved !== null) {
       const loaded = JSON.parse(saved);
-      if (Array.isArray(loaded)) return loaded;
+      if (Array.isArray(loaded) && loaded.length >= 6) return loaded;
     }
   } catch (e) {}
-  return [];
+  return INITIAL_PARCELS;
 }
 
 export default function App() {
@@ -86,8 +86,8 @@ export default function App() {
     return 'portal';
   });
 
-  // Navigation View Mode: 'global' | 'isetech'
-  const [activeView, setActiveView] = useState('global');
+  // Navigation View Mode: 'isetech' | 'global' (Defaults to the true cadastre ISETECH from Image 2)
+  const [activeView, setActiveView] = useState('isetech');
 
   // Sidebar Collapsed state for 100% Full Width Map
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -145,17 +145,12 @@ export default function App() {
         if (isMounted && cloudParcels !== null) {
           if (cloudParcels.length > 0) {
             setGlobalParcels(cloudParcels);
+            setIsetechParcels(cloudParcels);
           } else {
-            // Cloud is empty: auto-upload existing local parcels to Cloud
-            try {
-              const saved = localStorage.getItem(STORAGE_KEY_PARCELS);
-              if (saved) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                  await bulkSaveParcelsToSupabase(parsed);
-                }
-              }
-            } catch (e) {}
+            // Cloud is empty: auto-upload INITIAL_PARCELS (11 real parcels) to Cloud
+            await bulkSaveParcelsToSupabase(INITIAL_PARCELS);
+            setGlobalParcels(INITIAL_PARCELS);
+            setIsetechParcels(INITIAL_PARCELS);
           }
         }
       } catch (err) {
@@ -219,7 +214,9 @@ export default function App() {
   };
 
   const currentParcels = useMemo(() => {
-    return activeView === 'isetech' ? isetechParcels : globalParcels;
+    const list = activeView === 'isetech' ? isetechParcels : globalParcels;
+    if (Array.isArray(list) && list.length > 0) return list;
+    return INITIAL_PARCELS;
   }, [activeView, isetechParcels, globalParcels]);
 
   // Auth Success Handlers
@@ -239,12 +236,9 @@ export default function App() {
   // Add new single parcel (Admin only)
   const handleAddParcel = (newParcel) => {
     if (isClientRole) return;
-    if (activeView === 'isetech') {
-      setIsetechParcels((prev) => [newParcel, ...prev]);
-    } else {
-      setGlobalParcels((prev) => [newParcel, ...prev]);
-      saveParcelToSupabase(newParcel);
-    }
+    setIsetechParcels((prev) => [newParcel, ...prev]);
+    setGlobalParcels((prev) => [newParcel, ...prev]);
+    saveParcelToSupabase(newParcel);
     setSelectedParcel(newParcel);
     setInitialFormPoints(null);
   };
@@ -252,12 +246,9 @@ export default function App() {
   // Bulk add parcels imported from KML or GeoJSON (Admin only)
   const handleAddParcelsFromExternal = (newParcelsList) => {
     if (isClientRole) return;
-    if (activeView === 'isetech') {
-      setIsetechParcels((prev) => [...newParcelsList, ...prev]);
-    } else {
-      setGlobalParcels((prev) => [...newParcelsList, ...prev]);
-      bulkSaveParcelsToSupabase(newParcelsList);
-    }
+    setIsetechParcels((prev) => [...newParcelsList, ...prev]);
+    setGlobalParcels((prev) => [...newParcelsList, ...prev]);
+    bulkSaveParcelsToSupabase(newParcelsList);
     if (newParcelsList.length > 0) {
       setSelectedParcel(newParcelsList[0]);
     }
@@ -266,24 +257,19 @@ export default function App() {
   // Update existing parcel (Admin only)
   const handleUpdateParcel = (updatedParcel) => {
     if (isClientRole) return;
-    if (activeView === 'isetech') {
-      setIsetechParcels((prev) => prev.map((p) => (p.id === updatedParcel.id ? updatedParcel : p)));
-    } else {
-      setGlobalParcels((prev) => prev.map((p) => (p.id === updatedParcel.id ? updatedParcel : p)));
-      saveParcelToSupabase(updatedParcel);
-    }
+    const updater = (prev) => prev.map((p) => (p.id === updatedParcel.id ? updatedParcel : p));
+    setIsetechParcels(updater);
+    setGlobalParcels(updater);
+    saveParcelToSupabase(updatedParcel);
     setSelectedParcel(updatedParcel);
   };
 
   // Delete single parcel (Admin only)
   const handleDeleteParcel = (parcelId) => {
     if (isClientRole) return;
-    if (activeView === 'isetech') {
-      setIsetechParcels((prev) => prev.filter((p) => p.id !== parcelId));
-    } else {
-      setGlobalParcels((prev) => prev.filter((p) => p.id !== parcelId));
-      deleteParcelFromSupabase(parcelId);
-    }
+    setIsetechParcels((prev) => prev.filter((p) => p.id !== parcelId));
+    setGlobalParcels((prev) => prev.filter((p) => p.id !== parcelId));
+    deleteParcelFromSupabase(parcelId);
     setSelectedParcel(null);
     setSelectedParcelIds((prev) => prev.filter((id) => id !== parcelId));
   };
@@ -304,12 +290,9 @@ export default function App() {
 
   const handleBulkDeleteParcels = (idsToDelete) => {
     if (isClientRole) return;
-    if (activeView === 'isetech') {
-      setIsetechParcels((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
-    } else {
-      setGlobalParcels((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
-      bulkDeleteParcelsFromSupabase(idsToDelete);
-    }
+    setIsetechParcels((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
+    setGlobalParcels((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
+    bulkDeleteParcelsFromSupabase(idsToDelete);
     setSelectedParcel(null);
     setSelectedParcelIds([]);
   };
@@ -319,16 +302,14 @@ export default function App() {
     const updater = (prev) =>
       prev.map((p) => (idsToUpdate.includes(p.id) ? { ...p, properties: { ...p.properties, status: newStatus } } : p));
 
-    if (activeView === 'isetech') {
-      setIsetechParcels(updater);
-    } else {
-      setGlobalParcels(updater);
-      const updatedParcels = globalParcels.filter((p) => idsToUpdate.includes(p.id)).map((p) => ({
-        ...p,
-        properties: { ...p.properties, status: newStatus }
-      }));
-      bulkSaveParcelsToSupabase(updatedParcels);
-    }
+    setIsetechParcels(updater);
+    setGlobalParcels(updater);
+
+    const updatedParcels = currentParcels.filter((p) => idsToUpdate.includes(p.id)).map((p) => ({
+      ...p,
+      properties: { ...p.properties, status: newStatus }
+    }));
+    bulkSaveParcelsToSupabase(updatedParcels);
   };
 
   const handleBulkExportGeoJSON = (idsToExport) => {
@@ -457,20 +438,37 @@ export default function App() {
         />
       )}
 
-      {/* Sub-cadastre Breadcrumb Alert Bar */}
-      {activeView === 'isetech' && (
+      {/* Sub-cadastre Breadcrumb Alert Bar / View Mode Switcher */}
+      {activeView === 'isetech' ? (
         <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between gap-3 text-slate-200 text-xs">
-          <div className="flex items-center gap-2 font-semibold">
-            <Layers3 className="w-4 h-4 text-cyan-400" />
-            <span>
+          <div className="flex items-center gap-2 font-semibold min-w-0">
+            <Layers3 className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+            <span className="truncate">
               Sous-cadastre spécialisé : <strong className="text-white uppercase">ZONE ISETECH (1 002,61 ha)</strong>
             </span>
           </div>
           <button
             onClick={handleReturnToGlobal}
-            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium rounded flex items-center gap-1.5 border border-slate-700 transition-all cursor-pointer"
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium rounded flex items-center gap-1.5 border border-slate-700 transition-all cursor-pointer flex-shrink-0"
+            title="Afficher la vue d'ensemble de la concession"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Retour Vue Périmètre Global
+            <ArrowLeft className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Retour Vue</span> Périmètre Global
+          </button>
+        </div>
+      ) : (
+        <div className="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between gap-3 text-slate-200 text-xs">
+          <div className="flex items-center gap-2 font-semibold min-w-0">
+            <Globe className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <span className="truncate">
+              Périmètre Concession Globale : <strong className="text-white uppercase">Manuel Joaquim d'Oliveira (5 404,80 ha)</strong>
+            </span>
+          </div>
+          <button
+            onClick={() => handleExploreSubZone('isetech')}
+            className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded flex items-center gap-1.5 shadow-sm transition-all cursor-pointer flex-shrink-0 animate-pulse"
+            title="Zoomer dans le cadastre spécialisé Zone ISETECH"
+          >
+            <Layers3 className="w-3.5 h-3.5" /> Zoomer sur Cadastre ISETECH (1 002 ha)
           </button>
         </div>
       )}

@@ -1,4 +1,6 @@
+import { INITIAL_PARCELS } from './initialParcels';
+
 /**
- * Sub-parcels dataset located inside Zone ISETECH - Empty by default for clean cadastral management
+ * Sub-parcels dataset located inside Zone ISETECH (1 002,61 ha)
  */
-export const ISETECH_SUB_PARCELS = [];
+export const ISETECH_SUB_PARCELS = INITIAL_PARCELS;
