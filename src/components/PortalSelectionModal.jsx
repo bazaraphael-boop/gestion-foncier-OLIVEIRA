@@ -1,16 +1,9 @@
 import React from 'react';
-import OfficialHeaderBanner from './OfficialHeaderBanner';
 
 export default function PortalSelectionModal({ onSelectAdmin, onSelectClient }) {
   return (
     <div className="fixed inset-0 z-[4000] bg-gray-100 flex flex-col overflow-y-auto font-sans antialiased">
 
-      {/* ─── Bannière officielle ─── */}
-      <div className="w-full bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-5xl mx-auto">
-          <OfficialHeaderBanner className="rounded-none border-0 shadow-none" />
-        </div>
-      </div>
 
       {/* ─── Bande de titre institutionnelle ─── */}
       <div className="w-full bg-[#1a3a5c] text-white py-4 px-4 text-center">
