@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Navbar from './components/Navbar';
+import ClientNavbar from './components/ClientNavbar';
 import Dashboard from './components/Dashboard';
 import MapView from './components/MapView';
 import ParcelList from './components/ParcelList';
@@ -9,6 +10,10 @@ import KmlImporter from './components/KmlImporter';
 import KmlParcelImporterModal from './components/KmlParcelImporterModal';
 import GeoJsonImporterModal from './components/GeoJsonImporterModal';
 import SupabaseModal from './components/SupabaseModal';
+
+import PortalSelectionModal from './components/PortalSelectionModal';
+import ClientPinModal from './components/ClientPinModal';
+import AdminLoginModal from './components/AdminLoginModal';
 
 import { DEFAULT_KML_DATA } from './data/defaultConcession';
 import { INITIAL_PARCELS } from './data/initialParcels';
@@ -27,6 +32,8 @@ import {
   saveConcessionToSupabase,
   subscribeToRealtimeParcels
 } from './services/supabaseClient';
+
+import { getCurrentSession, logout } from './services/authService';
 
 const STORAGE_KEY_PARCELS = 'geocadastre_parcels_v3';
 const STORAGE_KEY_ISETECH = 'geocadastre_isetech_parcels_v3';
@@ -64,8 +71,9 @@ function getInitialIsetechParcels() {
 }
 
 export default function App() {
-  // Visitor Read-Only Mode State
-  const [isVisitorMode, setIsVisitorMode] = useState(false);
+  // Authentication & Role Session State ('admin' | 'client' | null)
+  const [session, setSession] = useState(() => getCurrentSession());
+  const [authView, setAuthView] = useState('portal'); // 'portal' | 'client_pin' | 'admin_login'
 
   // Navigation View Mode: 'global' | 'isetech'
   const [activeView, setActiveView] = useState('global');
@@ -99,6 +107,21 @@ export default function App() {
   const [isKmlParcelImporterOpen, setIsKmlParcelImporterOpen] = useState(false);
   const [isGeoJsonImporterOpen, setIsGeoJsonImporterOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+
+  // Is Visitor/Client Mode flag
+  const isClientRole = session?.role === 'client';
+
+  // Check active session periodically to handle expiration
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const active = getCurrentSession();
+      if (!active && session) {
+        setSession(null);
+        setAuthView('portal');
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [session]);
 
   // Automatic Real-Time WebSockets Subscription & Polling Sync
   useEffect(() => {
@@ -143,11 +166,11 @@ export default function App() {
 
   // Save to LocalStorage & Supabase Cloud
   useEffect(() => {
-    if (concessionPolygon) {
+    if (concessionPolygon && session?.role === 'admin') {
       localStorage.setItem(STORAGE_KEY_CONCESSION, JSON.stringify(concessionPolygon));
       saveConcessionToSupabase(concessionPolygon);
     }
-  }, [concessionPolygon]);
+  }, [concessionPolygon, session]);
 
   useEffect(() => {
     if (globalParcels !== null) {
@@ -173,9 +196,23 @@ export default function App() {
     return activeView === 'isetech' ? isetechParcels : globalParcels;
   }, [activeView, isetechParcels, globalParcels]);
 
-  // Add new single parcel
+  // Auth Success Handlers
+  const handleAuthSuccess = (validSession) => {
+    setSession(validSession);
+    setAuthView('portal');
+  };
+
+  const handleLogout = () => {
+    logout();
+    setSession(null);
+    setAuthView('portal');
+    setSelectedParcel(null);
+    setSelectedParcelIds([]);
+  };
+
+  // Add new single parcel (Admin only)
   const handleAddParcel = (newParcel) => {
-    if (isVisitorMode) return;
+    if (isClientRole) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => [newParcel, ...prev]);
     } else {
@@ -186,9 +223,9 @@ export default function App() {
     setInitialFormPoints(null);
   };
 
-  // Bulk add parcels imported from KML or GeoJSON
+  // Bulk add parcels imported from KML or GeoJSON (Admin only)
   const handleAddParcelsFromExternal = (newParcelsList) => {
-    if (isVisitorMode) return;
+    if (isClientRole) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => [...newParcelsList, ...prev]);
     } else {
@@ -200,9 +237,9 @@ export default function App() {
     }
   };
 
-  // Update existing parcel
+  // Update existing parcel (Admin only)
   const handleUpdateParcel = (updatedParcel) => {
-    if (isVisitorMode) return;
+    if (isClientRole) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => prev.map((p) => (p.id === updatedParcel.id ? updatedParcel : p)));
     } else {
@@ -212,9 +249,9 @@ export default function App() {
     setSelectedParcel(updatedParcel);
   };
 
-  // Delete single parcel
+  // Delete single parcel (Admin only)
   const handleDeleteParcel = (parcelId) => {
-    if (isVisitorMode) return;
+    if (isClientRole) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => prev.filter((p) => p.id !== parcelId));
     } else {
@@ -240,7 +277,7 @@ export default function App() {
   };
 
   const handleBulkDeleteParcels = (idsToDelete) => {
-    if (isVisitorMode) return;
+    if (isClientRole) return;
     if (activeView === 'isetech') {
       setIsetechParcels((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
     } else {
@@ -252,7 +289,7 @@ export default function App() {
   };
 
   const handleBulkChangeStatus = (idsToUpdate, newStatus) => {
-    if (isVisitorMode) return;
+    if (isClientRole) return;
     const updater = (prev) =>
       prev.map((p) => (idsToUpdate.includes(p.id) ? { ...p, properties: { ...p.properties, status: newStatus } } : p));
 
@@ -280,7 +317,7 @@ export default function App() {
   };
 
   const handleOpenCreateFormWithPoints = (pointsList) => {
-    if (isVisitorMode) return;
+    if (isClientRole) return;
     setInitialFormPoints(pointsList);
     setIsFormOpen(true);
   };
@@ -300,7 +337,7 @@ export default function App() {
   };
 
   const handleClearAllData = async () => {
-    if (isVisitorMode) return;
+    if (isClientRole) return;
     if (confirm('Voulez-vous supprimer définitivement TOUTES les parcelles (Local & Supabase Cloud) ?')) {
       localStorage.setItem(STORAGE_KEY_PARCELS, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEY_ISETECH, JSON.stringify([]));
@@ -313,7 +350,7 @@ export default function App() {
   };
 
   const handleResetData = () => {
-    if (isVisitorMode) return;
+    if (isClientRole) return;
     if (confirm('Voulez-vous recharger les données démo d\'origine ?')) {
       localStorage.removeItem(STORAGE_KEY_PARCELS);
       localStorage.removeItem(STORAGE_KEY_ISETECH);
@@ -338,26 +375,62 @@ export default function App() {
     }
   };
 
+  // --- UNAUTHENTICATED GATE (Portal Selection / Client PIN / Admin Login) ---
+  if (!session) {
+    if (authView === 'client_pin') {
+      return (
+        <ClientPinModal
+          onSuccess={handleAuthSuccess}
+          onBack={() => setAuthView('portal')}
+        />
+      );
+    }
+
+    if (authView === 'admin_login') {
+      return (
+        <AdminLoginModal
+          onSuccess={handleAuthSuccess}
+          onBack={() => setAuthView('portal')}
+        />
+      );
+    }
+
+    return (
+      <PortalSelectionModal
+        onSelectAdmin={() => setAuthView('admin_login')}
+        onSelectClient={() => setAuthView('client_pin')}
+      />
+    );
+  }
+
+  // --- AUTHENTICATED APP WORKSPACE ---
   return (
     <div className="min-h-screen bg-slate-100 font-sans flex flex-col antialiased text-slate-800">
-      {/* Top Navbar Header */}
-      <Navbar
-        onOpenCreateForm={() => {
-          if (isVisitorMode) return;
-          setInitialFormPoints(null);
-          setIsFormOpen(true);
-        }}
-        onOpenKmlImporter={() => !isVisitorMode && setIsKmlImporterOpen(true)}
-        onOpenKmlParcelImporter={() => !isVisitorMode && setIsKmlParcelImporterOpen(true)}
-        onOpenGeoJsonImporter={() => !isVisitorMode && setIsGeoJsonImporterOpen(true)}
-        parcels={currentParcels}
-        concessionPolygon={concessionPolygon}
-        onResetData={handleResetData}
-        onClearAllData={handleClearAllData}
-        isVisitorMode={isVisitorMode}
-        onToggleVisitorMode={() => setIsVisitorMode(!isVisitorMode)}
-        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
-      />
+      {/* Top Header Navbar depending on role */}
+      {isClientRole ? (
+        <ClientNavbar
+          parcels={currentParcels}
+          concessionPolygon={concessionPolygon}
+          onLogout={handleLogout}
+        />
+      ) : (
+        <Navbar
+          onOpenCreateForm={() => {
+            setInitialFormPoints(null);
+            setIsFormOpen(true);
+          }}
+          onOpenKmlImporter={() => setIsKmlImporterOpen(true)}
+          onOpenKmlParcelImporter={() => setIsKmlParcelImporterOpen(true)}
+          onOpenGeoJsonImporter={() => setIsGeoJsonImporterOpen(true)}
+          parcels={currentParcels}
+          concessionPolygon={concessionPolygon}
+          onResetData={handleResetData}
+          onClearAllData={handleClearAllData}
+          isVisitorMode={false}
+          onToggleVisitorMode={handleLogout}
+          onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+        />
+      )}
 
       {/* Sub-cadastre Breadcrumb Alert Bar */}
       {activeView === 'isetech' && (
@@ -399,7 +472,7 @@ export default function App() {
             onReturnToGlobal={handleReturnToGlobal}
             isSidebarCollapsed={isSidebarCollapsed}
             onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            isVisitorMode={isVisitorMode}
+            isVisitorMode={isClientRole}
           />
         </main>
 
@@ -416,12 +489,12 @@ export default function App() {
             onBulkChangeStatus={handleBulkChangeStatus}
             onBulkExportGeoJSON={handleBulkExportGeoJSON}
             onOpenCreateForm={() => {
-              if (isVisitorMode) return;
+              if (isClientRole) return;
               setInitialFormPoints(null);
               setIsFormOpen(true);
             }}
             onToggleCollapse={() => setIsSidebarCollapsed(true)}
-            isVisitorMode={isVisitorMode}
+            isVisitorMode={isClientRole}
           />
         )}
       </div>
@@ -432,18 +505,20 @@ export default function App() {
         onClose={() => setSelectedParcel(null)}
         onUpdateParcel={handleUpdateParcel}
         onDeleteParcel={handleDeleteParcel}
-        isVisitorMode={isVisitorMode}
+        isVisitorMode={isClientRole}
       />
 
-      {/* Supabase Cloud Sync Modal */}
-      <SupabaseModal
-        isOpen={isSupabaseModalOpen}
-        onClose={() => setIsSupabaseModalOpen(false)}
-        onSyncCloud={handleSyncCloud}
-      />
+      {/* Supabase Cloud Sync Modal (Admin only) */}
+      {!isClientRole && (
+        <SupabaseModal
+          isOpen={isSupabaseModalOpen}
+          onClose={() => setIsSupabaseModalOpen(false)}
+          onSyncCloud={handleSyncCloud}
+        />
+      )}
 
-      {/* Modals */}
-      {!isVisitorMode && (
+      {/* Admin Modals */}
+      {!isClientRole && (
         <>
           <ParcelFormModal
             isOpen={isFormOpen}
