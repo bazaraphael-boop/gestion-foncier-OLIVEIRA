@@ -79,19 +79,8 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* Role Switcher, Supabase Cloud & Action Buttons */}
+      {/* Role Switcher & Action Buttons */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        {/* Supabase Cloud Storage Badge Button */}
-        <button
-          onClick={onOpenSupabaseModal}
-          className="px-2.5 py-1 rounded-md bg-emerald-950/60 text-emerald-400 border border-emerald-700/50 hover:bg-emerald-900/60 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-          title="Stockage Cloud Supabase Actif"
-        >
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <Cloud className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="hidden sm:inline font-mono">Supabase</span>
-        </button>
-
         {/* Role Access Mode Switcher Button */}
         <button
           onClick={onToggleVisitorMode}
@@ -168,6 +157,12 @@ export default function Navbar({
                   </button>
 
                   <div className="border-t border-slate-800 my-1 pt-1 space-y-0.5">
+                    <button
+                      onClick={() => { onOpenSupabaseModal(); setShowToolsDropdown(false); }}
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-slate-800 text-slate-300 rounded flex items-center gap-2 font-medium"
+                    >
+                      <Cloud className="w-3.5 h-3.5 text-emerald-400" /> Configuration Cloud
+                    </button>
                     <button
                       onClick={() => { onClearAllData(); setShowToolsDropdown(false); }}
                       className="w-full text-left px-2.5 py-1.5 hover:bg-rose-950/60 text-rose-400 rounded flex items-center gap-2 font-medium"
