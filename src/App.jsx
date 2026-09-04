@@ -29,6 +29,7 @@ import {
 } from './services/supabaseClient';
 
 const STORAGE_KEY_PARCELS = 'geocadastre_parcels_v3';
+const STORAGE_KEY_ISETECH = 'geocadastre_isetech_parcels_v3';
 const STORAGE_KEY_CONCESSION = 'geocadastre_concession_v3';
 
 function getInitialConcession() {
@@ -43,6 +44,17 @@ function getInitialConcession() {
 function getInitialParcels() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_PARCELS);
+    if (saved !== null) {
+      const loaded = JSON.parse(saved);
+      if (Array.isArray(loaded)) return loaded;
+    }
+  } catch (e) {}
+  return [];
+}
+
+function getInitialIsetechParcels() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_ISETECH);
     if (saved !== null) {
       const loaded = JSON.parse(saved);
       if (Array.isArray(loaded)) return loaded;
@@ -70,7 +82,7 @@ export default function App() {
 
   // Main Parcels array state & Sub-parcels array state
   const [globalParcels, setGlobalParcels] = useState(getInitialParcels);
-  const [isetechParcels, setIsetechParcels] = useState(ISETECH_SUB_PARCELS);
+  const [isetechParcels, setIsetechParcels] = useState(getInitialIsetechParcels);
 
   // Single selected parcel for detail view
   const [selectedParcel, setSelectedParcel] = useState(null);
@@ -142,6 +154,12 @@ export default function App() {
       localStorage.setItem(STORAGE_KEY_PARCELS, JSON.stringify(globalParcels));
     }
   }, [globalParcels]);
+
+  useEffect(() => {
+    if (isetechParcels !== null) {
+      localStorage.setItem(STORAGE_KEY_ISETECH, JSON.stringify(isetechParcels));
+    }
+  }, [isetechParcels]);
 
   const loadDefaultConcession = () => {
     const geojson = parseKMLToGeoJSON(DEFAULT_KML_DATA);
@@ -285,7 +303,9 @@ export default function App() {
     if (isVisitorMode) return;
     if (confirm('Voulez-vous supprimer définitivement TOUTES les parcelles (Local & Supabase Cloud) ?')) {
       localStorage.setItem(STORAGE_KEY_PARCELS, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEY_ISETECH, JSON.stringify([]));
       setGlobalParcels([]);
+      setIsetechParcels([]);
       setSelectedParcel(null);
       setSelectedParcelIds([]);
       await deleteAllParcelsInSupabase();
@@ -296,6 +316,7 @@ export default function App() {
     if (isVisitorMode) return;
     if (confirm('Voulez-vous recharger les données démo d\'origine ?')) {
       localStorage.removeItem(STORAGE_KEY_PARCELS);
+      localStorage.removeItem(STORAGE_KEY_ISETECH);
       localStorage.removeItem(STORAGE_KEY_CONCESSION);
       setGlobalParcels(INITIAL_PARCELS);
       setIsetechParcels(ISETECH_SUB_PARCELS);
