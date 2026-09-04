@@ -74,7 +74,17 @@ function getInitialIsetechParcels() {
 export default function App() {
   // Authentication & Role Session State ('admin' | 'client' | null)
   const [session, setSession] = useState(() => getCurrentSession());
-  const [authView, setAuthView] = useState('portal'); // 'portal' | 'client_pin' | 'admin_login'
+  const [authView, setAuthView] = useState(() => {
+    try {
+      const search = window.location.search || '';
+      const hash = window.location.hash || '';
+      const pathname = window.location.pathname || '';
+      if (search.includes('admin') || hash.includes('admin') || pathname.endsWith('/admin')) {
+        return 'admin_login';
+      }
+    } catch (e) {}
+    return 'portal';
+  });
 
   // Navigation View Mode: 'global' | 'isetech'
   const [activeView, setActiveView] = useState('global');
