@@ -14,6 +14,7 @@ import SupabaseModal from './components/SupabaseModal';
 import PortalSelectionModal from './components/PortalSelectionModal';
 import ClientPinModal from './components/ClientPinModal';
 import AdminLoginModal from './components/AdminLoginModal';
+import AdminSecurityModal from './components/AdminSecurityModal';
 
 import { DEFAULT_KML_DATA } from './data/defaultConcession';
 import { INITIAL_PARCELS } from './data/initialParcels';
@@ -107,6 +108,7 @@ export default function App() {
   const [isKmlParcelImporterOpen, setIsKmlParcelImporterOpen] = useState(false);
   const [isGeoJsonImporterOpen, setIsGeoJsonImporterOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+  const [isAdminSecurityOpen, setIsAdminSecurityOpen] = useState(false);
 
   // Is Visitor/Client Mode flag
   const isClientRole = session?.role === 'client';
@@ -425,8 +427,9 @@ export default function App() {
           onResetData={handleResetData}
           onClearAllData={handleClearAllData}
           isVisitorMode={false}
-          onToggleVisitorMode={handleLogout}
           onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+          onOpenSecurityModal={() => setIsAdminSecurityOpen(true)}
+          onLogout={handleLogout}
         />
       )}
 
@@ -546,8 +549,15 @@ export default function App() {
             onClose={() => setIsKmlImporterOpen(false)}
             onSetConcession={(poly) => setConcessionPolygon(poly)}
           />
+
+          <AdminSecurityModal
+            isOpen={isAdminSecurityOpen}
+            onClose={() => setIsAdminSecurityOpen(false)}
+            onLogout={handleLogout}
+          />
         </>
       )}
     </div>
   );
 }
+
