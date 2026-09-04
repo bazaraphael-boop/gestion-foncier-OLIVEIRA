@@ -409,8 +409,6 @@ export default function App() {
       {/* Top Header Navbar depending on role */}
       {isClientRole ? (
         <ClientNavbar
-          parcels={currentParcels}
-          concessionPolygon={concessionPolygon}
           onLogout={handleLogout}
         />
       ) : (
@@ -476,7 +474,7 @@ export default function App() {
           />
         </main>
 
-        {!isSidebarCollapsed && (
+        {!isSidebarCollapsed && !isClientRole && (
           <ParcelList
             parcels={currentParcels}
             selectedParcel={selectedParcel}
@@ -489,24 +487,25 @@ export default function App() {
             onBulkChangeStatus={handleBulkChangeStatus}
             onBulkExportGeoJSON={handleBulkExportGeoJSON}
             onOpenCreateForm={() => {
-              if (isClientRole) return;
               setInitialFormPoints(null);
               setIsFormOpen(true);
             }}
             onToggleCollapse={() => setIsSidebarCollapsed(true)}
-            isVisitorMode={isClientRole}
+            isVisitorMode={false}
           />
         )}
       </div>
 
-      {/* Selected Parcel Detail Sidebar / Modal */}
-      <ParcelModal
-        parcel={selectedParcel}
-        onClose={() => setSelectedParcel(null)}
-        onUpdateParcel={handleUpdateParcel}
-        onDeleteParcel={handleDeleteParcel}
-        isVisitorMode={isClientRole}
-      />
+      {/* Selected Parcel Detail Sidebar / Modal — Admin uniquement */}
+      {!isClientRole && (
+        <ParcelModal
+          parcel={selectedParcel}
+          onClose={() => setSelectedParcel(null)}
+          onUpdateParcel={handleUpdateParcel}
+          onDeleteParcel={handleDeleteParcel}
+          isVisitorMode={false}
+        />
+      )}
 
       {/* Supabase Cloud Sync Modal (Admin only) */}
       {!isClientRole && (

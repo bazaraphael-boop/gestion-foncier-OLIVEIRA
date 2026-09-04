@@ -1,23 +1,7 @@
 import React from 'react';
-import { Map, LogOut, Compass, ShieldCheck } from 'lucide-react';
-import { calculateArea } from '../utils/geoUtils';
+import { LogOut } from 'lucide-react';
 
-export default function ClientNavbar({ parcels = [], concessionPolygon, onLogout }) {
-  const concessionArea = concessionPolygon ? calculateArea(concessionPolygon) : { hectares: 5404.80, formattedHa: '5 404,80 ha' };
-  const totalConcessionHa = (concessionArea && concessionArea.hectares) ? concessionArea.hectares : 5404.80;
-
-  let occupiedHa = 0;
-  parcels.forEach((p) => {
-    const area = p.properties.areaHa || calculateArea(p).hectares;
-    if (p.properties.status === 'occupe') {
-      occupiedHa += area;
-    }
-  });
-
-  const availableHa = Math.max(0, totalConcessionHa - occupiedHa);
-  const occupiedPct = totalConcessionHa > 0 ? ((occupiedHa / totalConcessionHa) * 100).toFixed(0) : '0';
-  const availablePct = totalConcessionHa > 0 ? ((availableHa / totalConcessionHa) * 100).toFixed(0) : '0';
-
+export default function ClientNavbar({ onLogout }) {
   return (
     <header className="bg-slate-900 border-b border-slate-800 text-white h-14 px-3 flex items-center justify-between sticky top-0 z-[1100] shadow-md select-none">
       {/* Brand & Title */}
@@ -40,20 +24,7 @@ export default function ClientNavbar({ parcels = [], concessionPolygon, onLogout
         </div>
       </div>
 
-      {/* Metrics Bar */}
-      <div className="hidden md:flex items-center gap-2 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700/60 text-xs font-sans">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-          <span className="text-slate-400">Libre:</span>
-          <strong className="text-emerald-400 font-semibold">{availableHa.toFixed(0)} ha ({availablePct}%)</strong>
-        </div>
-        <span className="text-slate-600">•</span>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-          <span className="text-slate-400">Occupé:</span>
-          <strong className="text-rose-400 font-semibold">{occupiedHa.toFixed(0)} ha ({occupiedPct}%)</strong>
-        </div>
-      </div>
+
 
       {/* Logout Action */}
       <div className="flex items-center gap-2">
