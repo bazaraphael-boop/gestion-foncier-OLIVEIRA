@@ -1,129 +1,125 @@
 import React from 'react';
-import { ShieldCheck, Map, Lock, ChevronRight, UserCheck, Compass, Phone, Mail, MapPin } from 'lucide-react';
 import OfficialHeaderBanner from './OfficialHeaderBanner';
 
 export default function PortalSelectionModal({ onSelectAdmin, onSelectClient }) {
   return (
-    <div className="fixed inset-0 z-[4000] bg-slate-950 flex flex-col justify-between p-4 sm:p-6 overflow-y-auto font-sans select-none antialiased">
-      {/* Background Subtle Grid Effect */}
-      <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-30 pointer-events-none"></div>
+    <div className="fixed inset-0 z-[4000] bg-gray-100 flex flex-col overflow-y-auto font-sans antialiased">
 
-      {/* Top Bar Header */}
-      <header className="relative z-10 w-full max-w-5xl mx-auto flex items-center justify-between py-2 text-slate-300">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-bold text-base shadow-lg shadow-emerald-950/50">
-            🛡️
-          </div>
-          <div>
-            <h1 className="font-bold text-sm text-white tracking-tight">SIG Foncier Cadastral</h1>
-            <span className="text-[11px] text-slate-400 font-medium">République Démocratique du Congo • Kongo Central</span>
-          </div>
-        </div>
-
-        <div className="hidden sm:flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-full text-[11px] font-mono text-slate-300 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>Accès Sécurisé SSL / WGS84</span>
-        </div>
-      </header>
-
-      {/* Main Center Container */}
-      <div className="relative z-10 w-full max-w-5xl mx-auto my-auto py-6 space-y-6">
-        {/* Official Header Banner Container */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-          {/* Integrated Clean Official Banner */}
-          <div className="bg-white overflow-hidden border-b border-slate-800">
-            <OfficialHeaderBanner />
-          </div>
-
-          {/* Subheader Title */}
-          <div className="p-5 sm:p-6 text-center space-y-2 bg-gradient-to-b from-slate-900 to-slate-950">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-bold rounded-full uppercase tracking-wider">
-              <Compass className="w-3.5 h-3.5" /> Portail d'Accès Officiel
-            </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
-              CONCESSION MANUEL JOAQUIM D'OLIVEIRA
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400 max-w-2xl mx-auto font-sans leading-relaxed">
-              Système d'Information Géographique (SIG) & Cadastre Numérique de Muanda. Veuillez sélectionner votre portail d'accès.
-            </p>
-          </div>
-        </div>
-
-        {/* Two Entry Doors (Cards Grid) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* DOOR 1: CLIENT PORTAL */}
-          <div
-            onClick={onSelectClient}
-            className="group relative bg-gradient-to-b from-slate-900 to-slate-950 hover:from-slate-900 hover:to-slate-900 border border-slate-800 hover:border-emerald-500/60 p-6 sm:p-8 rounded-2xl shadow-xl transition-all duration-300 cursor-pointer flex flex-col justify-between space-y-6 hover:-translate-y-1 hover:shadow-emerald-950/20"
-          >
-            <div className="space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all shadow-inner">
-                <Map className="w-7 h-7" />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="text-xs font-extrabold text-emerald-400 uppercase tracking-widest flex items-center gap-1">
-                  <span>Espace Grand Public & Occupants</span>
-                </div>
-                <h3 className="text-xl font-extrabold text-white group-hover:text-emerald-300 transition-colors">
-                  🗺️ Portail Client (Consultation)
-                </h3>
-                <p className="text-xs text-slate-400 leading-relaxed font-sans">
-                  Accès sécurisé par code PIN à 6 chiffres pour consulter la carte satellite HD, les limites de concession, les parcelles attribuées et la légende cadastrale.
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs font-bold text-emerald-400">
-              <span className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20">
-                <Lock className="w-3.5 h-3.5" /> Entrer Code PIN (6 chiffres)
-              </span>
-              <ChevronRight className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
-
-          {/* DOOR 2: ADMIN PORTAL */}
-          <div
-            onClick={onSelectAdmin}
-            className="group relative bg-gradient-to-b from-slate-900 to-slate-950 hover:from-slate-900 hover:to-slate-900 border border-slate-800 hover:border-cyan-500/60 p-6 sm:p-8 rounded-2xl shadow-xl transition-all duration-300 cursor-pointer flex flex-col justify-between space-y-6 hover:-translate-y-1 hover:shadow-cyan-950/20"
-          >
-            <div className="space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-110 group-hover:bg-cyan-500/20 transition-all shadow-inner">
-                <ShieldCheck className="w-7 h-7" />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="text-xs font-extrabold text-cyan-400 uppercase tracking-widest flex items-center gap-1">
-                  <span>Direction Cadastrale & Arpenteurs</span>
-                </div>
-                <h3 className="text-xl font-extrabold text-white group-hover:text-cyan-300 transition-colors">
-                  🔐 Portail Administration
-                </h3>
-                <p className="text-xs text-slate-400 leading-relaxed font-sans">
-                  Gestion intégrale du cadastre, numérisation de parcelles, modification des sommets GPS, imports GeoJSON/KML et administration Cloud Supabase.
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs font-bold text-cyan-400">
-              <span className="flex items-center gap-2 bg-cyan-500/10 px-3 py-1.5 rounded-lg border border-cyan-500/20">
-                <UserCheck className="w-3.5 h-3.5" /> Connexion Administrateur
-              </span>
-              <ChevronRight className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" />
-            </div>
-          </div>
+      {/* ─── Bannière officielle ─── */}
+      <div className="w-full bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-5xl mx-auto">
+          <OfficialHeaderBanner className="rounded-none border-0 shadow-none" />
         </div>
       </div>
 
-      {/* Bottom Footer with Contact Card */}
-      <footer className="relative z-10 w-full max-w-5xl mx-auto pt-4 border-t border-slate-900 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400">
-        <div className="flex items-center gap-2">
-          <MapPin className="w-3.5 h-3.5 text-emerald-500" />
-          <span>Avenue Makakidi N°1, Quartier Océan, Ville de Muanda / Kongo Central / RDC</span>
+      {/* ─── Bande de titre institutionnelle ─── */}
+      <div className="w-full bg-[#1a3a5c] text-white py-4 px-4 text-center">
+        <h1 className="text-sm sm:text-base font-bold uppercase tracking-widest leading-snug">
+          Système d'Information Géographique &amp; Cadastre Numérique
+        </h1>
+        <p className="text-xs text-blue-200 mt-1 font-medium">
+          Concession Manuel Joaquim d'Oliveira — Muanda / Kongo Central / RDC
+        </p>
+      </div>
+
+      {/* ─── Corps principal ─── */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-10">
+
+        <p className="text-sm text-gray-600 mb-8 text-center max-w-xl leading-relaxed">
+          Veuillez sélectionner votre portail d'accès. Un code PIN est requis pour l'espace client,
+          et des identifiants administrateur pour la gestion complète du système.
+        </p>
+
+        {/* ── Deux cartes d'accès ── */}
+        <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          {/* Portail Client */}
+          <button
+            onClick={onSelectClient}
+            className="group w-full bg-white border border-gray-300 hover:border-[#1a6e3c] rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-left overflow-hidden"
+          >
+            <div className="h-1.5 w-full bg-[#1a6e3c]" />
+            <div className="p-6 space-y-4">
+              <div className="w-11 h-11 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-[#1a6e3c]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-[#1a6e3c] uppercase tracking-widest mb-1">
+                  Espace Grand Public &amp; Occupants
+                </p>
+                <h2 className="text-base font-bold text-gray-800 group-hover:text-[#1a6e3c] transition-colors">
+                  Portail Client
+                </h2>
+                <p className="text-xs text-gray-500 leading-relaxed mt-1.5">
+                  Consultation de la carte cadastrale, limites de concession et parcelles attribuées.
+                  Accès sécurisé par code PIN à 6 chiffres.
+                </p>
+              </div>
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#1a6e3c] flex items-center gap-1.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Saisir le code PIN
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400 group-hover:text-[#1a6e3c] group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </button>
+
+          {/* Portail Administration */}
+          <button
+            onClick={onSelectAdmin}
+            className="group w-full bg-white border border-gray-300 hover:border-[#1a3a5c] rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-left overflow-hidden"
+          >
+            <div className="h-1.5 w-full bg-[#1a3a5c]" />
+            <div className="p-6 space-y-4">
+              <div className="w-11 h-11 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-[#1a3a5c]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-[#1a3a5c] uppercase tracking-widest mb-1">
+                  Direction Cadastrale &amp; Arpenteurs
+                </p>
+                <h2 className="text-base font-bold text-gray-800 group-hover:text-[#1a3a5c] transition-colors">
+                  Portail Administration
+                </h2>
+                <p className="text-xs text-gray-500 leading-relaxed mt-1.5">
+                  Gestion complète du cadastre : numérisation des parcelles, imports GeoJSON,
+                  modifications GPS et administration des données Cloud.
+                </p>
+              </div>
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#1a3a5c] flex items-center gap-1.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Connexion Administrateur
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400 group-hover:text-[#1a3a5c] group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </button>
+
         </div>
-        <div className="flex items-center gap-4 text-slate-400">
-          <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-emerald-500" /> 089 11 00 000</span>
-          <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-emerald-500" /> Bamakakidi@gmail.com</span>
+      </div>
+
+      {/* ─── Pied de page institutionnel ─── */}
+      <footer className="w-full bg-[#1a3a5c] text-blue-100 py-4 px-4">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px]">
+          <span>Avenue Makakidi N°1, Quartier Océan, Muanda / Kongo Central / RDC</span>
+          <span className="flex flex-col sm:flex-row items-center gap-1 sm:gap-4">
+            <span>089 11 00 000 &nbsp;|&nbsp; 089 619 55 55</span>
+            <span>Bamakakidi@gmail.com</span>
+          </span>
         </div>
       </footer>
     </div>
