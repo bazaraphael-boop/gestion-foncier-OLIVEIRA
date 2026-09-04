@@ -1,35 +1,42 @@
-import React from 'react';
+﻿import React from 'react';
 
 export default function PortalSelectionModal({ onSelectAdmin, onSelectClient }) {
   return (
-    <div className="fixed inset-0 z-[4000] bg-gray-100 flex flex-col overflow-y-auto font-sans antialiased">
+    <div
+      className="fixed inset-0 z-[4000] flex flex-col overflow-y-auto font-sans antialiased"
+      style={{
+        backgroundImage: 'url(/muanda_bg.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      {/* Overlay sombre pour lisibilite */}
+      <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] pointer-events-none" />
 
-
-      {/* ─── Bande de titre institutionnelle ─── */}
-      <div className="w-full bg-[#1a3a5c] text-white py-4 px-4 text-center">
+      {/* Bande de titre institutionnelle */}
+      <div className="relative z-10 w-full bg-[#0f2540]/90 text-white py-5 px-4 text-center border-b border-white/10">
         <h1 className="text-sm sm:text-base font-bold uppercase tracking-widest leading-snug">
-          Système d'Information Géographique &amp; Cadastre Numérique
+          Systeme d Information Geographique et Cadastre Numerique
         </h1>
         <p className="text-xs text-blue-200 mt-1 font-medium">
-          Concession Manuel Joaquim d'Oliveira — Muanda / Kongo Central / RDC
+          Concession Manuel Joaquim d Oliveira - Muanda / Kongo Central / RDC
         </p>
       </div>
 
-      {/* ─── Corps principal ─── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-10">
-
-        <p className="text-sm text-gray-600 mb-8 text-center max-w-xl leading-relaxed">
-          Veuillez sélectionner votre portail d'accès. Un code PIN est requis pour l'espace client,
-          et des identifiants administrateur pour la gestion complète du système.
+      {/* Corps principal */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-10">
+        <p className="text-sm text-white/80 mb-8 text-center max-w-xl leading-relaxed drop-shadow">
+          Veuillez selectionner votre portail d acces. Un code PIN est requis pour l espace client,
+          et des identifiants administrateur pour la gestion complete du systeme.
         </p>
 
-        {/* ── Deux cartes d'accès ── */}
         <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-6">
 
           {/* Portail Client */}
           <button
             onClick={onSelectClient}
-            className="group w-full bg-white border border-gray-300 hover:border-[#1a6e3c] rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-left overflow-hidden"
+            className="group w-full bg-white/90 backdrop-blur-sm border border-white/60 hover:border-[#1a6e3c] hover:bg-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 text-left overflow-hidden"
           >
             <div className="h-1.5 w-full bg-[#1a6e3c]" />
             <div className="p-6 space-y-4">
@@ -40,14 +47,14 @@ export default function PortalSelectionModal({ onSelectAdmin, onSelectClient }) 
               </div>
               <div>
                 <p className="text-[10px] font-bold text-[#1a6e3c] uppercase tracking-widest mb-1">
-                  Espace Grand Public &amp; Occupants
+                  Espace Grand Public et Occupants
                 </p>
                 <h2 className="text-base font-bold text-gray-800 group-hover:text-[#1a6e3c] transition-colors">
                   Portail Client
                 </h2>
                 <p className="text-xs text-gray-500 leading-relaxed mt-1.5">
-                  Consultation de la carte cadastrale, limites de concession et parcelles attribuées.
-                  Accès sécurisé par code PIN à 6 chiffres.
+                  Consultation de la carte cadastrale, limites de concession et parcelles attribuees.
+                  Acces securise par code PIN a 6 chiffres.
                 </p>
               </div>
               <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
@@ -67,7 +74,7 @@ export default function PortalSelectionModal({ onSelectAdmin, onSelectClient }) 
           {/* Portail Administration */}
           <button
             onClick={onSelectAdmin}
-            className="group w-full bg-white border border-gray-300 hover:border-[#1a3a5c] rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-left overflow-hidden"
+            className="group w-full bg-white/90 backdrop-blur-sm border border-white/60 hover:border-[#1a3a5c] hover:bg-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 text-left overflow-hidden"
           >
             <div className="h-1.5 w-full bg-[#1a3a5c]" />
             <div className="p-6 space-y-4">
@@ -78,14 +85,14 @@ export default function PortalSelectionModal({ onSelectAdmin, onSelectClient }) 
               </div>
               <div>
                 <p className="text-[10px] font-bold text-[#1a3a5c] uppercase tracking-widest mb-1">
-                  Direction Cadastrale &amp; Arpenteurs
+                  Direction Cadastrale et Arpenteurs
                 </p>
                 <h2 className="text-base font-bold text-gray-800 group-hover:text-[#1a3a5c] transition-colors">
                   Portail Administration
                 </h2>
                 <p className="text-xs text-gray-500 leading-relaxed mt-1.5">
-                  Gestion complète du cadastre : numérisation des parcelles, imports GeoJSON,
-                  modifications GPS et administration des données Cloud.
+                  Gestion complete du cadastre : numerisation des parcelles, imports GeoJSON,
+                  modifications GPS et administration des donnees Cloud.
                 </p>
               </div>
               <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
@@ -105,12 +112,12 @@ export default function PortalSelectionModal({ onSelectAdmin, onSelectClient }) 
         </div>
       </div>
 
-      {/* ─── Pied de page institutionnel ─── */}
-      <footer className="w-full bg-[#1a3a5c] text-blue-100 py-4 px-4">
+      {/* Pied de page */}
+      <footer className="relative z-10 w-full bg-[#0f2540]/90 text-blue-100 py-4 px-4 border-t border-white/10">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px]">
-          <span>Avenue Makakidi N°1, Quartier Océan, Muanda / Kongo Central / RDC</span>
+          <span>Avenue Makakidi N1, Quartier Ocean, Muanda / Kongo Central / RDC</span>
           <span className="flex flex-col sm:flex-row items-center gap-1 sm:gap-4">
-            <span>089 11 00 000 &nbsp;|&nbsp; 089 619 55 55</span>
+            <span>089 11 00 000 | 089 619 55 55</span>
             <span>Bamakakidi@gmail.com</span>
           </span>
         </div>
