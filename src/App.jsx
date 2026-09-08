@@ -17,8 +17,6 @@ import AdminLoginModal from './components/AdminLoginModal';
 import AdminSecurityModal from './components/AdminSecurityModal';
 
 import { DEFAULT_KML_DATA } from './data/defaultConcession';
-import { INITIAL_PARCELS } from './data/initialParcels';
-import { ISETECH_SUB_PARCELS } from './data/isetechSubParcels';
 import { parseKMLToGeoJSON, extractMainConcessionPolygon, extractSubZones } from './utils/kmlParser';
 import { calculateArea, exportParcelsToGeoJSON } from './utils/geoUtils';
 import { Layers3, ArrowLeft, Globe, MapPin } from 'lucide-react';
@@ -54,10 +52,10 @@ function getInitialParcels() {
     const saved = localStorage.getItem(STORAGE_KEY_PARCELS);
     if (saved !== null) {
       const loaded = JSON.parse(saved);
-      if (Array.isArray(loaded) && loaded.length >= 6) return loaded;
+      if (Array.isArray(loaded)) return loaded;
     }
   } catch (e) {}
-  return INITIAL_PARCELS;
+  return [];
 }
 
 function getInitialIsetechParcels() {
@@ -65,10 +63,10 @@ function getInitialIsetechParcels() {
     const saved = localStorage.getItem(STORAGE_KEY_ISETECH);
     if (saved !== null) {
       const loaded = JSON.parse(saved);
-      if (Array.isArray(loaded) && loaded.length >= 6) return loaded;
+      if (Array.isArray(loaded)) return loaded;
     }
   } catch (e) {}
-  return INITIAL_PARCELS;
+  return [];
 }
 
 export default function App() {
@@ -135,6 +133,21 @@ export default function App() {
     return () => clearInterval(interval);
   }, [session]);
 
+  // Cache version migration to clear obsolete local storage on all devices
+  const CACHE_VERSION = 'v5_sync_2026_09_08';
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem('geocadastre_cache_ver');
+      if (v !== CACHE_VERSION) {
+        localStorage.removeItem(STORAGE_KEY_PARCELS);
+        localStorage.removeItem(STORAGE_KEY_ISETECH);
+        localStorage.setItem('geocadastre_cache_ver', CACHE_VERSION);
+      }
+    } catch (e) {}
+  }, []);
+
+  const [isSyncing, setIsSyncing] = useState(false);
+
   // Automatic Real-Time WebSockets Subscription & Polling Sync
   useEffect(() => {
     let isMounted = true;
@@ -143,21 +156,13 @@ export default function App() {
       try {
         const cloudParcels = await fetchParcelsFromSupabase();
         if (isMounted && cloudParcels !== null) {
-          if (cloudParcels.length > 0) {
-            setGlobalParcels(cloudParcels);
-            setIsetechParcels(cloudParcels);
-          } else {
-            // Cloud is empty: auto-upload INITIAL_PARCELS (11 real parcels) to Cloud
-            await bulkSaveParcelsToSupabase(INITIAL_PARCELS);
-            setGlobalParcels(INITIAL_PARCELS);
-            setIsetechParcels(INITIAL_PARCELS);
-          }
+          setGlobalParcels(cloudParcels);
+          setIsetechParcels(cloudParcels);
         }
       } catch (err) {
         console.warn('Auto-sync error:', err);
       }
     };
-
 
     // 1. Initial Cloud Sync
     syncLatestParcels();
@@ -184,6 +189,21 @@ export default function App() {
       }
     };
   }, []);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      const cloudParcels = await fetchParcelsFromSupabase();
+      if (cloudParcels !== null) {
+        setGlobalParcels(cloudParcels);
+        setIsetechParcels(cloudParcels);
+      }
+    } catch (e) {
+      console.warn('Manual sync error:', e);
+    } finally {
+      setTimeout(() => setIsSyncing(false), 500);
+    }
+  };
 
   // Save to LocalStorage & Supabase Cloud
   useEffect(() => {
@@ -214,9 +234,7 @@ export default function App() {
   };
 
   const currentParcels = useMemo(() => {
-    const list = activeView === 'isetech' ? isetechParcels : globalParcels;
-    if (Array.isArray(list) && list.length > 0) return list;
-    return INITIAL_PARCELS;
+    return activeView === 'isetech' ? isetechParcels : globalParcels;
   }, [activeView, isetechParcels, globalParcels]);
 
   // Auth Success Handlers
@@ -356,20 +374,11 @@ export default function App() {
     }
   };
 
-  const handleResetData = () => {
+  const handleResetConcession = () => {
     if (isClientRole) return;
-    if (confirm('Voulez-vous recharger les données démo d\'origine ?')) {
-      localStorage.removeItem(STORAGE_KEY_PARCELS);
-      localStorage.removeItem(STORAGE_KEY_ISETECH);
+    if (confirm('Voulez-vous réinitialiser le tracé du périmètre officiel de la concession ?')) {
       localStorage.removeItem(STORAGE_KEY_CONCESSION);
-      setGlobalParcels(INITIAL_PARCELS);
-      setIsetechParcels(ISETECH_SUB_PARCELS);
-      setActiveView('global');
       loadDefaultConcession();
-      setSelectedParcel(null);
-      setSelectedParcelIds([]);
-      setInitialFormPoints(null);
-      bulkSaveParcelsToSupabase(INITIAL_PARCELS);
     }
   };
 
@@ -417,6 +426,8 @@ export default function App() {
       {isClientRole ? (
         <ClientNavbar
           onLogout={handleLogout}
+          onSync={handleManualSync}
+          isSyncing={isSyncing}
         />
       ) : (
         <Navbar
@@ -429,12 +440,14 @@ export default function App() {
           onOpenGeoJsonImporter={() => setIsGeoJsonImporterOpen(true)}
           parcels={currentParcels}
           concessionPolygon={concessionPolygon}
-          onResetData={handleResetData}
+          onResetConcession={handleResetConcession}
           onClearAllData={handleClearAllData}
           isVisitorMode={false}
           onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
           onOpenSecurityModal={() => setIsAdminSecurityOpen(true)}
           onLogout={handleLogout}
+          onSync={handleManualSync}
+          isSyncing={isSyncing}
         />
       )}
 

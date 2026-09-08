@@ -9,13 +9,15 @@ export default function Navbar({
   onOpenGeoJsonImporter,
   parcels,
   concessionPolygon,
-  onResetData,
+  onResetConcession,
   onClearAllData,
   isVisitorMode,
   onToggleVisitorMode,
   onOpenSupabaseModal,
   onOpenSecurityModal,
-  onLogout
+  onLogout,
+  onSync,
+  isSyncing
 }) {
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
 
@@ -108,6 +110,21 @@ export default function Navbar({
           <span className="hidden sm:inline">Importer GeoJSON</span>
         </button>
 
+        {/* Direct Sync Button */}
+        {onSync && (
+          <button
+            onClick={onSync}
+            disabled={isSyncing}
+            className={`px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700/80 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+              isSyncing ? 'opacity-70 cursor-wait' : ''
+            }`}
+            title="Synchroniser immédiatement avec la base de données Cloud"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-emerald-300' : 'text-emerald-400'}`} />
+            <span className="hidden sm:inline">{isSyncing ? 'Sync...' : 'Actualiser'}</span>
+          </button>
+        )}
+
         {/* Options Dropdown */}
         <div className="relative">
           <button
@@ -160,10 +177,10 @@ export default function Navbar({
                   <Trash2 className="w-3.5 h-3.5 text-rose-500" /> Supprimer TOUTES les parcelles
                 </button>
                 <button
-                  onClick={() => { onResetData(); setShowToolsDropdown(false); }}
+                  onClick={() => { onResetConcession && onResetConcession(); setShowToolsDropdown(false); }}
                   className="w-full text-left px-2.5 py-1.5 hover:bg-slate-800 text-slate-400 rounded flex items-center gap-2 font-medium"
                 >
-                  <RefreshCw className="w-3.5 h-3.5 text-slate-400" /> Recharger Données Démo
+                  <RefreshCw className="w-3.5 h-3.5 text-slate-400" /> Réinitialiser Tracé Périmètre
                 </button>
               </div>
             </div>
