@@ -50,23 +50,24 @@ export default function Navbar({
   const availablePct = totalConcessionHa > 0 ? ((availableHa / totalConcessionHa) * 100).toFixed(0) : '0';
 
   return (
-    <header className="bg-slate-900 border-b border-slate-800 text-white h-14 px-3 flex items-center justify-between sticky top-0 z-[1100] shadow-md select-none">
+    <header className="bg-slate-900 border-b border-slate-800 text-white h-12 sm:h-14 px-2.5 sm:px-3 flex items-center justify-between sticky top-0 z-[1100] shadow-md select-none">
       {/* Brand & Domaine Title */}
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-8 h-8 rounded bg-emerald-600 flex items-center justify-center font-bold text-white text-sm flex-shrink-0 shadow-xs">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-emerald-600 flex items-center justify-center font-bold text-white text-xs sm:text-sm flex-shrink-0 shadow-xs">
           🛡️
         </div>
         <div className="flex flex-col min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <h1 className="font-bold text-xs sm:text-sm text-slate-100 tracking-tight truncate">
-              Concession Manuel Joaquim d'Oliveira
+              <span className="sm:hidden">Concession Oliveira</span>
+              <span className="hidden sm:inline">Concession Manuel Joaquim d'Oliveira</span>
             </h1>
-            <span className="hidden lg:inline-flex text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.2 rounded">
-              SIG Foncier
+            <span className="text-[9px] sm:text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.2 rounded flex-shrink-0">
+              Admin
             </span>
           </div>
-          <span className="text-[10px] text-slate-400 font-medium truncate">
-            Muanda / Kongo Central / RDC • {concessionArea.formattedHa}
+          <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium truncate">
+            Muanda / RDC • {concessionArea.formattedHa}
           </span>
         </div>
       </div>
@@ -87,17 +88,11 @@ export default function Navbar({
       </div>
 
       {/* Role Switcher & Action Buttons */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {/* Admin Badge */}
-        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded text-xs font-bold">
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Admin</span>
-        </div>
-
+      <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
         {/* Creation/Modification Controls */}
         <button
           onClick={onOpenCreateForm}
-          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+          className="p-1.5 sm:px-3 sm:py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
           title="Ajouter une nouvelle parcelle"
         >
           <Plus className="w-4 h-4" />
@@ -108,7 +103,7 @@ export default function Navbar({
         {onToggleLocation && (
           <button
             onClick={onToggleLocation}
-            className={`px-2.5 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs border ${
+            className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs border ${
               isLocating
                 ? 'bg-cyan-950/80 text-cyan-300 border-cyan-500/60 shadow-cyan-900/30'
                 : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
@@ -129,11 +124,11 @@ export default function Navbar({
 
         <button
           onClick={onOpenGeoJsonImporter}
-          className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+          className="hidden sm:flex px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 rounded text-xs font-semibold items-center gap-1.5 transition-all cursor-pointer"
           title="Importer un fichier GeoJSON"
         >
           <FileCode2 className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="hidden sm:inline">Importer GeoJSON</span>
+          <span>Importer GeoJSON</span>
         </button>
 
         {/* Direct Sync Button */}
@@ -141,7 +136,7 @@ export default function Navbar({
           <button
             onClick={onSync}
             disabled={isSyncing}
-            className={`px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700/80 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+            className={`p-1.5 sm:px-2.5 sm:py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700/80 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
               isSyncing ? 'opacity-70 cursor-wait' : ''
             }`}
             title="Synchroniser immédiatement avec la base de données Cloud"
@@ -155,10 +150,10 @@ export default function Navbar({
         <div className="relative">
           <button
             onClick={() => setShowToolsDropdown(!showToolsDropdown)}
-            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded text-xs font-medium flex items-center gap-1 transition-all cursor-pointer"
+            className="p-1.5 sm:px-2.5 sm:py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded text-xs font-medium flex items-center gap-1 transition-all cursor-pointer"
             title="Options & Imports"
           >
-            <span>Options</span>
+            <span className="hidden sm:inline">Options</span>
             <ChevronDown className="w-3 h-3 text-slate-400" />
           </button>
 
@@ -175,6 +170,12 @@ export default function Navbar({
                 className="w-full text-left px-2.5 py-1.5 hover:bg-slate-800 text-slate-200 rounded flex items-center gap-2 font-medium"
               >
                 <Upload className="w-3.5 h-3.5 text-slate-400" /> Périmètre KML
+              </button>
+              <button
+                onClick={() => { onOpenGeoJsonImporter(); setShowToolsDropdown(false); }}
+                className="w-full text-left px-2.5 py-1.5 hover:bg-slate-800 text-cyan-300 rounded flex items-center gap-2 font-medium"
+              >
+                <FileCode2 className="w-3.5 h-3.5 text-cyan-400" /> Importer GeoJSON
               </button>
               <button
                 onClick={() => { handleExportGeoJSON(); setShowToolsDropdown(false); }}
@@ -216,7 +217,7 @@ export default function Navbar({
         {/* Déconnexion Button */}
         <button
           onClick={onLogout}
-          className="px-2.5 py-1.5 bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/50 rounded text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+          className="p-1.5 sm:px-2.5 sm:py-1.5 bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/50 rounded text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
           title="Fermer la session Administrateur"
         >
           <LogOut className="w-3.5 h-3.5" />

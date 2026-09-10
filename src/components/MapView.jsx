@@ -236,8 +236,8 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
   return (
     <>
       {/* Sleek Integrated Bottom HUD Bar */}
-      <div className="absolute bottom-2 left-4 right-20 z-[1000] bg-white/95 backdrop-blur-md px-3 py-1 rounded border border-slate-200 text-[11px] font-mono text-slate-700 flex items-center justify-between shadow-xs select-none pointer-events-auto">
-        <div className="flex items-center gap-3">
+      <div className="absolute bottom-2 left-2 sm:left-4 z-[1000] bg-white/95 backdrop-blur-md px-2 sm:px-3 py-1 rounded border border-slate-200 text-[10px] sm:text-[11px] font-mono text-slate-700 flex items-center justify-between shadow-xs select-none pointer-events-auto gap-2">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1 text-slate-900 font-bold">
             <Compass className="w-3.5 h-3.5 text-emerald-600" />
             <span>SIG</span>
@@ -250,7 +250,7 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
           </div>
 
           {mouseCoords && (
-            <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-3">
               <span>Lat: <strong className="text-slate-900">{mouseCoords[0].toFixed(5)}°</strong></span>
               <span>Lng: <strong className="text-slate-900">{mouseCoords[1].toFixed(5)}°</strong></span>
             </div>
@@ -297,8 +297,8 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
         </div>
       </div>
 
-      {/* Sleek Compact Pan Wheel D-Pad (Top Right) */}
-      <div className="absolute top-4 right-14 z-[1000] bg-white/95 backdrop-blur-md p-1 rounded-full border border-slate-200 shadow-md flex flex-col items-center justify-center select-none w-16 h-16">
+      {/* Sleek Compact Pan Wheel D-Pad (Desktop Only - Hidden on Mobile touchscreens) */}
+      <div className="hidden md:flex absolute top-4 right-14 z-[1000] bg-white/95 backdrop-blur-md p-1 rounded-full border border-slate-200 shadow-md flex-col items-center justify-center select-none w-16 h-16">
         <button
           onClick={() => handlePan(0, -160)}
           className="p-0.5 text-slate-700 hover:text-emerald-600 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
@@ -343,7 +343,7 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
       </div>
 
       {/* Professional North Arrow Indicator */}
-      <div className="absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur-md p-1.5 rounded border border-slate-200 shadow-xs flex flex-col items-center gap-0.5 select-none">
+      <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-[1000] bg-white/95 backdrop-blur-md p-1 sm:p-1.5 rounded border border-slate-200 shadow-xs flex flex-col items-center gap-0.5 select-none">
         <Navigation className="w-3.5 h-3.5 text-rose-600 transform -rotate-45" />
         <span className="text-[8px] font-bold text-slate-700 tracking-wider">N</span>
       </div>
@@ -381,6 +381,7 @@ export default function MapView({
   const [showOceanZones, setShowOceanZones] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
   const [sharpnessHD, setSharpnessHD] = useState(true);
+  const [showMobileGisMenu, setShowMobileGisMenu] = useState(false);
 
   const effectiveUserLocation = externalUserLocation || userLocation;
 
@@ -628,8 +629,160 @@ export default function MapView({
         </button>
       )}
 
-      {/* Sleek Minimal Icon-Only Floating GIS Toolbar (Top Left) */}
-      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-1 select-none">
+      {/* Mobile Floating GIS Quick Access Button */}
+      <div className="md:hidden absolute top-3 left-3 z-[1000]">
+        <button
+          onClick={() => setShowMobileGisMenu(true)}
+          className="px-3 py-1.5 bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 rounded-full shadow-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+        >
+          <Layers className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Calques &amp; SIG</span>
+          {showOceanZones && <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>}
+        </button>
+      </div>
+
+      {/* Mobile GIS Controls Bottom Sheet / Modal */}
+      {showMobileGisMenu && (
+        <div className="md:hidden fixed inset-0 z-[1300] bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-150">
+          <div className="bg-slate-900 border-t border-slate-800 rounded-t-2xl p-4 text-slate-100 max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+              <div className="flex items-center gap-2 font-bold text-sm text-white">
+                <Layers className="w-4 h-4 text-emerald-400" />
+                <span>Calques &amp; Outils SIG</span>
+              </div>
+              <button
+                onClick={() => setShowMobileGisMenu(false)}
+                className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Fond de Carte Switcher */}
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                Fond de carte satellite
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { id: 'google-pure', label: 'Google Satellite Pur', icon: '🛰️' },
+                  { id: 'google-hybrid', label: 'Google Hybride', icon: '🌍' },
+                  { id: 'sentinel-live', label: 'Sentinel-2 Live', icon: '📡' },
+                  { id: 'esri-clarity', label: 'Esri World HD', icon: '🏔️' }
+                ].map((b) => (
+                  <button
+                    key={b.id}
+                    onClick={() => { setMapType(b.id); }}
+                    className={`p-2 rounded-lg border text-left text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                      mapType === b.id
+                        ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300'
+                        : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-800'
+                    }`}
+                  >
+                    <span>{b.icon}</span>
+                    <span className="truncate">{b.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Toggles List */}
+            <div className="space-y-1.5 pt-1">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                Affichage des Calques
+              </div>
+              
+              {/* Ocean Zones Toggle */}
+              <div
+                onClick={() => setShowOceanZones(!showOceanZones)}
+                className="flex items-center justify-between p-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg cursor-pointer active:bg-slate-800"
+              >
+                <div className="flex items-center gap-2 text-xs font-medium">
+                  <Waves className="w-4 h-4 text-cyan-400" />
+                  <span>Zonage Littoral Océan (Zones A, B, C, D)</span>
+                </div>
+                <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${showOceanZones ? 'bg-cyan-500' : 'bg-slate-700'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showOceanZones ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+              </div>
+
+              {/* Perimeter Boundary Toggle */}
+              <div
+                onClick={() => setShowConcession(!showConcession)}
+                className="flex items-center justify-between p-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg cursor-pointer active:bg-slate-800"
+              >
+                <div className="flex items-center gap-2 text-xs font-medium">
+                  <Eye className="w-4 h-4 text-emerald-400" />
+                  <span>Tracé Périmètre Concession (5 404 ha)</span>
+                </div>
+                <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${showConcession ? 'bg-emerald-500' : 'bg-slate-700'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showConcession ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+              </div>
+
+              {/* Road Overlay Toggle */}
+              <div
+                onClick={() => setShowRoadsOverlay(!showRoadsOverlay)}
+                className="flex items-center justify-between p-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg cursor-pointer active:bg-slate-800"
+              >
+                <div className="flex items-center gap-2 text-xs font-medium">
+                  <Route className="w-4 h-4 text-amber-400" />
+                  <span>Tracé Réseau Routier</span>
+                </div>
+                <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${showRoadsOverlay ? 'bg-amber-500' : 'bg-slate-700'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showRoadsOverlay ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+              </div>
+
+              {/* Sharpness HD Toggle */}
+              <div
+                onClick={() => setSharpnessHD(!sharpnessHD)}
+                className="flex items-center justify-between p-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg cursor-pointer active:bg-slate-800"
+              >
+                <div className="flex items-center gap-2 text-xs font-medium">
+                  <Sparkles className="w-4 h-4 text-purple-400" />
+                  <span>Super-Netteté HD Satellite</span>
+                </div>
+                <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${sharpnessHD ? 'bg-purple-500' : 'bg-slate-700'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${sharpnessHD ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+              <button
+                onClick={() => { setShowLegendDrawer(true); setShowMobileGisMenu(false); }}
+                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Palette className="w-4 h-4 text-amber-400" />
+                <span>Voir Légende</span>
+              </button>
+
+              <button
+                onClick={() => { handleLocateMe(); setShowMobileGisMenu(false); }}
+                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Compass className="w-4 h-4 text-cyan-400" />
+                <span>Position GPS</span>
+              </button>
+
+              <button
+                onClick={() => { handleExportMapHD(); setShowMobileGisMenu(false); }}
+                disabled={isExporting}
+                className="col-span-2 p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                <span>Télécharger Carte HD</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sleek Minimal Icon-Only Floating GIS Toolbar (Desktop Only) */}
+      <div className="hidden md:flex absolute top-4 left-4 z-[1000] flex-col gap-1 select-none">
 
         {/* Basemap Switcher Icon Popover */}
         <div className="relative">
@@ -798,7 +951,7 @@ export default function MapView({
 
       {/* Discrete Collapsible Legend Card */}
       {showLegendDrawer && (
-        <div className="absolute top-4 left-16 z-[1010] bg-white/95 backdrop-blur-md p-3 rounded-lg border border-slate-200 shadow-xl text-xs space-y-1.5 max-w-xs text-slate-800 select-none animate-in fade-in duration-150">
+        <div className="absolute top-3 sm:top-4 left-3 sm:left-16 right-3 sm:right-auto z-[1010] bg-white/95 backdrop-blur-md p-3 rounded-lg border border-slate-200 shadow-xl text-xs space-y-1.5 max-w-sm text-slate-800 select-none animate-in fade-in duration-150 max-h-[75vh] overflow-y-auto">
           <div className="font-bold text-slate-900 border-b border-slate-200 pb-1 flex items-center justify-between gap-4">
             <span>Légende Cadastrale</span>
             <button onClick={() => setShowLegendDrawer(false)} className="text-slate-400 hover:text-slate-600">

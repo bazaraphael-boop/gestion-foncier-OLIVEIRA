@@ -140,13 +140,13 @@ export const LINE_600M_LEAFLET = [
   ]
 ];
 
-export const MIDPOINT_0M = [-5.903522426197014, 12.310008887078796];
+export const MIDPOINT_0M = [-5.885661, 12.288943];
 
-export const MIDPOINT_200M = [-5.902568086089228, 12.31162127615179];
+export const MIDPOINT_200M = [-5.893370, 12.298872];
 
-export const MIDPOINT_400M = [-5.90161374551665, 12.313233665641445];
+export const MIDPOINT_400M = [-5.908719, 12.320824];
 
-export const MIDPOINT_600M = [-5.900512667963098, 12.314689316321271];
+export const MIDPOINT_600M = [-5.918000, 12.333500];
 
 export const COASTAL_ZONES = [
   {
@@ -594,8 +594,8 @@ export const SEPARATION_LINES = [
       ]
     ],
     "midpoint": [
-      -5.903522426197014,
-      12.310008887078796
+      -5.885661,
+      12.288943
     ]
   },
   {
@@ -641,8 +641,8 @@ export const SEPARATION_LINES = [
       ]
     ],
     "midpoint": [
-      -5.902568086089228,
-      12.31162127615179
+      -5.893370,
+      12.298872
     ]
   },
   {
@@ -688,8 +688,8 @@ export const SEPARATION_LINES = [
       ]
     ],
     "midpoint": [
-      -5.90161374551665,
-      12.313233665641445
+      -5.908719,
+      12.320824
     ]
   },
   {
@@ -735,8 +735,8 @@ export const SEPARATION_LINES = [
       ]
     ],
     "midpoint": [
-      -5.900512667963098,
-      12.314689316321271
+      -5.918000,
+      12.333500
     ]
   }
 ];
