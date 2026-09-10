@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Polygon, Polyline, Popup, Tooltip, useMap, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Polyline, Popup, Tooltip, useMap, Marker, useMapEvents, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { STATUS_COLORS, ddToDms } from '../utils/geoUtils';
@@ -162,6 +162,17 @@ function MapBoundsController({ concessionPolygon, selectedParcel, activeView, is
     }
   }, [concessionPolygon, activeView, selectedParcel, map]);
 
+  return null;
+}
+
+// Controller to smoothly fly/zoom to user GPS location when triggered
+function LocationFlyToController({ flyToTrigger, userLocation }) {
+  const map = useMap();
+  useEffect(() => {
+    if (userLocation && flyToTrigger) {
+      map.flyTo(userLocation, 18, { animate: true, duration: 1.2 });
+    }
+  }, [flyToTrigger, userLocation, map]);
   return null;
 }
 
@@ -353,7 +364,13 @@ export default function MapView({
   onReturnToGlobal,
   isSidebarCollapsed,
   onToggleSidebar,
-  isVisitorMode
+  isVisitorMode,
+  userLocation: externalUserLocation,
+  locationAccuracy,
+  locationZoneInfo,
+  isInConcession,
+  locatedParcel,
+  flyToTrigger
 }) {
   const mapContainerRef = useRef(null);
   const [mapType, setMapType] = useState('google-pure');
@@ -364,6 +381,21 @@ export default function MapView({
   const [showOceanZones, setShowOceanZones] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
   const [sharpnessHD, setSharpnessHD] = useState(true);
+
+  const effectiveUserLocation = externalUserLocation || userLocation;
+
+  // Pulsing Radar Beacon Icon for Admin Real-Time GPS Localization
+  const userLocationBeaconIcon = L.divIcon({
+    className: 'custom-admin-gps-beacon',
+    html: `
+      <div style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+        <div style="position: absolute; inset: 0; border-radius: 9999px; background: rgba(6, 182, 212, 0.45); animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+        <div style="width: 14px; height: 14px; border-radius: 9999px; background: #06B6D4; border: 2.5px solid #FFFFFF; box-shadow: 0 0 10px rgba(6, 182, 212, 0.95); z-index: 2;"></div>
+      </div>
+    `,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14]
+  });
 
   const createCoastalLabelIcon = (text, bgColor, textColor, borderColor) => {
     return L.divIcon({
@@ -1119,18 +1151,80 @@ export default function MapView({
           </>
         )}
 
-        {/* User Location */}
-        {userLocation && (
-          <Marker position={userLocation}>
-            <Popup>
-              <div className="text-xs font-semibold text-slate-900">
-                📍 Votre position GPS <br />
-                <span className="font-mono text-slate-600">
-                  {userLocation[0].toFixed(6)}, {userLocation[1].toFixed(6)}
-                </span>
-              </div>
-            </Popup>
-          </Marker>
+        {/* Location FlyTo Controller */}
+        <LocationFlyToController flyToTrigger={flyToTrigger} userLocation={effectiveUserLocation} />
+
+        {/* User Real-Time GPS Location Beacon & Accuracy Circle */}
+        {effectiveUserLocation && (
+          <>
+            {locationAccuracy && locationAccuracy > 5 && (
+              <Circle
+                center={effectiveUserLocation}
+                radius={locationAccuracy}
+                pathOptions={{
+                  color: '#06B6D4',
+                  fillColor: '#06B6D4',
+                  fillOpacity: 0.12,
+                  weight: 1.5,
+                  dashArray: '3, 3'
+                }}
+              />
+            )}
+            <Marker position={effectiveUserLocation} icon={userLocationBeaconIcon}>
+              <Popup>
+                <div className="text-xs p-1 space-y-1.5 font-sans text-slate-900 min-w-[210px]">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-900 border-b border-slate-200 pb-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 animate-pulse"></span>
+                    <span>Position GPS de l'Administrateur</span>
+                  </div>
+                  
+                  <div className="font-mono text-[11px] text-slate-600">
+                    {effectiveUserLocation[0].toFixed(6)}°, {effectiveUserLocation[1].toFixed(6)}°
+                    {locationAccuracy && <span className="text-slate-400"> (±{Math.round(locationAccuracy)}m)</span>}
+                  </div>
+
+                  {locationZoneInfo && (
+                    <div
+                      className="px-2 py-1 rounded font-semibold text-[11px] flex items-center justify-between border"
+                      style={{
+                        backgroundColor: `${locationZoneInfo.color}18`,
+                        borderColor: `${locationZoneInfo.color}60`,
+                        color: locationZoneInfo.color
+                      }}
+                    >
+                      <div className="flex items-center gap-1">
+                        <Waves className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span>{locationZoneInfo.zoneName}</span>
+                      </div>
+                      <span className="font-mono font-bold text-slate-900">{locationZoneInfo.distanceFormatted} océan</span>
+                    </div>
+                  )}
+
+                  <div className="text-[11px] space-y-1 pt-1 border-t border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Statut Concession:</span>
+                      <strong className={isInConcession ? 'text-emerald-700' : 'text-amber-700'}>
+                        {isInConcession ? "Dans d'Oliveira" : 'Hors Concession'}
+                      </strong>
+                    </div>
+                    {locatedParcel && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Parcelle:</span>
+                        <strong className="text-indigo-700">
+                          {locatedParcel.properties?.lotNumber || locatedParcel.id}
+                        </strong>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Popup>
+              <Tooltip direction="top" offset={[0, -12]} opacity={0.95}>
+                <div className="text-[11px] font-sans font-bold text-cyan-950 text-center">
+                  {locationZoneInfo ? `${locationZoneInfo.shortName} (${locationZoneInfo.distanceFormatted})` : '📍 Vous êtes ici'}
+                </div>
+              </Tooltip>
+            </Marker>
+          </>
         )}
       </MapContainer>
     </div>

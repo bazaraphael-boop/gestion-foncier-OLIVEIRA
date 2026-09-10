@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Download, Upload, RefreshCw, FileCode, FileCode2, MoreVertical, ChevronDown, Eye, ShieldCheck, Lock, Cloud, Trash2, LogOut, Key } from 'lucide-react';
+import { Plus, Download, Upload, RefreshCw, FileCode, FileCode2, MoreVertical, ChevronDown, Eye, ShieldCheck, Lock, Cloud, Trash2, LogOut, Key, Navigation } from 'lucide-react';
 import { exportParcelsToGeoJSON, calculateArea } from '../utils/geoUtils';
 
 export default function Navbar({
@@ -17,7 +17,10 @@ export default function Navbar({
   onOpenSecurityModal,
   onLogout,
   onSync,
-  isSyncing
+  isSyncing,
+  onToggleLocation,
+  isLocating,
+  locationZoneInfo
 }) {
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
 
@@ -100,6 +103,29 @@ export default function Navbar({
           <Plus className="w-4 h-4" />
           <span className="hidden sm:inline">Nouvelle Parcelle</span>
         </button>
+
+        {/* GPS Location Button for Admin */}
+        {onToggleLocation && (
+          <button
+            onClick={onToggleLocation}
+            className={`px-2.5 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs border ${
+              isLocating
+                ? 'bg-cyan-950/80 text-cyan-300 border-cyan-500/60 shadow-cyan-900/30'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+            }`}
+            title={isLocating ? 'Désactiver le suivi de localisation GPS' : 'Activer la géolocalisation GPS pour déterminer votre zone côtière'}
+          >
+            <div className="relative flex items-center justify-center">
+              <Navigation className={`w-3.5 h-3.5 ${isLocating ? 'text-cyan-400 animate-pulse' : 'text-slate-400'}`} />
+              {isLocating && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+              )}
+            </div>
+            <span className="hidden sm:inline font-sans">
+              {isLocating && locationZoneInfo ? locationZoneInfo.shortName : 'Localiser'}
+            </span>
+          </button>
+        )}
 
         <button
           onClick={onOpenGeoJsonImporter}

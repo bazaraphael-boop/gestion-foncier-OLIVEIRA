@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Navbar from './components/Navbar';
 import ClientNavbar from './components/ClientNavbar';
 import Dashboard from './components/Dashboard';
@@ -10,6 +10,9 @@ import KmlImporter from './components/KmlImporter';
 import KmlParcelImporterModal from './components/KmlParcelImporterModal';
 import GeoJsonImporterModal from './components/GeoJsonImporterModal';
 import SupabaseModal from './components/SupabaseModal';
+import AdminLocationHUD from './components/AdminLocationHUD';
+import { getOceanZoneInfo } from './utils/coastalZones';
+import * as turf from '@turf/turf';
 
 import PortalSelectionModal from './components/PortalSelectionModal';
 import ClientPinModal from './components/ClientPinModal';
@@ -117,6 +120,170 @@ export default function App() {
   const [isGeoJsonImporterOpen, setIsGeoJsonImporterOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [isAdminSecurityOpen, setIsAdminSecurityOpen] = useState(false);
+
+  // Admin Real-Time GPS Geolocation States
+  const [userLocation, setUserLocation] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationAccuracy, setLocationAccuracy] = useState(null);
+  const [isSimulated, setIsSimulated] = useState(false);
+  const [flyToTrigger, setFlyToTrigger] = useState(0);
+  const watchIdRef = useRef(null);
+
+  // Stop GPS watch and reset location states
+  const stopLocation = () => {
+    if (watchIdRef.current !== null && 'geolocation' in navigator) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    setIsLocating(false);
+    setUserLocation(null);
+    setLocationAccuracy(null);
+    setIsSimulated(false);
+  };
+
+  // Cleanup GPS watcher on unmount
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null && 'geolocation' in navigator) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
+
+  // Toggle GPS geolocation watcher
+  const handleToggleLocation = () => {
+    if (isLocating) {
+      stopLocation();
+      return;
+    }
+
+    if (!('geolocation' in navigator)) {
+      alert("La géolocalisation n'est pas supportée par votre appareil ou navigateur.");
+      return;
+    }
+
+    setIsLocating(true);
+    setIsSimulated(false);
+
+    const successCallback = (pos) => {
+      const { latitude, longitude, accuracy } = pos.coords;
+      setUserLocation([latitude, longitude]);
+      setLocationAccuracy(accuracy || null);
+      setFlyToTrigger((prev) => prev + 1);
+    };
+
+    const errorCallback = (err) => {
+      console.warn('Erreur géolocalisation GPS:', err);
+      if (err.code === 1) {
+        alert("Accès à la géolocalisation refusé. Veuillez autoriser la localisation dans les paramètres de votre navigateur.");
+        stopLocation();
+      } else {
+        // Fallback retry with getCurrentPosition
+        navigator.geolocation.getCurrentPosition(
+          successCallback,
+          (fallbackErr) => {
+            alert("Impossible de déterminer votre position GPS: " + fallbackErr.message);
+            stopLocation();
+          },
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+        );
+      }
+    };
+
+    try {
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        successCallback,
+        errorCallback,
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+      );
+    } catch (e) {
+      console.error("WatchPosition error:", e);
+      navigator.geolocation.getCurrentPosition(successCallback, errorCallback);
+    }
+  };
+
+  // Simulation coordinates for testing Zones A, B, C, D even on desktop
+  const SIMULATION_POINTS = {
+    A: [-5.8800, 12.2855], // Zone A: ~70 m de l'océan
+    B: [-5.8790, 12.2870], // Zone B: ~270 m de l'océan
+    C: [-5.8780, 12.2890], // Zone C: ~514 m de l'océan
+    D: [-5.9050, 12.3350]  // Zone D: ~1 775 m de l'océan (dans Zone ISETECH)
+  };
+
+  const handleSimulateLocation = (zoneCode) => {
+    if (watchIdRef.current !== null && 'geolocation' in navigator) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    const target = SIMULATION_POINTS[zoneCode] || SIMULATION_POINTS.B;
+    setUserLocation(target);
+    setLocationAccuracy(8);
+    setIsSimulated(true);
+    setIsLocating(true);
+    setFlyToTrigger((prev) => prev + 1);
+  };
+
+  const handleRecenterLocation = () => {
+    if (userLocation) {
+      setFlyToTrigger((prev) => prev + 1);
+    }
+  };
+
+  // Real-time spatial analysis for active GPS position
+  const locationAnalysis = useMemo(() => {
+    if (!userLocation) {
+      return {
+        zoneInfo: null,
+        isInConcession: false,
+        isInIsetech: false,
+        locatedParcel: null
+      };
+    }
+
+    const [lat, lng] = userLocation;
+    const pt = turf.point([lng, lat]);
+
+    // 1. Coastal Zone and exact distance from ocean
+    const zoneInfo = getOceanZoneInfo(userLocation);
+
+    // 2. Check if inside Concession Manuel Joaquim d'Oliveira (5 404,80 ha)
+    let inConcession = false;
+    if (concessionPolygon && concessionPolygon.geometry) {
+      try {
+        inConcession = turf.booleanPointInPolygon(pt, concessionPolygon);
+      } catch (e) {}
+    }
+
+    // 3. Check if inside Zone ISETECH (1 002,61 ha)
+    let inIsetech = false;
+    const isetechZone = subZones?.[0];
+    if (isetechZone && isetechZone.geometry) {
+      try {
+        inIsetech = turf.booleanPointInPolygon(pt, isetechZone);
+      } catch (e) {}
+    }
+
+    // 4. Check if inside a specific parcel
+    let foundParcel = null;
+    const allParcelsToCheck = [...(globalParcels || []), ...(isetechParcels || [])];
+    for (const p of allParcelsToCheck) {
+      if (p && p.geometry) {
+        try {
+          if (turf.booleanPointInPolygon(pt, p)) {
+            foundParcel = p;
+            break;
+          }
+        } catch (e) {}
+      }
+    }
+
+    return {
+      zoneInfo,
+      isInConcession: inConcession,
+      isInIsetech: inIsetech,
+      locatedParcel: foundParcel
+    };
+  }, [userLocation, concessionPolygon, subZones, globalParcels, isetechParcels]);
 
   // Is Visitor/Client Mode flag
   const isClientRole = session?.role === 'client';
@@ -448,6 +615,25 @@ export default function App() {
           onLogout={handleLogout}
           onSync={handleManualSync}
           isSyncing={isSyncing}
+          onToggleLocation={handleToggleLocation}
+          isLocating={isLocating}
+          locationZoneInfo={locationAnalysis.zoneInfo}
+        />
+      )}
+
+      {/* Admin Real-Time GPS HUD Banner */}
+      {!isClientRole && isLocating && userLocation && (
+        <AdminLocationHUD
+          userLocation={userLocation}
+          locationAccuracy={locationAccuracy}
+          locationZoneInfo={locationAnalysis.zoneInfo}
+          isInConcession={locationAnalysis.isInConcession}
+          isInIsetech={locationAnalysis.isInIsetech}
+          locatedParcel={locationAnalysis.locatedParcel}
+          isSimulated={isSimulated}
+          onRecenter={handleRecenterLocation}
+          onSimulate={handleSimulateLocation}
+          onClose={stopLocation}
         />
       )}
 
@@ -509,6 +695,12 @@ export default function App() {
             isSidebarCollapsed={isSidebarCollapsed}
             onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             isVisitorMode={isClientRole}
+            userLocation={userLocation}
+            locationAccuracy={locationAccuracy}
+            locationZoneInfo={locationAnalysis.zoneInfo}
+            isInConcession={locationAnalysis.isInConcession}
+            locatedParcel={locationAnalysis.locatedParcel}
+            flyToTrigger={flyToTrigger}
           />
         </main>
 
