@@ -11,6 +11,7 @@ import KmlParcelImporterModal from './components/KmlParcelImporterModal';
 import GeoJsonImporterModal from './components/GeoJsonImporterModal';
 import SupabaseModal from './components/SupabaseModal';
 import AdminLocationHUD from './components/AdminLocationHUD';
+import PwaInstallPrompt from './components/PwaInstallPrompt';
 import { getOceanZoneInfo } from './utils/coastalZones';
 import * as turf from '@turf/turf';
 
@@ -790,6 +791,9 @@ export default function App() {
           />
         </>
       )}
+
+      {/* PWA Mobile Add to Home Screen Prompt */}
+      <PwaInstallPrompt />
     </div>
   );
 }
