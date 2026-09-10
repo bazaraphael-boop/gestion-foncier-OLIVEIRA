@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Polygon, Popup, Tooltip, useMap, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Polyline, Popup, Tooltip, useMap, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { STATUS_COLORS, ddToDms } from '../utils/geoUtils';
+import { COASTAL_ZONES, SEPARATION_LINES, getOceanZoneInfo } from '../utils/coastalZones';
 import {
   Layers,
   MapPin,
   Eye,
+  Waves,
   Compass,
   Pencil,
   Check,
@@ -359,8 +361,17 @@ export default function MapView({
   const [showBasemapMenu, setShowBasemapMenu] = useState(false);
   const [showConcession, setShowConcession] = useState(true);
   const [showSubZones, setShowSubZones] = useState(true);
+  const [showOceanZones, setShowOceanZones] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
   const [sharpnessHD, setSharpnessHD] = useState(true);
+
+  const createCoastalLabelIcon = (text, bgColor, textColor, borderColor) => {
+    return L.divIcon({
+      className: 'custom-coastal-label',
+      html: `<div style="background-color: ${bgColor}; color: ${textColor}; border: 1.5px solid ${borderColor}; padding: 2px 7px; border-radius: 9999px; font-size: 10px; font-weight: 700; font-family: ui-sans-serif, system-ui, sans-serif; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.35); transform: translate(-50%, -50%); display: inline-block;">${text}</div>`,
+      iconSize: [0, 0]
+    });
+  };
 
   // Collapsible Legend Drawer State
   const [showLegendDrawer, setShowLegendDrawer] = useState(false);
@@ -711,6 +722,17 @@ export default function MapView({
           <Eye className="w-4 h-4" />
         </button>
 
+        {/* Coastal Zoning / Separation Lines Toggle */}
+        <button
+          onClick={() => setShowOceanZones(!showOceanZones)}
+          className={`p-2 rounded-lg border border-slate-200 shadow-sm transition-all cursor-pointer ${
+            showOceanZones ? 'bg-cyan-50 text-cyan-700 border-cyan-300 shadow-inner' : 'bg-white text-slate-700 hover:bg-slate-50'
+          }`}
+          title="Afficher/Masquer le zonage littoral & les lignes de séparation océan (Zones A, B, C, D)"
+        >
+          <Waves className={`w-4 h-4 ${showOceanZones ? 'text-cyan-700' : 'text-cyan-600'}`} />
+        </button>
+
         {/* GPS Live Position */}
         <button
           onClick={handleLocateMe}
@@ -766,6 +788,34 @@ export default function MapView({
           <div className="flex items-center gap-2 border-t border-slate-200 pt-1">
             <div className="w-4 h-0 border-2 border-dashed border-cyan-600"></div>
             <span className="text-cyan-700 font-semibold text-[11px]">Limite Zone ISETECH</span>
+          </div>
+
+          {/* Coastal Zoning Legend Section */}
+          <div className="border-t border-slate-200 pt-2 mt-2 space-y-1.5">
+            <div className="font-bold text-slate-900 text-[11px] flex items-center justify-between">
+              <span>Zonage Littoral Océan</span>
+              <span className="text-[10px] text-cyan-700 font-normal">0 m à &gt;600 m</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3.5 h-3.5 rounded bg-cyan-500/40 border-2 border-cyan-600"></div>
+              <span className="text-slate-700 text-[11px]"><strong>Zone A</strong> : 0 à 200 m (157 ha)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3.5 h-3.5 rounded bg-amber-500/40 border-2 border-amber-600"></div>
+              <span className="text-slate-700 text-[11px]"><strong>Zone B</strong> : 201 à 400 m (158 ha)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3.5 h-3.5 rounded bg-purple-500/40 border-2 border-purple-600"></div>
+              <span className="text-slate-700 text-[11px]"><strong>Zone C</strong> : 401 à 600 m (158 ha)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3.5 h-3.5 rounded bg-emerald-500/20 border-2 border-emerald-600"></div>
+              <span className="text-slate-700 text-[11px]"><strong>Zone D</strong> : 601 m et + (4 931 ha)</span>
+            </div>
+            <div className="flex items-center gap-2 pt-1 border-t border-slate-100 text-[10px] text-slate-500">
+              <div className="w-4 h-0 border-2 border-dashed border-cyan-500"></div>
+              <span>Lignes 200m / 400m / 600m</span>
+            </div>
           </div>
         </div>
       )}
@@ -898,6 +948,66 @@ export default function MapView({
           </Polygon>
         )}
 
+        {/* Coastal Ocean Zones A, B, C, D Polygons */}
+        {showOceanZones && COASTAL_ZONES.map((zone) => (
+          <Polygon
+            key={zone.id}
+            positions={zone.coordinates}
+            pathOptions={{
+              color: zone.strokeColor,
+              weight: 1.5,
+              dashArray: '4, 4',
+              fillColor: zone.color,
+              fillOpacity: zone.fillOpacity
+            }}
+          >
+            <Tooltip direction="center" className="bg-slate-900/90 text-white font-semibold text-[11px] px-2 py-0.5 rounded shadow-sm border border-slate-700">
+              🌊 {zone.shortName} • {zone.formattedArea}
+            </Tooltip>
+            <Popup>
+              <div className="p-1.5 space-y-1.5 text-xs font-sans text-slate-800">
+                <div className="font-bold text-sm" style={{ color: zone.strokeColor }}>{zone.name}</div>
+                <div className="text-slate-600 text-[11px] leading-relaxed">{zone.description}</div>
+                <div className="font-semibold text-slate-900">Superficie couverte : <span className="text-emerald-700 font-bold">{zone.formattedArea}</span></div>
+                <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-100 flex items-center justify-between">
+                  <span>Distance du rivage</span>
+                  <strong className="font-mono text-slate-700">{zone.range}</strong>
+                </div>
+              </div>
+            </Popup>
+          </Polygon>
+        ))}
+
+        {/* Coastal Separation Lines (0m, 200m, 400m, 600m) & Midpoint Distance Markers */}
+        {showOceanZones && SEPARATION_LINES.map((line) => (
+          <React.Fragment key={line.id}>
+            <Polyline
+              positions={line.coordinates}
+              pathOptions={{
+                color: line.color,
+                weight: line.weight,
+                dashArray: line.dashArray
+              }}
+            >
+              <Tooltip direction="top" className="bg-slate-900 text-white font-bold text-[11px] px-2 py-0.5 rounded shadow-sm border border-slate-700">
+                📏 {line.label}
+              </Tooltip>
+            </Polyline>
+            {line.midpoint && (
+              <Marker
+                position={line.midpoint}
+                icon={createCoastalLabelIcon(
+                  line.shortLabel,
+                  line.id === 'line_0m' ? '#0369A1' : '#0F172A',
+                  '#FFFFFF',
+                  line.color
+                )}
+                interactive={false}
+              />
+            )}
+          </React.Fragment>
+        ))}
+
         {/* Inner Parcels & Sub-parcels */}
         {parcels.map((parcel) => {
           if (!parcel || !parcel.id) return null;
@@ -938,6 +1048,24 @@ export default function MapView({
                   {parcel.properties?.occupantName && (
                     <div className="italic text-slate-600">{parcel.properties.occupantName}</div>
                   )}
+
+                  {(() => {
+                    const oceanInfo = getOceanZoneInfo(parcel);
+                    if (!oceanInfo) return null;
+                    return (
+                      <div
+                        className="flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-semibold border"
+                        style={{
+                          backgroundColor: `${oceanInfo.color}15`,
+                          borderColor: `${oceanInfo.color}50`,
+                          color: oceanInfo.color
+                        }}
+                      >
+                        <Waves className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span>{oceanInfo.shortName} • {oceanInfo.distanceFormatted} de l'océan</span>
+                      </div>
+                    );
+                  })()}
 
                   {isIsetechMain && activeView === 'global' && (
                     <div className="pt-2 border-t border-slate-200">

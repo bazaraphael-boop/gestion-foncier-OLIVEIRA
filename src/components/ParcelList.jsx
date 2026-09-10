@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Search, Filter, Plus, ChevronRight, User, CheckSquare, Square, Trash2, Download, Tag, X, CheckCircle2, PanelRightClose } from 'lucide-react';
+import { Search, Filter, Plus, ChevronRight, User, CheckSquare, Square, Trash2, Download, Tag, X, CheckCircle2, PanelRightClose, Waves } from 'lucide-react';
 import { STATUS_COLORS } from '../utils/geoUtils';
+import { getOceanZoneInfo } from '../utils/coastalZones';
 import DeleteConfirmModal from './DeleteConfirmModal';
 
 export default function ParcelList({
@@ -20,6 +21,7 @@ export default function ParcelList({
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [zoneFilter, setZoneFilter] = useState('all');
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
 
@@ -34,7 +36,12 @@ export default function ParcelList({
 
     const matchesFilter = statusFilter === 'all' || status === statusFilter;
 
-    return matchesSearch && matchesFilter;
+    const matchesZone = zoneFilter === 'all' || (() => {
+      const oz = getOceanZoneInfo(parcel);
+      return oz && oz.zone === zoneFilter;
+    })();
+
+    return matchesSearch && matchesFilter && matchesZone;
   });
 
   const allFilteredSelected =
@@ -144,6 +151,30 @@ export default function ParcelList({
             >
               Litige
             </button>
+          </div>
+
+          {/* Coastal Zone Filter Chips */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-[10px] font-semibold">
+            <span className="text-slate-400 font-normal text-[10px] mr-0.5 flex-shrink-0">Océan :</span>
+            {[
+              { id: 'all', label: 'Toutes' },
+              { id: 'A', label: 'Zone A (0-200m)', color: 'text-cyan-700 bg-cyan-50 border-cyan-300' },
+              { id: 'B', label: 'Zone B (201-400m)', color: 'text-amber-700 bg-amber-50 border-amber-300' },
+              { id: 'C', label: 'Zone C (401-600m)', color: 'text-purple-700 bg-purple-50 border-purple-300' },
+              { id: 'D', label: 'Zone D (>600m)', color: 'text-emerald-700 bg-emerald-50 border-emerald-300' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setZoneFilter(tab.id)}
+                className={`px-1.5 py-0.5 rounded border transition-all cursor-pointer whitespace-nowrap ${
+                  zoneFilter === tab.id
+                    ? tab.color ? `${tab.color} font-bold shadow-2xs` : 'bg-slate-800 text-white border-slate-800'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
           {/* Select All Checkbox Control Bar (Hidden in Visitor Mode) */}
@@ -326,6 +357,28 @@ export default function ParcelList({
                         <span className="truncate">{parcel.properties.occupantName}</span>
                       </div>
                     )}
+
+                    {(() => {
+                      const oceanInfo = getOceanZoneInfo(parcel);
+                      if (!oceanInfo) return null;
+                      return (
+                        <div className="flex items-center gap-1 text-[10px] font-semibold mt-0.5">
+                          <span
+                            className="px-1.5 py-0.5 rounded border flex items-center gap-1 text-[10px]"
+                            style={{
+                              backgroundColor: `${oceanInfo.color}15`,
+                              borderColor: `${oceanInfo.color}40`,
+                              color: oceanInfo.color
+                            }}
+                          >
+                            <Waves className="w-2.5 h-2.5 flex-shrink-0" />
+                            <span>{oceanInfo.shortName}</span>
+                            <span className="opacity-50">•</span>
+                            <span className="font-mono">{oceanInfo.distanceFormatted}</span>
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );

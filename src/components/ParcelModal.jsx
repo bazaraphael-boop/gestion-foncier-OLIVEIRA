@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { STATUS_COLORS, ddToDms, exportParcelToCSV, calculateArea } from '../utils/geoUtils';
+import { getOceanZoneInfo } from '../utils/coastalZones';
 import OfficialHeaderBanner from './OfficialHeaderBanner';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import {
@@ -18,7 +19,8 @@ import {
   Check,
   Printer,
   ShieldCheck,
-  Plus
+  Plus,
+  Waves
 } from 'lucide-react';
 
 export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteParcel, isVisitorMode }) {
@@ -65,6 +67,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
 
   const colorConfig = STATUS_COLORS[parcel.properties.status] || STATUS_COLORS.disponible;
   const areaInfo = calculateArea(parcel);
+  const oceanInfo = getOceanZoneInfo(parcel);
   const vertices = parcel.geometry.coordinates[0];
 
   const handleVertexChange = (index, field, value) => {
@@ -240,6 +243,19 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                   <span className="text-sm font-black text-emerald-700">{areaInfo.formattedHa}</span>
                   <span className="text-[11px] text-slate-600 ml-1">({areaInfo.formattedSqM})</span>
                 </div>
+                <div className="col-span-2 pt-2 border-t border-slate-200 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-semibold text-slate-500 block uppercase">ZONAGE LITTORAL & SITUATION OCÉAN</span>
+                    <span className="text-xs font-bold text-cyan-800">
+                      {oceanInfo ? `${oceanInfo.zoneName} • ${oceanInfo.distanceFormatted} de l'océan` : 'Non déterminé'}
+                    </span>
+                  </div>
+                  {oceanInfo && (
+                    <span className="text-[10px] font-medium text-slate-500 italic">
+                      {oceanInfo.description}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -347,6 +363,28 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 <div className="text-base font-bold text-slate-700 mt-0.5">{areaInfo.formattedSqM}</div>
               </div>
             </div>
+
+            {/* Coastal Proximity & Zone Information */}
+            {oceanInfo && (
+              <div className="pt-2.5 border-t border-slate-200 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
+                  <Waves className="w-3.5 h-3.5 text-cyan-600 flex-shrink-0" />
+                  <span>Situation Littorale :</span>
+                </div>
+                <span
+                  className="px-2.5 py-0.5 text-xs font-bold rounded-full border flex items-center gap-1.5"
+                  style={{
+                    backgroundColor: `${oceanInfo.color}15`,
+                    color: oceanInfo.color,
+                    borderColor: `${oceanInfo.color}50`
+                  }}
+                >
+                  <span>{oceanInfo.shortName}</span>
+                  <span className="text-slate-400 font-normal">•</span>
+                  <span className="font-mono">{oceanInfo.distanceFormatted}</span>
+                </span>
+              </div>
+            )}
           </div>
 
           {!isEditing ? (

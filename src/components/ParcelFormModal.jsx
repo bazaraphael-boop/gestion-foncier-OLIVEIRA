@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { validateParcelGeometry, dmsToDd } from '../utils/geoUtils';
-import { X, Plus, Trash2, MapPin, Compass, CheckCircle2, ShieldAlert, Hexagon, Square } from 'lucide-react';
+import { getOceanZoneInfo } from '../utils/coastalZones';
+import { X, Plus, Trash2, MapPin, Compass, CheckCircle2, ShieldAlert, Hexagon, Square, Waves } from 'lucide-react';
 
 export default function ParcelFormModal({
   isOpen,
@@ -332,6 +333,43 @@ export default function ParcelFormModal({
               </button>
             </div>
           </div>
+
+          {/* Real-time Coastal Ocean Situation Badge */}
+          {(() => {
+            const validPts = points
+              .map((p) => {
+                let lat = parseFloat(p.latStr);
+                let lng = parseFloat(p.lngStr);
+                if (coordFormat === 'dms') {
+                  lat = dmsToDd(p.latStr);
+                  lng = dmsToDd(p.lngStr);
+                }
+                return [lng, lat];
+              })
+              .filter((p) => !isNaN(p[0]) && !isNaN(p[1]));
+            if (validPts.length === 0) return null;
+            const oceanInfo = getOceanZoneInfo(validPts);
+            if (!oceanInfo) return null;
+
+            return (
+              <div
+                className="p-2.5 rounded border flex items-center justify-between text-xs"
+                style={{
+                  backgroundColor: `${oceanInfo.color}12`,
+                  borderColor: `${oceanInfo.color}45`
+                }}
+              >
+                <div className="flex items-center gap-1.5 font-bold" style={{ color: oceanInfo.color }}>
+                  <Waves className="w-4 h-4" />
+                  <span>Situation Littorale : {oceanInfo.zoneName}</span>
+                </div>
+                <div className="flex items-center gap-1 text-[11px] font-mono font-semibold text-slate-700">
+                  <span>Distance :</span>
+                  <strong className="text-slate-900">{oceanInfo.distanceFormatted}</strong>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Turf Validation Results Box */}
           {validationResult && (
