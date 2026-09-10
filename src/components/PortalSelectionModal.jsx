@@ -15,7 +15,7 @@ export default function PortalSelectionModal({ onSelectAdmin, onSelectClient }) 
       <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px] pointer-events-none" />
 
       {/* Bande de titre institutionnelle */}
-      <div className="relative z-10 w-full bg-[#0f2540]/90 text-white py-5 px-4 text-center border-b border-white/10">
+      <div className="relative z-10 w-full bg-[#0f2540]/90 text-white pt-[calc(1.25rem+env(safe-area-inset-top,0px))] pb-4 px-4 text-center border-b border-white/10">
         <h1 className="text-sm sm:text-base font-bold uppercase tracking-widest leading-snug">
           Système d&apos;Information Géographique &amp; Cadastre Numérique
         </h1>

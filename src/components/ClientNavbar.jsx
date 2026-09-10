@@ -3,9 +3,10 @@ import { LogOut, RefreshCw } from 'lucide-react';
 
 export default function ClientNavbar({ onLogout, onSync, isSyncing }) {
   return (
-    <header className="bg-slate-900 border-b border-slate-800 text-white h-12 sm:h-14 px-2.5 sm:px-3 flex items-center justify-between sticky top-0 z-[1100] shadow-md select-none">
-      {/* Brand & Title */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+    <header className="bg-slate-900 border-b border-slate-800 text-white w-full sticky top-0 z-[1100] shadow-md select-none pt-[env(safe-area-inset-top,0px)]">
+      <div className="h-12 sm:h-14 px-2.5 sm:px-3 flex items-center justify-between">
+        {/* Brand & Title */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <div className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-emerald-600 flex items-center justify-center font-bold text-white text-xs sm:text-sm flex-shrink-0 shadow-xs">
           🛡️
         </div>
@@ -48,6 +49,7 @@ export default function ClientNavbar({ onLogout, onSync, isSyncing }) {
           <LogOut className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Déconnexion</span>
         </button>
+      </div>
       </div>
     </header>
   );

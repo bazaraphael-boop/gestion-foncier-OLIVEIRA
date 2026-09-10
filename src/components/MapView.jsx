@@ -644,7 +644,7 @@ export default function MapView({
       {/* Mobile GIS Controls Bottom Sheet / Modal */}
       {showMobileGisMenu && (
         <div className="md:hidden fixed inset-0 z-[1300] bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-150">
-          <div className="bg-slate-900 border-t border-slate-800 rounded-t-2xl p-4 text-slate-100 max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl">
+          <div className="bg-slate-900 border-t border-slate-800 rounded-t-2xl p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] text-slate-100 max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
               <div className="flex items-center gap-2 font-bold text-sm text-white">
@@ -1011,6 +1011,7 @@ export default function MapView({
         zoom={14}
         maxZoom={22}
         minZoom={5}
+        zoomControl={false}
         className="w-full h-full flex-1 z-0"
         scrollWheelZoom={true}
       >

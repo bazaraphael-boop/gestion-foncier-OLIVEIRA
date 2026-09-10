@@ -589,7 +589,7 @@ export default function App() {
 
   // --- AUTHENTICATED APP WORKSPACE ---
   return (
-    <div className="min-h-screen bg-slate-100 font-sans flex flex-col antialiased text-slate-800">
+    <div className="h-[100dvh] w-full bg-slate-900 font-sans flex flex-col antialiased text-slate-800 overflow-hidden select-none">
       {/* Top Header Navbar depending on role */}
       {isClientRole ? (
         <ClientNavbar
@@ -686,8 +686,8 @@ export default function App() {
       />
 
       {/* Main Workspace */}
-      <div className="flex-1 flex flex-col md:flex-row relative overflow-hidden">
-        <main className="flex-1 h-[600px] md:h-auto relative transition-all duration-300">
+      <div className="flex-1 flex flex-col md:flex-row relative overflow-hidden min-h-0">
+        <main className="flex-1 h-full w-full relative transition-all duration-300 min-h-0">
           <MapView
             concessionPolygon={concessionPolygon}
             subZones={subZones}
