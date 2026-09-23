@@ -484,9 +484,9 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                   className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-900 focus:outline-none focus:border-slate-400 font-medium"
                 >
-                  <option value="disponible">🟢 Vert - Disponible / Libre</option>
-                  <option value="occupe">🔴 Rouge - Occupé / Attribué</option>
-                  <option value="litige">🟠 Orange - En Litige / Sous Réserve</option>
+                  <option value="disponible">Disponible / Libre (Vert)</option>
+                  <option value="occupe">Occupé / Attribué (Rouge)</option>
+                  <option value="litige">En Litige / Sous Réserve (Orange)</option>
                 </select>
               </div>
 

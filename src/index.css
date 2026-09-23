@@ -1,9 +1,59 @@
 @import "tailwindcss";
 
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Custom Slim Professional Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.6);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+}
+
+/* Glassmorphism Design Tokens */
+.glass-dock {
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+.glass-pill {
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
 /* Leaflet Map Custom Styling */
 .leaflet-container {
-  background-color: #0f172a !important; /* Dark Slate background instead of ugly grey #ddd during zoom */
-  font-family: inherit;
+  background-color: #0b1120 !important;
+  font-family: var(--font-sans, inherit);
 }
 
 /* Hide default leaflet zoom controls to prevent overlap with custom floating controls */
@@ -19,25 +69,62 @@
   will-change: transform;
 }
 
+/* Modern Leaflet Popup Dark Glass Styling */
+.leaflet-popup-content-wrapper {
+  background: rgba(15, 23, 42, 0.96) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4) !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-content {
+  margin: 12px 14px !important;
+  line-height: 1.4 !important;
+}
+
+.leaflet-popup-tip {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+}
+
+.leaflet-popup-close-button {
+  color: #94a3b8 !important;
+  padding: 6px 8px !important;
+  top: 4px !important;
+  right: 4px !important;
+}
+.leaflet-popup-close-button:hover {
+  color: #ffffff !important;
+}
+
 /* Custom Cartographic Tooltip Styling */
 .custom-concession-tooltip {
-  background-color: #0f172a !important;
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(8px) !important;
   border: 1px solid #334155 !important;
   color: #f8fafc !important;
-  border-radius: 4px !important;
-  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  padding: 5px 9px !important;
   font-size: 11px !important;
   font-weight: 600 !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.3) !important;
 }
 
 /* Hide Leaflet Attribution Links clutter on small screens if needed */
 .leaflet-control-attribution {
-  background: rgba(255, 255, 255, 0.85) !important;
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.85) !important;
+  backdrop-filter: blur(6px);
   font-size: 9px !important;
-  color: #64748b !important;
-  border-top-left-radius: 4px;
-  padding: 2px 6px !important;
+  color: #94a3b8 !important;
+  border-top-left-radius: 6px;
+  border-left: 1px solid #334155;
+  border-top: 1px solid #334155;
+  padding: 2px 8px !important;
 }
-
+.leaflet-control-attribution a {
+  color: #38bdf8 !important;
+}

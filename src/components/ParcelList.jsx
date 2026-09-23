@@ -158,7 +158,8 @@ export default function ParcelList({
             <span className="text-slate-400 font-normal text-[10px] mr-0.5 flex-shrink-0">Océan :</span>
             {[
               { id: 'all', label: 'Toutes' },
-              { id: 'A', label: 'Zone A (0-200m)', color: 'text-cyan-700 bg-cyan-50 border-cyan-300' },
+              { id: 'UP', label: 'Utilité Publique (0-100m)', color: 'text-rose-700 bg-rose-50 border-rose-300' },
+              { id: 'A', label: 'Zone A (101-200m)', color: 'text-cyan-700 bg-cyan-50 border-cyan-300' },
               { id: 'B', label: 'Zone B (201-400m)', color: 'text-amber-700 bg-amber-50 border-amber-300' },
               { id: 'C', label: 'Zone C (401-600m)', color: 'text-purple-700 bg-purple-50 border-purple-300' },
               { id: 'D', label: 'Zone D (>600m)', color: 'text-emerald-700 bg-emerald-50 border-emerald-300' }
@@ -215,7 +216,7 @@ export default function ParcelList({
               <div className="relative">
                 <button
                   onClick={() => setShowStatusMenu(!showStatusMenu)}
-                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded text-[11px] font-semibold flex items-center gap-1"
+                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
                   title="Changer le statut en masse"
                 >
                   <Tag className="w-3 h-3 text-emerald-400" />
@@ -223,33 +224,36 @@ export default function ParcelList({
                 </button>
 
                 {showStatusMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-44 bg-white text-slate-800 border border-slate-200 rounded shadow-lg p-1 space-y-0.5 z-[1200] text-xs">
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white text-slate-800 border border-slate-200 rounded-lg shadow-xl p-1.5 space-y-1 z-[1200] text-xs">
                     <button
                       onClick={() => {
                         onBulkChangeStatus(selectedParcelIds, 'disponible');
                         setShowStatusMenu(false);
                       }}
-                      className="w-full text-left px-2 py-1 rounded hover:bg-emerald-50 text-emerald-700 font-semibold flex items-center gap-1.5"
+                      className="w-full text-left px-2.5 py-1.5 rounded hover:bg-emerald-50 text-emerald-700 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                     >
-                      🟢 Passer en Disponible
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-2xs flex-shrink-0" />
+                      <span>Passer en Disponible</span>
                     </button>
                     <button
                       onClick={() => {
                         onBulkChangeStatus(selectedParcelIds, 'occupe');
                         setShowStatusMenu(false);
                       }}
-                      className="w-full text-left px-2 py-1 rounded hover:bg-rose-50 text-rose-700 font-semibold flex items-center gap-1.5"
+                      className="w-full text-left px-2.5 py-1.5 rounded hover:bg-rose-50 text-rose-700 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                     >
-                      🔴 Passer en Occupé
+                      <span className="w-2 h-2 rounded-full bg-rose-500 shadow-2xs flex-shrink-0" />
+                      <span>Passer en Occupé</span>
                     </button>
                     <button
                       onClick={() => {
                         onBulkChangeStatus(selectedParcelIds, 'litige');
                         setShowStatusMenu(false);
                       }}
-                      className="w-full text-left px-2 py-1 rounded hover:bg-amber-50 text-amber-700 font-semibold flex items-center gap-1.5"
+                      className="w-full text-left px-2.5 py-1.5 rounded hover:bg-amber-50 text-amber-700 font-semibold flex items-center gap-2 cursor-pointer transition-colors"
                     >
-                      🟠 Passer en Litige
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shadow-2xs flex-shrink-0" />
+                      <span>Passer en Litige</span>
                     </button>
                   </div>
                 )}
@@ -362,7 +366,7 @@ export default function ParcelList({
                       const oceanInfo = getOceanZoneInfo(parcel);
                       if (!oceanInfo) return null;
                       return (
-                        <div className="flex items-center gap-1 text-[10px] font-semibold mt-0.5">
+                        <div className="flex items-center gap-1.5 text-[10px] font-semibold mt-0.5 flex-wrap">
                           <span
                             className="px-1.5 py-0.5 rounded border flex items-center gap-1 text-[10px]"
                             style={{
@@ -376,6 +380,11 @@ export default function ParcelList({
                             <span className="opacity-50">•</span>
                             <span className="font-mono">{oceanInfo.distanceFormatted}</span>
                           </span>
+                          {oceanInfo.isRestricted && (
+                            <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 text-[9px] font-bold">
+                              Domaine Public
+                            </span>
+                          )}
                         </div>
                       );
                     })()}

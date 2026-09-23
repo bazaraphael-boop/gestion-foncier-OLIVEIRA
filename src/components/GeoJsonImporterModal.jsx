@@ -151,9 +151,9 @@ export default function GeoJsonImporterModal({
                   }}
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded text-slate-900 font-medium"
                 >
-                  <option value="disponible">🟢 Vert - Disponible / Libre</option>
-                  <option value="occupe">🔴 Rouge - Occupé / Attribué</option>
-                  <option value="litige">🟠 Orange - En Litige</option>
+                  <option value="disponible">Disponible / Libre (Vert)</option>
+                  <option value="occupe">Occupé / Attribué (Rouge)</option>
+                  <option value="litige">En Litige (Orange)</option>
                 </select>
               </div>
               <div className="flex flex-col justify-center">

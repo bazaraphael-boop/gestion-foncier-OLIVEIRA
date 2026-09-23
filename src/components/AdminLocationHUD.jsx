@@ -127,33 +127,40 @@ export default function AdminLocationHUD({
 
               {showSimMenu && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-slate-900 border border-slate-700 rounded shadow-xl p-1 z-[1200] space-y-0.5 text-xs font-sans">
-                  <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                  <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono border-b border-slate-800">
                     Simuler une Position
                   </div>
                   <button
+                    onClick={() => { onSimulate('UP'); setShowSimMenu(false); }}
+                    className="w-full text-left px-2 py-1 hover:bg-slate-800 text-rose-300 rounded flex items-center gap-1.5 font-medium cursor-pointer"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span>Utilité Publique (Plage • 50 m)</span>
+                  </button>
+                  <button
                     onClick={() => { onSimulate('A'); setShowSimMenu(false); }}
-                    className="w-full text-left px-2 py-1 hover:bg-slate-800 text-cyan-300 rounded flex items-center gap-1.5 font-medium"
+                    className="w-full text-left px-2 py-1 hover:bg-slate-800 text-cyan-300 rounded flex items-center gap-1.5 font-medium cursor-pointer"
                   >
                     <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-                    <span>Zone A (Plage • 70 m)</span>
+                    <span>Zone A (150 m)</span>
                   </button>
                   <button
                     onClick={() => { onSimulate('B'); setShowSimMenu(false); }}
-                    className="w-full text-left px-2 py-1 hover:bg-slate-800 text-amber-300 rounded flex items-center gap-1.5 font-medium"
+                    className="w-full text-left px-2 py-1 hover:bg-slate-800 text-amber-300 rounded flex items-center gap-1.5 font-medium cursor-pointer"
                   >
                     <span className="w-2 h-2 rounded-full bg-amber-400"></span>
                     <span>Zone B (270 m)</span>
                   </button>
                   <button
                     onClick={() => { onSimulate('C'); setShowSimMenu(false); }}
-                    className="w-full text-left px-2 py-1 hover:bg-slate-800 text-purple-300 rounded flex items-center gap-1.5 font-medium"
+                    className="w-full text-left px-2 py-1 hover:bg-slate-800 text-purple-300 rounded flex items-center gap-1.5 font-medium cursor-pointer"
                   >
                     <span className="w-2 h-2 rounded-full bg-purple-400"></span>
                     <span>Zone C (510 m)</span>
                   </button>
                   <button
                     onClick={() => { onSimulate('D'); setShowSimMenu(false); }}
-                    className="w-full text-left px-2 py-1 hover:bg-slate-800 text-emerald-300 rounded flex items-center gap-1.5 font-medium"
+                    className="w-full text-left px-2 py-1 hover:bg-slate-800 text-emerald-300 rounded flex items-center gap-1.5 font-medium cursor-pointer"
                   >
                     <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
                     <span>Zone D (ISETECH • 1 775 m)</span>

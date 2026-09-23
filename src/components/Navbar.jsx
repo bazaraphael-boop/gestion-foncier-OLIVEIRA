@@ -50,43 +50,46 @@ export default function Navbar({
   const availablePct = totalConcessionHa > 0 ? ((availableHa / totalConcessionHa) * 100).toFixed(0) : '0';
 
   return (
-    <header className="bg-slate-900 border-b border-slate-800 text-white w-full sticky top-0 z-[1100] shadow-md select-none pt-[env(safe-area-inset-top,0px)]">
-      <div className="h-12 sm:h-14 px-2.5 sm:px-3 flex items-center justify-between">
+    <header className="bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 text-white w-full sticky top-0 z-[1100] shadow-lg select-none pt-[env(safe-area-inset-top,0px)]">
+      <div className="h-12 sm:h-14 px-3 sm:px-4 flex items-center justify-between">
         {/* Brand & Domaine Title */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-emerald-600 flex items-center justify-center font-bold text-white text-xs sm:text-sm flex-shrink-0 shadow-xs">
-          🛡️
-        </div>
-        <div className="flex flex-col min-w-0">
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <h1 className="font-bold text-xs sm:text-sm text-slate-100 tracking-tight truncate">
-              <span className="sm:hidden">Concession Oliveira</span>
-              <span className="hidden sm:inline">Concession Manuel Joaquim d'Oliveira</span>
-            </h1>
-            <span className="text-[9px] sm:text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.2 rounded flex-shrink-0">
-              Admin
-            </span>
+        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-emerald-950/50 border border-emerald-400/30">
+            <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-50" />
           </div>
-          <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium truncate">
-            Muanda / RDC • {concessionArea.formattedHa}
-          </span>
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="font-bold text-xs sm:text-sm text-slate-100 tracking-tight truncate">
+                <span className="sm:hidden">Concession Oliveira</span>
+                <span className="hidden sm:inline">Concession Manuel Joaquim d'Oliveira</span>
+              </h1>
+              <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full flex-shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                <span>Admin</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-[9px] sm:text-[10px] text-slate-400 font-medium truncate">
+              <span className="font-mono text-slate-400">MUANDA / RDC</span>
+              <span className="text-slate-600">•</span>
+              <span className="font-mono text-emerald-400 font-semibold">{concessionArea.formattedHa}</span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Streamlined Key Metrics Bar */}
-      <div className="hidden md:flex items-center gap-2 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700/60 text-xs font-sans">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-          <span className="text-slate-400">Libre:</span>
-          <strong className="text-emerald-400 font-semibold">{availableHa.toFixed(0)} ha ({availablePct}%)</strong>
+        {/* Streamlined Key Metrics Bar */}
+        <div className="hidden lg:flex items-center gap-3 bg-slate-900/80 px-3.5 py-1.5 rounded-xl border border-slate-700/60 text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
+            <span className="text-slate-400 font-sans">Libre:</span>
+            <strong className="text-emerald-300 font-mono font-semibold">{availableHa.toFixed(0)} ha ({availablePct}%)</strong>
+          </div>
+          <span className="text-slate-700">•</span>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-rose-500 shadow-sm shadow-rose-500/50"></span>
+            <span className="text-slate-400 font-sans">Occupé:</span>
+            <strong className="text-rose-300 font-mono font-semibold">{occupiedHa.toFixed(0)} ha ({occupiedPct}%)</strong>
+          </div>
         </div>
-        <span className="text-slate-600">•</span>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-          <span className="text-slate-400">Occupé:</span>
-          <strong className="text-rose-400 font-semibold">{occupiedHa.toFixed(0)} ha ({occupiedPct}%)</strong>
-        </div>
-      </div>
 
       {/* Role Switcher & Action Buttons */}
       <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">

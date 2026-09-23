@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, X, Share, PlusSquare, Sparkles } from 'lucide-react';
+import { Download, X, Share, PlusSquare, Sparkles, ShieldCheck } from 'lucide-react';
 
 export default function PwaInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -73,8 +73,8 @@ export default function PwaInstallPrompt() {
       <div className="bg-slate-900/95 backdrop-blur-md border border-emerald-500/40 rounded-xl p-3 sm:p-3.5 shadow-2xl text-white select-none">
         <div className="flex items-start justify-between gap-3">
           {/* App Icon */}
-          <div className="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-white text-base flex-shrink-0 shadow-sm border border-emerald-400/40">
-            🛡️
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white flex-shrink-0 shadow-md border border-emerald-400/40">
+            <ShieldCheck className="w-5 h-5 text-emerald-100" />
           </div>
 
           <div className="flex-1 min-w-0">

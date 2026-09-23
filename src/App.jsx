@@ -203,12 +203,13 @@ export default function App() {
     }
   };
 
-  // Simulation coordinates for testing Zones A, B, C, D even on desktop
+  // Simulation coordinates for testing Zones UP, A, B, C, D even on desktop
   const SIMULATION_POINTS = {
-    A: [-5.8800, 12.2855], // Zone A: ~70 m de l'océan
-    B: [-5.8790, 12.2870], // Zone B: ~270 m de l'océan
-    C: [-5.8780, 12.2890], // Zone C: ~514 m de l'océan
-    D: [-5.9050, 12.3350]  // Zone D: ~1 775 m de l'océan (dans Zone ISETECH)
+    UP: [-5.8794, 12.2848], // Zone UP (Utilité Publique): ~50 m de l'océan
+    A: [-5.8788, 12.2855],  // Zone A: ~150 m de l'océan
+    B: [-5.8790, 12.2870],  // Zone B: ~270 m de l'océan
+    C: [-5.8780, 12.2890],  // Zone C: ~514 m de l'océan
+    D: [-5.9050, 12.3350]   // Zone D: ~1 775 m de l'océan (dans Zone ISETECH)
   };
 
   const handleSimulateLocation = (zoneCode) => {
@@ -638,43 +639,47 @@ export default function App() {
         />
       )}
 
-      {/* Sub-cadastre Breadcrumb Alert Bar / View Mode Switcher */}
+      {/* Sub-cadastre Breadcrumb Bar / View Mode Switcher */}
       {activeView === 'isetech' ? (
-        <div className="bg-slate-900 border-b border-slate-800 px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-2 text-slate-200 text-xs">
-          <div className="flex items-center gap-1.5 sm:gap-2 font-semibold min-w-0">
-            <Layers3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 flex-shrink-0" />
+        <div className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800/90 px-3 sm:px-4 py-2 flex items-center justify-between gap-2 text-slate-200 text-xs shadow-sm">
+          <div className="flex items-center gap-2 font-medium min-w-0">
+            <span className="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
+              <Layers3 className="w-3.5 h-3.5" />
+            </span>
             <span className="truncate">
-              <span className="sm:hidden font-bold text-cyan-300">Zone ISETECH (1 002 ha)</span>
-              <span className="hidden sm:inline">Sous-cadastre spécialisé : <strong className="text-white uppercase">ZONE ISETECH (1 002,61 ha)</strong></span>
+              <span className="sm:hidden font-bold text-cyan-300">Sous-cadastre ISETECH (1 002 ha)</span>
+              <span className="hidden sm:inline">Sous-cadastre spécialisé : <strong className="text-white uppercase font-semibold">ZONE ISETECH (1 002,61 ha)</strong></span>
             </span>
           </div>
           <button
             onClick={handleReturnToGlobal}
-            className="px-2.5 sm:px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium rounded flex items-center gap-1.5 border border-slate-700 transition-all cursor-pointer flex-shrink-0"
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 border border-slate-700 transition-all duration-150 active:scale-95 cursor-pointer flex-shrink-0 shadow-xs"
             title="Afficher la vue d'ensemble de la concession"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-3.5 h-3.5 text-slate-400" />
             <span className="sm:hidden">Vue Globale</span>
-            <span className="hidden sm:inline">Retour Vue Périmètre Global</span>
+            <span className="hidden sm:inline">Retour Vue Globale (5 326 ha)</span>
           </button>
         </div>
       ) : (
-        <div className="bg-slate-900 border-b border-slate-800 px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-2 text-slate-200 text-xs">
-          <div className="flex items-center gap-1.5 sm:gap-2 font-semibold min-w-0">
-            <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 flex-shrink-0" />
+        <div className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800/90 px-3 sm:px-4 py-2 flex items-center justify-between gap-2 text-slate-200 text-xs shadow-sm">
+          <div className="flex items-center gap-2 font-medium min-w-0">
+            <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
+              <Globe className="w-3.5 h-3.5" />
+            </span>
             <span className="truncate">
-              <span className="sm:hidden font-bold text-emerald-300">Concession Globale (5 404 ha)</span>
-              <span className="hidden sm:inline">Périmètre Concession Globale : <strong className="text-white uppercase">Manuel Joaquim d'Oliveira (5 404,80 ha)</strong></span>
+              <span className="sm:hidden font-bold text-emerald-300">Concession Globale (5 326 ha)</span>
+              <span className="hidden sm:inline">Périmètre Concession Globale : <strong className="text-white uppercase font-semibold">Manuel Joaquim d'Oliveira (5 326,15 ha)</strong></span>
             </span>
           </div>
           <button
             onClick={() => handleExploreSubZone('isetech')}
-            className="px-2.5 sm:px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded flex items-center gap-1.5 shadow-sm transition-all cursor-pointer flex-shrink-0 animate-pulse"
+            className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm shadow-cyan-950/40 transition-all duration-150 active:scale-95 cursor-pointer flex-shrink-0 border border-cyan-500/50"
             title="Zoomer dans le cadastre spécialisé Zone ISETECH"
           >
-            <Layers3 className="w-3.5 h-3.5" />
+            <Layers3 className="w-3.5 h-3.5 text-cyan-200" />
             <span className="sm:hidden">Zone ISETECH</span>
-            <span className="hidden sm:inline">Zoomer sur Cadastre ISETECH (1 002 ha)</span>
+            <span className="hidden sm:inline">Zoomer sur Zone ISETECH (1 002 ha)</span>
           </button>
         </div>
       )}

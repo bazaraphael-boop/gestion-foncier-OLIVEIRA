@@ -35,7 +35,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Maximize2,
-  Palette
+  Palette,
+  Satellite,
+  Mountain
 } from 'lucide-react';
 import * as turf from '@turf/turf';
 
@@ -318,10 +320,11 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
 
           <button
             onClick={handleCenterView}
-            className="w-3.5 h-3.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center text-[7px] font-bold cursor-pointer"
+            aria-label="Recentrer la carte"
+            className="w-3.5 h-3.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center cursor-pointer shadow-xs"
             title="Recentrer"
           >
-            🎯
+            <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
           </button>
 
           <button
@@ -645,6 +648,9 @@ export default function MapView({
       {showMobileGisMenu && (
         <div className="md:hidden fixed inset-0 z-[1300] bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-150">
           <div className="bg-slate-900 border-t border-slate-800 rounded-t-2xl p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] text-slate-100 max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl">
+            {/* Visual Drag Handle */}
+            <div className="w-12 h-1 bg-slate-700/90 rounded-full mx-auto" />
+
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
               <div className="flex items-center gap-2 font-bold text-sm text-white">
@@ -653,6 +659,7 @@ export default function MapView({
               </div>
               <button
                 onClick={() => setShowMobileGisMenu(false)}
+                aria-label="Fermer le menu des calques"
                 className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -661,20 +668,20 @@ export default function MapView({
 
             {/* Fond de Carte Switcher */}
             <div className="space-y-1.5">
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">
                 Fond de carte satellite
               </div>
               <div className="grid grid-cols-2 gap-1.5">
                 {[
-                  { id: 'google-pure', label: 'Google Satellite Pur', icon: '🛰️' },
-                  { id: 'google-hybrid', label: 'Google Hybride', icon: '🌍' },
-                  { id: 'sentinel-live', label: 'Sentinel-2 Live', icon: '📡' },
-                  { id: 'esri-clarity', label: 'Esri World HD', icon: '🏔️' }
+                  { id: 'google-pure', label: 'Google Satellite Pur', icon: <Satellite className="w-4 h-4 text-emerald-400" /> },
+                  { id: 'google-hybrid', label: 'Google Hybride', icon: <Globe className="w-4 h-4 text-cyan-400" /> },
+                  { id: 'sentinel-live', label: 'Copernicus Live', icon: <Radio className="w-4 h-4 text-amber-400" /> },
+                  { id: 'esri-clarity', label: 'Esri World HD', icon: <Mountain className="w-4 h-4 text-purple-400" /> }
                 ].map((b) => (
                   <button
                     key={b.id}
                     onClick={() => { setMapType(b.id); }}
-                    className={`p-2 rounded-lg border text-left text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                    className={`p-2.5 rounded-lg border text-left text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                       mapType === b.id
                         ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300'
                         : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-800'
@@ -689,7 +696,7 @@ export default function MapView({
 
             {/* Toggles List */}
             <div className="space-y-1.5 pt-1">
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">
                 Affichage des Calques
               </div>
               
@@ -700,7 +707,7 @@ export default function MapView({
               >
                 <div className="flex items-center gap-2 text-xs font-medium">
                   <Waves className="w-4 h-4 text-cyan-400" />
-                  <span>Zonage Littoral Océan (Zones A, B, C, D)</span>
+                  <span>Zonage Littoral &amp; Utilité Publique (100m)</span>
                 </div>
                 <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${showOceanZones ? 'bg-cyan-500' : 'bg-slate-700'}`}>
                   <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showOceanZones ? 'translate-x-4' : 'translate-x-0'}`} />
@@ -795,49 +802,54 @@ export default function MapView({
           </button>
 
           {showBasemapMenu && (
-            <div className="absolute top-0 left-12 w-64 bg-white border border-slate-200 rounded-lg shadow-xl p-1 space-y-0.5 z-[1010] text-xs font-sans animate-in fade-in duration-150">
-              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+            <div className="absolute top-0 left-12 w-64 bg-slate-950/95 backdrop-blur-xl border border-slate-700/80 rounded-xl shadow-2xl p-1.5 space-y-1 z-[1010] text-xs font-sans animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono border-b border-slate-800">
                 Fond de carte
               </div>
               <button
                 onClick={() => { setMapType('google-pure'); setShowBasemapMenu(false); }}
-                className={`w-full text-left px-2.5 py-1.5 rounded flex items-center gap-2 font-medium ${
-                  mapType === 'google-pure' ? 'bg-emerald-50 text-emerald-700 font-bold' : 'text-slate-700 hover:bg-slate-100'
+                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 font-medium transition-all cursor-pointer ${
+                  mapType === 'google-pure' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40' : 'text-slate-300 hover:bg-slate-800/80'
                 }`}
               >
-                <span>🛰️</span> Google Satellite Pur (Sans gros textes)
+                <Satellite className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span>Google Satellite Pur (HD)</span>
               </button>
               <button
                 onClick={() => { setMapType('google-hybrid'); setShowBasemapMenu(false); }}
-                className={`w-full text-left px-2.5 py-1.5 rounded flex items-center gap-2 font-medium ${
-                  mapType === 'google-hybrid' ? 'bg-emerald-50 text-emerald-700 font-bold' : 'text-slate-700 hover:bg-slate-100'
+                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 font-medium transition-all cursor-pointer ${
+                  mapType === 'google-hybrid' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40' : 'text-slate-300 hover:bg-slate-800/80'
                 }`}
               >
-                <span>🌍</span> Google Satellite Hybride (Avec noms)
+                <Globe className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                <span>Google Hybride (Toponymes)</span>
               </button>
               <button
                 onClick={() => { setMapType('sentinel-live'); setShowBasemapMenu(false); }}
-                className={`w-full text-left px-2.5 py-1.5 rounded flex items-center gap-2 font-medium ${
-                  mapType === 'sentinel-live' ? 'bg-emerald-50 text-emerald-700 font-bold' : 'text-slate-700 hover:bg-slate-100'
+                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 font-medium transition-all cursor-pointer ${
+                  mapType === 'sentinel-live' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40' : 'text-slate-300 hover:bg-slate-800/80'
                 }`}
               >
-                <span>🛰️</span> Copernicus Sentinel-2 Live
+                <Radio className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                <span>Copernicus Sentinel-2 Live</span>
               </button>
               <button
                 onClick={() => { setMapType('esri-clarity'); setShowBasemapMenu(false); }}
-                className={`w-full text-left px-2.5 py-1.5 rounded flex items-center gap-2 font-medium ${
-                  mapType === 'esri-clarity' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'
+                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 font-medium transition-all cursor-pointer ${
+                  mapType === 'esri-clarity' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40' : 'text-slate-300 hover:bg-slate-800/80'
                 }`}
               >
-                <span>🏔️</span> Esri World Imagery HD
+                <Mountain className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                <span>Esri World Imagery HD</span>
               </button>
               <button
                 onClick={() => { setMapType('google-roads'); setShowBasemapMenu(false); }}
-                className={`w-full text-left px-2.5 py-1.5 rounded flex items-center gap-2 font-medium ${
-                  mapType === 'google-roads' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-slate-700 hover:bg-slate-100'
+                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 font-medium transition-all cursor-pointer ${
+                  mapType === 'google-roads' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40' : 'text-slate-300 hover:bg-slate-800/80'
                 }`}
               >
-                <span>🛣️</span> Google Plan des Routes
+                <Route className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                <span>Google Plan des Routes</span>
               </button>
             </div>
           )}
@@ -940,66 +952,79 @@ export default function MapView({
         {/* Discrete Collapsible Legend Drawer Toggle Button */}
         <button
           onClick={() => setShowLegendDrawer(!showLegendDrawer)}
-          className={`p-2 rounded-lg border border-slate-200 shadow-sm transition-all cursor-pointer mt-2 ${
-            showLegendDrawer ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'
+          aria-label="Afficher la légende cartographique"
+          className={`p-2 rounded-xl border shadow-md transition-all duration-150 active:scale-95 cursor-pointer mt-2 ${
+            showLegendDrawer ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-amber-900/30' : 'bg-slate-900/90 text-slate-300 border-slate-700/80 hover:bg-slate-800'
           }`}
           title="Afficher la légende"
         >
-          <Palette className="w-4 h-4 text-amber-500" />
+          <Palette className="w-4 h-4 text-amber-400" />
         </button>
       </div>
 
       {/* Discrete Collapsible Legend Card */}
       {showLegendDrawer && (
-        <div className="absolute top-3 sm:top-4 left-3 sm:left-16 right-3 sm:right-auto z-[1010] bg-white/95 backdrop-blur-md p-3 rounded-lg border border-slate-200 shadow-xl text-xs space-y-1.5 max-w-sm text-slate-800 select-none animate-in fade-in duration-150 max-h-[75vh] overflow-y-auto">
-          <div className="font-bold text-slate-900 border-b border-slate-200 pb-1 flex items-center justify-between gap-4">
-            <span>Légende Cadastrale</span>
-            <button onClick={() => setShowLegendDrawer(false)} className="text-slate-400 hover:text-slate-600">
-              <X className="w-3.5 h-3.5" />
+        <div className="absolute top-3 sm:top-4 left-3 sm:left-16 right-3 sm:right-auto z-[1010] bg-slate-950/95 backdrop-blur-xl p-4 rounded-2xl border border-slate-700/80 shadow-2xl text-xs space-y-2.5 max-w-sm text-slate-200 select-none animate-in fade-in zoom-in-95 duration-150 max-h-[78vh] overflow-y-auto">
+          <div className="font-bold text-white border-b border-slate-800 pb-2 flex items-center justify-between gap-4">
+            <span className="flex items-center gap-2">
+              <Palette className="w-3.5 h-3.5 text-amber-400" />
+              <span>Légende Cadastrale</span>
+            </span>
+            <button onClick={() => setShowLegendDrawer(false)} aria-label="Fermer la légende" className="text-slate-400 hover:text-white p-0.5 rounded cursor-pointer">
+              <X className="w-4 h-4" />
             </button>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded bg-emerald-500/40 border-2 border-emerald-600"></div>
-            <span className="text-slate-700">Disponible / Libre</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded bg-rose-500/40 border-2 border-rose-600"></div>
-            <span className="text-slate-700">Occupé / Attribué</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded bg-amber-500/40 border-2 border-amber-600"></div>
-            <span className="text-slate-700">Litige / Sous réserve</span>
-          </div>
-          <div className="flex items-center gap-2 border-t border-slate-200 pt-1">
-            <div className="w-4 h-0 border-2 border-dashed border-cyan-600"></div>
-            <span className="text-cyan-700 font-semibold text-[11px]">Limite Zone ISETECH</span>
+
+          {/* Parcels Status */}
+          <div className="space-y-1.5">
+            <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 font-mono">Statut des Parcelles</div>
+            <div className="flex items-center gap-2">
+              <div className="w-3.5 h-3.5 rounded bg-emerald-500/30 border-2 border-emerald-500"></div>
+              <span className="text-slate-300">Disponible / Libre</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3.5 h-3.5 rounded bg-rose-500/30 border-2 border-rose-500"></div>
+              <span className="text-slate-300">Occupé / Attribué</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3.5 h-3.5 rounded bg-amber-500/30 border-2 border-amber-500"></div>
+              <span className="text-slate-300">Litige / Sous réserve</span>
+            </div>
+            <div className="flex items-center gap-2 pt-1 border-t border-slate-800">
+              <div className="w-4 h-0 border-2 border-dashed border-cyan-400"></div>
+              <span className="text-cyan-300 font-medium text-[11px]">Limite Zone ISETECH (1 002 ha)</span>
+            </div>
           </div>
 
           {/* Coastal Zoning Legend Section */}
-          <div className="border-t border-slate-200 pt-2 mt-2 space-y-1.5">
-            <div className="font-bold text-slate-900 text-[11px] flex items-center justify-between">
-              <span>Zonage Littoral Océan</span>
-              <span className="text-[10px] text-cyan-700 font-normal">0 m à &gt;600 m</span>
+          <div className="border-t border-slate-800 pt-2 space-y-1.5">
+            <div className="font-bold text-slate-200 text-[11px] flex items-center justify-between">
+              <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-400 font-mono">Zonage Littoral &amp; Océan</span>
+              <span className="text-[10px] text-slate-400 font-mono">0 à &gt;600 m</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded bg-cyan-500/40 border-2 border-cyan-600"></div>
-              <span className="text-slate-700 text-[11px]"><strong>Zone A</strong> : 0 à 200 m (157 ha)</span>
+              <div className="w-3.5 h-3.5 rounded bg-rose-500/30 border-2 border-rose-500"></div>
+              <span className="text-slate-300 text-[11px]"><strong className="text-rose-400">Utilité Publique</strong> : 0 à 100 m (78,65 ha - Domaine État)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded bg-amber-500/40 border-2 border-amber-600"></div>
-              <span className="text-slate-700 text-[11px]"><strong>Zone B</strong> : 201 à 400 m (158 ha)</span>
+              <div className="w-3.5 h-3.5 rounded bg-cyan-500/30 border-2 border-cyan-400"></div>
+              <span className="text-slate-300 text-[11px]"><strong className="text-cyan-400">Zone A</strong> : 101 à 200 m (78,83 ha)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded bg-purple-500/40 border-2 border-purple-600"></div>
-              <span className="text-slate-700 text-[11px]"><strong>Zone C</strong> : 401 à 600 m (158 ha)</span>
+              <div className="w-3.5 h-3.5 rounded bg-amber-500/30 border-2 border-amber-400"></div>
+              <span className="text-slate-300 text-[11px]"><strong className="text-amber-400">Zone B</strong> : 201 à 400 m (158,19 ha)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded bg-emerald-500/20 border-2 border-emerald-600"></div>
-              <span className="text-slate-700 text-[11px]"><strong>Zone D</strong> : 601 m et + (4 931 ha)</span>
+              <div className="w-3.5 h-3.5 rounded bg-purple-500/30 border-2 border-purple-400"></div>
+              <span className="text-slate-300 text-[11px]"><strong className="text-purple-400">Zone C</strong> : 401 à 600 m (158,47 ha)</span>
             </div>
-            <div className="flex items-center gap-2 pt-1 border-t border-slate-100 text-[10px] text-slate-500">
-              <div className="w-4 h-0 border-2 border-dashed border-cyan-500"></div>
-              <span>Lignes 200m / 400m / 600m</span>
+            <div className="flex items-center gap-2">
+              <div className="w-3.5 h-3.5 rounded bg-emerald-500/20 border-2 border-emerald-500"></div>
+              <span className="text-slate-300 text-[11px]"><strong className="text-emerald-400">Zone D</strong> : 601 m et + (4 930,66 ha)</span>
+            </div>
+            <div className="flex items-center gap-2 pt-1 border-t border-slate-800 text-[10px] text-slate-400">
+              <div className="w-4 h-0 border-2 border-dashed border-red-500"></div>
+              <span>Ligne 100m (Recul Concession) &bull; Lignes 200/400/600m</span>
             </div>
           </div>
         </div>
@@ -1104,7 +1129,7 @@ export default function MapView({
             }}
           >
             <Tooltip direction="top" className="bg-slate-900 text-white font-semibold text-[11px] px-2 py-0.5 rounded shadow-sm border border-slate-700">
-              📍 Concession Manuel Joaquim d'Oliveira (5 404,80 ha)
+              Concession Manuel Joaquim d'Oliveira (5 326,15 ha)
             </Tooltip>
           </Polygon>
         )}
@@ -1129,7 +1154,7 @@ export default function MapView({
             }}
           >
             <Tooltip direction="top" className="bg-cyan-900 text-cyan-100 font-bold text-[11px] px-2.5 py-1 rounded shadow-md border border-cyan-400">
-              🔷 Périmètre Zone ISETECH (1 002,61 ha) {activeView === 'global' ? '• Cliquer pour explorer' : ''}
+              Périmètre Zone ISETECH (1 002,61 ha) {activeView === 'global' ? '• Cliquer pour explorer' : ''}
             </Tooltip>
           </Polygon>
         )}
@@ -1147,24 +1172,24 @@ export default function MapView({
               fillOpacity: zone.fillOpacity
             }}
           >
-            <Tooltip direction="center" className="bg-slate-900/90 text-white font-semibold text-[11px] px-2 py-0.5 rounded shadow-sm border border-slate-700">
-              🌊 {zone.shortName} • {zone.formattedArea}
+            <Tooltip direction="center" className="bg-slate-950/95 text-white font-semibold text-[11px] px-2.5 py-1 rounded-lg shadow-md border border-slate-700 font-mono">
+              {zone.shortName} • {zone.formattedArea}
             </Tooltip>
             <Popup>
-              <div className="p-1.5 space-y-1.5 text-xs font-sans text-slate-800">
+              <div className="p-1 space-y-1.5 text-xs font-sans text-slate-100">
                 <div className="font-bold text-sm" style={{ color: zone.strokeColor }}>{zone.name}</div>
-                <div className="text-slate-600 text-[11px] leading-relaxed">{zone.description}</div>
-                <div className="font-semibold text-slate-900">Superficie couverte : <span className="text-emerald-700 font-bold">{zone.formattedArea}</span></div>
-                <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-100 flex items-center justify-between">
+                <div className="text-slate-300 text-[11px] leading-relaxed">{zone.description}</div>
+                <div className="font-semibold text-slate-200">Superficie : <span className="text-emerald-400 font-bold font-mono">{zone.formattedArea}</span></div>
+                <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-800 flex items-center justify-between">
                   <span>Distance du rivage</span>
-                  <strong className="font-mono text-slate-700">{zone.range}</strong>
+                  <strong className="font-mono text-cyan-300">{zone.range}</strong>
                 </div>
               </div>
             </Popup>
           </Polygon>
         ))}
 
-        {/* Coastal Separation Lines (0m, 200m, 400m, 600m) & Midpoint Distance Markers */}
+        {/* Coastal Separation Lines (0m, 100m, 200m, 400m, 600m) & Midpoint Distance Markers */}
         {showOceanZones && SEPARATION_LINES.map((line) => (
           <React.Fragment key={line.id}>
             <Polyline
@@ -1175,8 +1200,8 @@ export default function MapView({
                 dashArray: line.dashArray
               }}
             >
-              <Tooltip direction="top" className="bg-slate-900 text-white font-bold text-[11px] px-2 py-0.5 rounded shadow-sm border border-slate-700">
-                📏 {line.label}
+              <Tooltip direction="top" className="bg-slate-950/95 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg shadow-md border border-slate-700">
+                {line.label}
               </Tooltip>
             </Polyline>
             {line.midpoint && (
@@ -1184,7 +1209,7 @@ export default function MapView({
                 position={line.midpoint}
                 icon={createCoastalLabelIcon(
                   line.shortLabel,
-                  line.id === 'line_0m' ? '#0369A1' : '#0F172A',
+                  line.id === 'line_0m' ? '#0369A1' : line.id === 'line_100m' ? '#B91C1C' : '#0F172A',
                   '#FFFFFF',
                   line.color
                 )}
@@ -1374,7 +1399,7 @@ export default function MapView({
               </Popup>
               <Tooltip direction="top" offset={[0, -12]} opacity={0.95}>
                 <div className="text-[11px] font-sans font-bold text-cyan-950 text-center">
-                  {locationZoneInfo ? `${locationZoneInfo.shortName} (${locationZoneInfo.distanceFormatted})` : '📍 Vous êtes ici'}
+                  {locationZoneInfo ? `${locationZoneInfo.shortName} (${locationZoneInfo.distanceFormatted})` : 'Position actuelle'}
                 </div>
               </Tooltip>
             </Marker>

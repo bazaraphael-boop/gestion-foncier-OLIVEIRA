@@ -1,4 +1,5 @@
 import * as turf from '@turf/turf';
+import { getOceanZoneInfo } from './coastalZones';
 
 /**
  * Calculates surface area of a polygon or feature in m² and Hectares
@@ -120,6 +121,18 @@ export function validateParcelGeometry(ringCoords, concessionPolygon = null, exi
         // continue
       }
     }
+  }
+
+  // Vérification de la servitude littorale d'utilité publique (Bande des 100 m de l'océan)
+  try {
+    const oceanInfo = getOceanZoneInfo(parcelPolygon);
+    if (oceanInfo && oceanInfo.isRestricted) {
+      warnings.push(
+        `Attention : La parcelle empiète sur la zone d'utilité publique des 100 m de l'océan (${oceanInfo.distanceFormatted} du rivage, servitude maritime de l'État non constructible).`
+      );
+    }
+  } catch (err) {
+    console.warn('Ocean proximity check error:', err);
   }
 
   return {
