@@ -248,7 +248,7 @@ export default function App() {
     // 1. Coastal Zone and exact distance from ocean
     const zoneInfo = getOceanZoneInfo(userLocation);
 
-    // 2. Check if inside Concession Manuel Joaquim d'Oliveira (5 404,80 ha)
+    // 2. Check if inside Concession Manuel Joaquim d'Oliveira (5 326,15 ha)
     let inConcession = false;
     if (concessionPolygon && concessionPolygon.geometry) {
       try {
@@ -325,8 +325,18 @@ export default function App() {
       try {
         const cloudParcels = await fetchParcelsFromSupabase();
         if (isMounted && cloudParcels !== null) {
-          setGlobalParcels(cloudParcels);
-          setIsetechParcels(cloudParcels);
+          setGlobalParcels((prev) => {
+            if (prev && prev.length === cloudParcels.length && JSON.stringify(prev) === JSON.stringify(cloudParcels)) {
+              return prev;
+            }
+            return cloudParcels;
+          });
+          setIsetechParcels((prev) => {
+            if (prev && prev.length === cloudParcels.length && JSON.stringify(prev) === JSON.stringify(cloudParcels)) {
+              return prev;
+            }
+            return cloudParcels;
+          });
         }
       } catch (err) {
         console.warn('Auto-sync error:', err);
@@ -343,12 +353,12 @@ export default function App() {
       }
     });
 
-    // 3. Periodic Background Polling Sync (Every 8 Seconds)
+    // 3. Periodic Background Polling Fallback (Every 25 Seconds)
     const intervalId = setInterval(() => {
       if (isMounted) {
         syncLatestParcels();
       }
-    }, 8000);
+    }, 25000);
 
     return () => {
       isMounted = false;

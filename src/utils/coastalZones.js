@@ -730,8 +730,23 @@ const COASTLINE_TURF_LINE = turf.lineString(
   OCEAN_COASTLINE_LEAFLET.map(([lat, lng]) => [lng, lat])
 );
 
+const oceanZoneCache = new Map();
+
 export function getOceanZoneInfo(geometryOrPoints) {
   if (!geometryOrPoints) return null;
+
+  let cacheKey = null;
+  if (geometryOrPoints.id) {
+    cacheKey = `id_${geometryOrPoints.id}`;
+  } else if (geometryOrPoints.properties && geometryOrPoints.properties.lotNumber) {
+    cacheKey = `lot_${geometryOrPoints.properties.lotNumber}`;
+  } else if (Array.isArray(geometryOrPoints) && geometryOrPoints.length === 2 && typeof geometryOrPoints[0] === 'number') {
+    cacheKey = `pt_${geometryOrPoints[0].toFixed(5)}_${geometryOrPoints[1].toFixed(5)}`;
+  }
+
+  if (cacheKey && oceanZoneCache.has(cacheKey)) {
+    return oceanZoneCache.get(cacheKey);
+  }
 
   try {
     let pts = [];
@@ -778,8 +793,10 @@ export function getOceanZoneInfo(geometryOrPoints) {
     const distanceMeters = Math.round(minDist);
     const distanceFormatted = `${distanceMeters.toLocaleString('fr-FR')} m`;
 
+    let result = null;
+
     if (distanceMeters <= 100) {
-      return {
+      result = {
         distanceMeters,
         distanceFormatted,
         zone: 'UP',
@@ -790,10 +807,8 @@ export function getOceanZoneInfo(geometryOrPoints) {
         description: "Domaine public maritime et servitude de l'État (0 à 100 m) • Inaliénable & non constructible",
         isRestricted: true
       };
-    }
-
-    if (distanceMeters <= 200) {
-      return {
+    } else if (distanceMeters <= 200) {
+      result = {
         distanceMeters,
         distanceFormatted,
         zone: 'A',
@@ -803,10 +818,8 @@ export function getOceanZoneInfo(geometryOrPoints) {
         badgeBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
         description: "Bande littorale secondaire (101 à 200 m de l'océan)"
       };
-    }
-
-    if (distanceMeters <= 400) {
-      return {
+    } else if (distanceMeters <= 400) {
+      result = {
         distanceMeters,
         distanceFormatted,
         zone: 'B',
@@ -816,10 +829,8 @@ export function getOceanZoneInfo(geometryOrPoints) {
         badgeBg: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
         description: "Bande littorale intermédiaire (201 à 400 m de l'océan)"
       };
-    }
-
-    if (distanceMeters <= 600) {
-      return {
+    } else if (distanceMeters <= 600) {
+      result = {
         distanceMeters,
         distanceFormatted,
         zone: 'C',
@@ -829,18 +840,25 @@ export function getOceanZoneInfo(geometryOrPoints) {
         badgeBg: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
         description: "Bande de transition intérieure (401 à 600 m de l'océan)"
       };
+    } else {
+      result = {
+        distanceMeters,
+        distanceFormatted,
+        zone: 'D',
+        zoneName: "Zone D (601 m et plus de l'océan)",
+        shortName: 'Zone D (>600m)',
+        color: '#10B981',
+        badgeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+        description: "Zone continentale et concession profonde (601 m et plus de l'océan)"
+      };
     }
 
-    return {
-      distanceMeters,
-      distanceFormatted,
-      zone: 'D',
-      zoneName: "Zone D (601 m et plus de l'océan)",
-      shortName: 'Zone D (>600m)',
-      color: '#10B981',
-      badgeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-      description: "Zone continentale et concession profonde (601 m et plus de l'océan)"
-    };
+    if (cacheKey && result) {
+      if (oceanZoneCache.size > 2000) oceanZoneCache.clear();
+      oceanZoneCache.set(cacheKey, result);
+    }
+
+    return result;
 
   } catch (err) {
     console.warn('Error computing ocean zone info:', err);

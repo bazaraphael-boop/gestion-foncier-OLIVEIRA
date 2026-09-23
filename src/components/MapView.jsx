@@ -109,15 +109,14 @@ const ISETECH_OUTER_BOUNDARY_COORDS = [
 // Auto-fit bounds controller with deep zoom for ISETECH sub-parcels
 function MapBoundsController({ concessionPolygon, selectedParcel, activeView, isSidebarCollapsed }) {
   const map = useMap();
+  const prevViewRef = useRef(activeView);
+  const initialFitDone = useRef(false);
 
   useEffect(() => {
-    map.invalidateSize();
-    const t1 = setTimeout(() => map.invalidateSize(), 200);
-    const t2 = setTimeout(() => map.invalidateSize(), 600);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
+    const t = setTimeout(() => {
+      map.invalidateSize({ animate: false });
+    }, 150);
+    return () => clearTimeout(t);
   }, [isSidebarCollapsed, map]);
 
   useEffect(() => {
@@ -128,7 +127,7 @@ function MapBoundsController({ concessionPolygon, selectedParcel, activeView, is
           [bbox[1], bbox[0]],
           [bbox[3], bbox[2]]
         ];
-        map.flyToBounds(bounds, { padding: [50, 50], maxZoom: 19, duration: 1.2 });
+        map.flyToBounds(bounds, { padding: [50, 50], maxZoom: 19, duration: 0.8 });
       } catch (e) {
         console.warn('Could not fit bounds to selected parcel', e);
       }
@@ -136,30 +135,36 @@ function MapBoundsController({ concessionPolygon, selectedParcel, activeView, is
   }, [selectedParcel, map]);
 
   useEffect(() => {
-    if (activeView === 'isetech' && !selectedParcel) {
-      try {
-        const isetechPolygon = turf.polygon([
-          ISETECH_OUTER_BOUNDARY_COORDS.map(([lat, lng]) => [lng, lat])
-        ]);
-        const bbox = turf.bbox(isetechPolygon);
-        const bounds = [
-          [bbox[1], bbox[0]],
-          [bbox[3], bbox[2]]
-        ];
-        map.fitBounds(bounds, { padding: [20, 20], maxZoom: 17 });
-      } catch (e) {
-        map.setView([-5.903, 12.338], 15);
-      }
-    } else if (concessionPolygon && !selectedParcel && activeView === 'global') {
-      try {
-        const bbox = turf.bbox(concessionPolygon);
-        const bounds = [
-          [bbox[1], bbox[0]],
-          [bbox[3], bbox[2]]
-        ];
-        map.fitBounds(bounds, { padding: [25, 25] });
-      } catch (e) {
-        console.warn('Could not fit bounds to concession', e);
+    if (!initialFitDone.current || prevViewRef.current !== activeView) {
+      const isFirst = !initialFitDone.current;
+      initialFitDone.current = true;
+      prevViewRef.current = activeView;
+
+      if (activeView === 'isetech' && !selectedParcel) {
+        try {
+          const isetechPolygon = turf.polygon([
+            ISETECH_OUTER_BOUNDARY_COORDS.map(([lat, lng]) => [lng, lat])
+          ]);
+          const bbox = turf.bbox(isetechPolygon);
+          const bounds = [
+            [bbox[1], bbox[0]],
+            [bbox[3], bbox[2]]
+          ];
+          map.fitBounds(bounds, { padding: [20, 20], maxZoom: 17, animate: !isFirst });
+        } catch (e) {
+          map.setView([-5.8988, 12.3375], 15);
+        }
+      } else if (concessionPolygon && !selectedParcel && activeView === 'global') {
+        try {
+          const bbox = turf.bbox(concessionPolygon);
+          const bounds = [
+            [bbox[1], bbox[0]],
+            [bbox[3], bbox[2]]
+          ];
+          map.fitBounds(bounds, { padding: [25, 25], animate: !isFirst });
+        } catch (e) {
+          console.warn('Could not fit bounds to concession', e);
+        }
       }
     }
   }, [concessionPolygon, activeView, selectedParcel, map]);
@@ -181,9 +186,10 @@ function LocationFlyToController({ flyToTrigger, userLocation }) {
 // Professional HUD with Interactive Zoom Percentage Controller & Molette D-Pad
 function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
   const map = useMap();
-  const [mouseCoords, setMouseCoords] = useState(null);
   const [currentZoom, setCurrentZoom] = useState(map.getZoom());
   const [showZoomMenu, setShowZoomMenu] = useState(false);
+  const coordsRef = useRef(null);
+  const lastMoveTime = useRef(0);
 
   useEffect(() => {
     const scaleControl = L.control.scale({
@@ -199,7 +205,13 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
 
   useMapEvents({
     mousemove(e) {
-      setMouseCoords([e.latlng.lat, e.latlng.lng]);
+      const now = performance.now();
+      if (now - lastMoveTime.current > 120) {
+        lastMoveTime.current = now;
+        if (coordsRef.current) {
+          coordsRef.current.innerHTML = `<span>Lat: <strong class="text-slate-900">${e.latlng.lat.toFixed(5)}°</strong></span><span>Lng: <strong class="text-slate-900">${e.latlng.lng.toFixed(5)}°</strong></span>`;
+        }
+      }
     },
     zoomend() {
       setCurrentZoom(map.getZoom());
@@ -251,12 +263,10 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
             <span>Flux Auto-Sync</span>
           </div>
 
-          {mouseCoords && (
-            <div className="hidden sm:flex items-center gap-3">
-              <span>Lat: <strong className="text-slate-900">{mouseCoords[0].toFixed(5)}°</strong></span>
-              <span>Lng: <strong className="text-slate-900">{mouseCoords[1].toFixed(5)}°</strong></span>
-            </div>
-          )}
+          <div ref={coordsRef} className="hidden sm:flex items-center gap-3">
+            <span>Lat: <strong className="text-slate-900">-5.89880°</strong></span>
+            <span>Lng: <strong className="text-slate-900">12.33750°</strong></span>
+          </div>
         </div>
 
         {/* Integrated Zoom Controller */}
@@ -430,11 +440,13 @@ export default function MapView({
     return [];
   };
 
-  let defaultCenter = [-5.903, 12.338]; // Centered directly on Zone ISETECH cadastre
+  let defaultCenter = [-5.8988, 12.3375]; // Centered directly on Zone ISETECH cadastre
+  let defaultZoom = 15;
   if (activeView === 'global' && concessionPolygon) {
     try {
       const center = turf.center(concessionPolygon);
       defaultCenter = [center.geometry.coordinates[1], center.geometry.coordinates[0]];
+      defaultZoom = 12;
     } catch (e) {
       // fallback
     }
@@ -618,7 +630,7 @@ export default function MapView({
   const concessionCoords = getLeafletCoords(concessionPolygon);
 
   return (
-    <div ref={mapContainerRef} className="relative w-full h-full min-h-[550px] bg-slate-900 flex flex-col select-none">
+    <div ref={mapContainerRef} className={`relative w-full h-full min-h-[550px] bg-slate-900 flex flex-col select-none ${sharpnessHD ? 'sharpness-hd' : ''}`}>
 
       {/* Re-open Right Sidebar Floating Button (Top Right of Map) */}
       {isSidebarCollapsed && (
@@ -721,7 +733,7 @@ export default function MapView({
               >
                 <div className="flex items-center gap-2 text-xs font-medium">
                   <Eye className="w-4 h-4 text-emerald-400" />
-                  <span>Tracé Périmètre Concession (5 404 ha)</span>
+                  <span>Tracé Périmètre Concession (5 326 ha)</span>
                 </div>
                 <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${showConcession ? 'bg-emerald-500' : 'bg-slate-700'}`}>
                   <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showConcession ? 'translate-x-4' : 'translate-x-0'}`} />
@@ -1033,10 +1045,11 @@ export default function MapView({
       {/* Main Leaflet Map Container */}
       <MapContainer
         center={defaultCenter}
-        zoom={14}
+        zoom={defaultZoom}
         maxZoom={22}
         minZoom={5}
         zoomControl={false}
+        preferCanvas={true}
         className="w-full h-full flex-1 z-0"
         scrollWheelZoom={true}
       >
@@ -1053,18 +1066,24 @@ export default function MapView({
         {mapType === 'google-pure' && (
           <TileLayer
             attribution='&copy; Google Satellite Pure HD'
-            url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+            url="https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
             maxZoom={22}
             maxNativeZoom={19}
+            keepBuffer={8}
+            updateWhenIdle={false}
             crossOrigin="anonymous"
           />
         )}
         {mapType === 'google-hybrid' && (
           <TileLayer
             attribution='&copy; Google Satellite Hybrid'
-            url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+            url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
             maxZoom={22}
             maxNativeZoom={19}
+            keepBuffer={8}
+            updateWhenIdle={false}
             crossOrigin="anonymous"
           />
         )}
@@ -1074,6 +1093,7 @@ export default function MapView({
             url="https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2023_3857/default/g/{z}/{y}/{x}.jpg"
             maxZoom={22}
             maxNativeZoom={14}
+            keepBuffer={6}
             crossOrigin="anonymous"
           />
         )}
@@ -1083,15 +1103,19 @@ export default function MapView({
             url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
             maxZoom={22}
             maxNativeZoom={19}
+            keepBuffer={6}
             crossOrigin="anonymous"
           />
         )}
         {mapType === 'google-roads' && (
           <TileLayer
             attribution='&copy; Google Maps Vector'
-            url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+            url="https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
             maxZoom={22}
             maxNativeZoom={19}
+            keepBuffer={8}
+            updateWhenIdle={false}
             crossOrigin="anonymous"
           />
         )}
@@ -1101,6 +1125,7 @@ export default function MapView({
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
             maxZoom={22}
             maxNativeZoom={19}
+            keepBuffer={6}
             crossOrigin="anonymous"
           />
         )}
@@ -1109,9 +1134,12 @@ export default function MapView({
         {showRoadsOverlay && mapType !== 'google-roads' && mapType !== 'osm-roads' && (
           <TileLayer
             attribution='&copy; Google Roads Overlay'
-            url="https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}"
+            url="https://{s}.google.com/vt/lyrs=h&x={x}&y={y}&z={z}"
+            subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
             maxZoom={22}
             maxNativeZoom={19}
+            keepBuffer={8}
+            updateWhenIdle={false}
             crossOrigin="anonymous"
           />
         )}

@@ -61,12 +61,16 @@
   display: none !important;
 }
 
-/* High-Definition Tile Sharpness Filter */
+/* High-Performance Tile Rendering */
 .leaflet-tile-pane img.leaflet-tile {
-  image-rendering: -webkit-optimize-contrast !important;
-  image-rendering: crisp-edges !important;
-  filter: contrast(1.08) brightness(1.02) saturate(1.05) !important;
   will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Optional HD Sharpness Filter when toggled */
+.sharpness-hd .leaflet-tile-pane img.leaflet-tile {
+  image-rendering: -webkit-optimize-contrast;
+  filter: contrast(1.06) brightness(1.02) saturate(1.04);
 }
 
 /* Modern Leaflet Popup Dark Glass Styling */
