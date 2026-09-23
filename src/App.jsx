@@ -1,15 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import Navbar from './components/Navbar';
 import ClientNavbar from './components/ClientNavbar';
 import Dashboard from './components/Dashboard';
 import MapView from './components/MapView';
 import ParcelList from './components/ParcelList';
-import ParcelModal from './components/ParcelModal';
-import ParcelFormModal from './components/ParcelFormModal';
-import KmlImporter from './components/KmlImporter';
-import KmlParcelImporterModal from './components/KmlParcelImporterModal';
-import GeoJsonImporterModal from './components/GeoJsonImporterModal';
-import SupabaseModal from './components/SupabaseModal';
 import AdminLocationHUD from './components/AdminLocationHUD';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
 import { getOceanZoneInfo } from './utils/coastalZones';
@@ -18,7 +12,15 @@ import * as turf from '@turf/turf';
 import PortalSelectionModal from './components/PortalSelectionModal';
 import ClientPinModal from './components/ClientPinModal';
 import AdminLoginModal from './components/AdminLoginModal';
-import AdminSecurityModal from './components/AdminSecurityModal';
+
+// Lazy load secondary modals to drastically accelerate initial loading
+const ParcelModal = lazy(() => import('./components/ParcelModal'));
+const ParcelFormModal = lazy(() => import('./components/ParcelFormModal'));
+const KmlImporter = lazy(() => import('./components/KmlImporter'));
+const KmlParcelImporterModal = lazy(() => import('./components/KmlParcelImporterModal'));
+const GeoJsonImporterModal = lazy(() => import('./components/GeoJsonImporterModal'));
+const SupabaseModal = lazy(() => import('./components/SupabaseModal'));
+const AdminSecurityModal = lazy(() => import('./components/AdminSecurityModal'));
 
 import { DEFAULT_KML_DATA } from './data/defaultConcession';
 import { parseKMLToGeoJSON, extractMainConcessionPolygon, extractSubZones } from './utils/kmlParser';
@@ -748,63 +750,71 @@ export default function App() {
         )}
       </div>
 
-      {/* Selected Parcel Detail Sidebar / Modal — Admin uniquement */}
+      {/* Lazy Loaded Admin Modals & Detail Views */}
       {!isClientRole && (
-        <ParcelModal
-          parcel={selectedParcel}
-          onClose={() => setSelectedParcel(null)}
-          onUpdateParcel={handleUpdateParcel}
-          onDeleteParcel={handleDeleteParcel}
-          isVisitorMode={false}
-        />
-      )}
+        <Suspense fallback={null}>
+          {selectedParcel && (
+            <ParcelModal
+              parcel={selectedParcel}
+              onClose={() => setSelectedParcel(null)}
+              onUpdateParcel={handleUpdateParcel}
+              onDeleteParcel={handleDeleteParcel}
+              isVisitorMode={false}
+            />
+          )}
 
-      {/* Supabase Cloud Sync Modal (Admin only) */}
-      {!isClientRole && (
-        <SupabaseModal
-          isOpen={isSupabaseModalOpen}
-          onClose={() => setIsSupabaseModalOpen(false)}
-          onSyncCloud={handleSyncCloud}
-        />
-      )}
+          {isSupabaseModalOpen && (
+            <SupabaseModal
+              isOpen={isSupabaseModalOpen}
+              onClose={() => setIsSupabaseModalOpen(false)}
+              onSyncCloud={handleSyncCloud}
+            />
+          )}
 
-      {/* Admin Modals */}
-      {!isClientRole && (
-        <>
-          <ParcelFormModal
-            isOpen={isFormOpen}
-            onClose={() => setIsFormOpen(false)}
-            onAddParcel={handleAddParcel}
-            concessionPolygon={concessionPolygon}
-            existingParcels={currentParcels}
-            initialPoints={initialFormPoints}
-          />
+          {isFormOpen && (
+            <ParcelFormModal
+              isOpen={isFormOpen}
+              onClose={() => setIsFormOpen(false)}
+              onAddParcel={handleAddParcel}
+              concessionPolygon={concessionPolygon}
+              existingParcels={currentParcels}
+              initialPoints={initialFormPoints}
+            />
+          )}
 
-          <GeoJsonImporterModal
-            isOpen={isGeoJsonImporterOpen}
-            onClose={() => setIsGeoJsonImporterOpen(false)}
-            onAddParcels={handleAddParcelsFromExternal}
-          />
+          {isGeoJsonImporterOpen && (
+            <GeoJsonImporterModal
+              isOpen={isGeoJsonImporterOpen}
+              onClose={() => setIsGeoJsonImporterOpen(false)}
+              onAddParcels={handleAddParcelsFromExternal}
+            />
+          )}
 
-          <KmlParcelImporterModal
-            isOpen={isKmlParcelImporterOpen}
-            onClose={() => setIsKmlParcelImporterOpen(false)}
-            onAddParcels={handleAddParcelsFromExternal}
-            concessionPolygon={concessionPolygon}
-          />
+          {isKmlParcelImporterOpen && (
+            <KmlParcelImporterModal
+              isOpen={isKmlParcelImporterOpen}
+              onClose={() => setIsKmlParcelImporterOpen(false)}
+              onAddParcels={handleAddParcelsFromExternal}
+              concessionPolygon={concessionPolygon}
+            />
+          )}
 
-          <KmlImporter
-            isOpen={isKmlImporterOpen}
-            onClose={() => setIsKmlImporterOpen(false)}
-            onSetConcession={(poly) => setConcessionPolygon(poly)}
-          />
+          {isKmlImporterOpen && (
+            <KmlImporter
+              isOpen={isKmlImporterOpen}
+              onClose={() => setIsKmlImporterOpen(false)}
+              onSetConcession={(poly) => setConcessionPolygon(poly)}
+            />
+          )}
 
-          <AdminSecurityModal
-            isOpen={isAdminSecurityOpen}
-            onClose={() => setIsAdminSecurityOpen(false)}
-            onLogout={handleLogout}
-          />
-        </>
+          {isAdminSecurityOpen && (
+            <AdminSecurityModal
+              isOpen={isAdminSecurityOpen}
+              onClose={() => setIsAdminSecurityOpen(false)}
+              onLogout={handleLogout}
+            />
+          )}
+        </Suspense>
       )}
 
       {/* PWA Mobile Add to Home Screen Prompt */}

@@ -183,6 +183,44 @@ function LocationFlyToController({ flyToTrigger, userLocation }) {
   return null;
 }
 
+// Watcher for real-time map tile loading status
+function TileLoadingWatcher({ onLoadingChange }) {
+  const map = useMap();
+  useEffect(() => {
+    let pendingTiles = 0;
+    let timer = null;
+
+    const onStart = () => {
+      pendingTiles++;
+      onLoadingChange(true);
+    };
+
+    const onEnd = () => {
+      pendingTiles = Math.max(0, pendingTiles - 1);
+      if (pendingTiles === 0) {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          onLoadingChange(false);
+        }, 250);
+      }
+    };
+
+    map.on('tileloadstart', onStart);
+    map.on('tileload', onEnd);
+    map.on('tileerror', onEnd);
+    map.on('load', () => onLoadingChange(false));
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      map.off('tileloadstart', onStart);
+      map.off('tileload', onEnd);
+      map.off('tileerror', onEnd);
+    };
+  }, [map, onLoadingChange]);
+
+  return null;
+}
+
 // Professional HUD with Interactive Zoom Percentage Controller & Molette D-Pad
 function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
   const map = useMap();
@@ -395,6 +433,7 @@ export default function MapView({
   const [userLocation, setUserLocation] = useState(null);
   const [sharpnessHD, setSharpnessHD] = useState(true);
   const [showMobileGisMenu, setShowMobileGisMenu] = useState(false);
+  const [isTilesLoading, setIsTilesLoading] = useState(true);
 
   const effectiveUserLocation = externalUserLocation || userLocation;
 
@@ -1042,6 +1081,16 @@ export default function MapView({
         </div>
       )}
 
+      {/* Floating Tile Loading Indicator */}
+      {isTilesLoading && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none animate-in fade-in duration-200">
+          <div className="glass-pill px-3 py-1.5 rounded-full text-[11px] font-sans font-semibold text-emerald-300 flex items-center gap-2 shadow-2xl border border-emerald-500/40">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+            <span>Chargement des tuiles satellites HD...</span>
+          </div>
+        </div>
+      )}
+
       {/* Main Leaflet Map Container */}
       <MapContainer
         center={defaultCenter}
@@ -1053,6 +1102,7 @@ export default function MapView({
         className="w-full h-full flex-1 z-0"
         scrollWheelZoom={true}
       >
+        <TileLoadingWatcher onLoadingChange={setIsTilesLoading} />
         <MapBoundsController
           concessionPolygon={concessionPolygon}
           subZones={subZones}
