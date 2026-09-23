@@ -19,16 +19,48 @@
     <!-- Apple iOS Fullscreen & Standalone Support -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono (Non-blocking) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    </noscript>
 
     <title>Concession Manuel Joaquim d'Oliveira | SIG Cadastre</title>
-    <script type="module" crossorigin src="./assets/index-ud9vkW5F.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DedH0L7A.css">
+    <script type="module" crossorigin src="./assets/index-Cbey8c5z.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-D2aABDIb.js">
+    <link rel="modulepreload" crossorigin href="./assets/vendor-icons-DEHssmCy.js">
+    <link rel="modulepreload" crossorigin href="./assets/vendor-leaflet-Ca7c2PKk.js">
+    <link rel="modulepreload" crossorigin href="./assets/vendor-turf-pt37O7sU.js">
+    <link rel="modulepreload" crossorigin href="./assets/vendor-supabase-DfXYomY0.js">
+    <link rel="stylesheet" crossorigin href="./assets/vendor-leaflet-vh-t_kPv.css">
+    <link rel="stylesheet" crossorigin href="./assets/index-Bin-SvsV.css">
   </head>
-  <body class="bg-slate-900 text-white select-none">
-    <div id="root"></div>
+  <body class="bg-slate-900 text-white select-none m-0 p-0 overflow-hidden">
+    <div id="root">
+      <!-- Instant Native Pre-loader before React Hydration -->
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100dvh;width:100vw;background-color:#0B1120;color:#FFFFFF;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;text-align:center;padding:24px;box-sizing:border-box;">
+        <div style="width:60px;height:60px;border-radius:18px;background:linear-gradient(135deg,#059669,#0D9488);display:flex;align-items:center;justify-content:center;box-shadow:0 12px 28px rgba(5,150,105,0.4);margin-bottom:20px;border:1px solid rgba(255,255,255,0.2);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <h1 style="font-size:16px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;margin:0 0 6px 0;color:#F8FAFC;">
+          Concession Manuel Joaquim d'Oliveira
+        </h1>
+        <p style="font-size:12px;color:#94A3B8;margin:0 0 28px 0;font-weight:500;">
+          Système d'Information Géographique &bull; Muanda / Kongo Central
+        </p>
+        <div style="display:flex;align-items:center;gap:10px;font-size:11px;color:#34D399;font-weight:600;background:rgba(15,23,42,0.85);padding:8px 16px;border-radius:9999px;border:1px solid rgba(52,211,153,0.3);box-shadow:0 4px 12px rgba(0,0,0,0.25);">
+          <div style="width:13px;height:13px;border:2px solid #34D399;border-top-color:transparent;border-radius:50%;animation:spin-sig 0.8s linear infinite;"></div>
+          <span>Chargement du Système Cadastral...</span>
+        </div>
+      </div>
+      <style>
+        @keyframes spin-sig { to { transform: rotate(360deg); } }
+      </style>
+    </div>
   </body>
 </html>
