@@ -25,7 +25,7 @@ const AdminSecurityModal = lazy(() => import('./components/AdminSecurityModal'))
 import { DEFAULT_KML_DATA } from './data/defaultConcession';
 import { parseKMLToGeoJSON, extractMainConcessionPolygon, extractSubZones } from './utils/kmlParser';
 import { calculateArea, exportParcelsToGeoJSON } from './utils/geoUtils';
-import { Layers3, ArrowLeft, Globe, MapPin } from 'lucide-react';
+import { Layers3, ArrowLeft, Globe, MapPin, Pencil, Navigation, Crosshair } from 'lucide-react';
 
 import {
   fetchParcelsFromSupabase,
@@ -93,8 +93,14 @@ export default function App() {
   // Navigation View Mode: 'isetech' | 'global' (Defaults to the true cadastre ISETECH from Image 2)
   const [activeView, setActiveView] = useState('isetech');
 
-  // Sidebar Collapsed state for 100% Full Width Map
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // Sidebar Collapsed state for 100% Full Width Map (collapsed by default on mobile)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return typeof window !== 'undefined' && window.innerWidth < 768;
+    } catch (e) {
+      return false;
+    }
+  });
 
   // Synchronous INSTANT initialization
   const [concessionPolygon, setConcessionPolygon] = useState(getInitialConcession);
@@ -130,7 +136,9 @@ export default function App() {
   const [locationAccuracy, setLocationAccuracy] = useState(null);
   const [isSimulated, setIsSimulated] = useState(false);
   const [flyToTrigger, setFlyToTrigger] = useState(0);
+  const [drawTrigger, setDrawTrigger] = useState(0);
   const watchIdRef = useRef(null);
+  const isFirstFixRef = useRef(true);
 
   // Stop GPS watch and reset location states
   const stopLocation = () => {
@@ -142,6 +150,7 @@ export default function App() {
     setUserLocation(null);
     setLocationAccuracy(null);
     setIsSimulated(false);
+    isFirstFixRef.current = true;
   };
 
   // Cleanup GPS watcher on unmount
@@ -167,12 +176,30 @@ export default function App() {
 
     setIsLocating(true);
     setIsSimulated(false);
+    isFirstFixRef.current = true;
 
     const successCallback = (pos) => {
       const { latitude, longitude, accuracy } = pos.coords;
-      setUserLocation([latitude, longitude]);
+
+      // Filter stationary jitter (under 1.5 meters) to avoid map and beacon jumping
+      setUserLocation((prevLoc) => {
+        if (!prevLoc) return [latitude, longitude];
+        const dLat = (latitude - prevLoc[0]) * 111320;
+        const dLng = (longitude - prevLoc[1]) * 111320 * Math.cos((latitude * Math.PI) / 180);
+        const distMeters = Math.sqrt(dLat * dLat + dLng * dLng);
+        if (distMeters < 1.5) {
+          return prevLoc;
+        }
+        return [latitude, longitude];
+      });
+
       setLocationAccuracy(accuracy || null);
-      setFlyToTrigger((prev) => prev + 1);
+
+      // Trigger map flyTo ONLY on the very first GPS fix
+      if (isFirstFixRef.current) {
+        isFirstFixRef.current = false;
+        setFlyToTrigger((prev) => prev + 1);
+      }
     };
 
     const errorCallback = (err) => {
@@ -725,30 +752,131 @@ export default function App() {
             isInConcession={locationAnalysis.isInConcession}
             locatedParcel={locationAnalysis.locatedParcel}
             flyToTrigger={flyToTrigger}
+            drawTrigger={drawTrigger}
           />
         </main>
 
+        {/* Desktop Sidebar */}
         {!isSidebarCollapsed && !isClientRole && (
-          <ParcelList
-            parcels={currentParcels}
-            selectedParcel={selectedParcel}
-            selectedParcelIds={selectedParcelIds}
-            onSelectParcel={(p) => setSelectedParcel(p)}
-            onToggleSelectParcel={handleToggleSelectParcel}
-            onSelectAllParcels={handleSelectAllParcels}
-            onClearSelection={handleClearSelection}
-            onBulkDelete={handleBulkDeleteParcels}
-            onBulkChangeStatus={handleBulkChangeStatus}
-            onBulkExportGeoJSON={handleBulkExportGeoJSON}
-            onOpenCreateForm={() => {
-              setInitialFormPoints(null);
-              setIsFormOpen(true);
-            }}
-            onToggleCollapse={() => setIsSidebarCollapsed(true)}
-            isVisitorMode={false}
-          />
+          <div className="hidden md:flex flex-col h-full z-10">
+            <ParcelList
+              parcels={currentParcels}
+              selectedParcel={selectedParcel}
+              selectedParcelIds={selectedParcelIds}
+              onSelectParcel={(p) => setSelectedParcel(p)}
+              onToggleSelectParcel={handleToggleSelectParcel}
+              onSelectAllParcels={handleSelectAllParcels}
+              onClearSelection={handleClearSelection}
+              onBulkDelete={handleBulkDeleteParcels}
+              onBulkChangeStatus={handleBulkChangeStatus}
+              onBulkExportGeoJSON={handleBulkExportGeoJSON}
+              onOpenCreateForm={() => {
+                setInitialFormPoints(null);
+                setIsFormOpen(true);
+              }}
+              onToggleCollapse={() => setIsSidebarCollapsed(true)}
+              isVisitorMode={false}
+            />
+          </div>
         )}
       </div>
+
+      {/* Mobile Drawer (Bottom Sheet) for ParcelList */}
+      {!isSidebarCollapsed && !isClientRole && (
+        <div className="md:hidden fixed inset-0 z-[1250] flex flex-col justify-end">
+          <div
+            className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity"
+            onClick={() => setIsSidebarCollapsed(true)}
+          />
+          <div className="relative z-10 w-full max-h-[85vh] h-[82vh] bg-white rounded-t-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-250">
+            <div
+              className="w-full flex justify-center py-2.5 bg-slate-100/90 border-b border-slate-200 cursor-pointer"
+              onClick={() => setIsSidebarCollapsed(true)}
+            >
+              <div className="w-12 h-1.5 rounded-full bg-slate-400/60"></div>
+            </div>
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <ParcelList
+                parcels={currentParcels}
+                selectedParcel={selectedParcel}
+                selectedParcelIds={selectedParcelIds}
+                onSelectParcel={(p) => {
+                  setSelectedParcel(p);
+                  setIsSidebarCollapsed(true);
+                }}
+                onToggleSelectParcel={handleToggleSelectParcel}
+                onSelectAllParcels={handleSelectAllParcels}
+                onClearSelection={handleClearSelection}
+                onBulkDelete={handleBulkDeleteParcels}
+                onBulkChangeStatus={handleBulkChangeStatus}
+                onBulkExportGeoJSON={handleBulkExportGeoJSON}
+                onOpenCreateForm={() => {
+                  setInitialFormPoints(null);
+                  setIsFormOpen(true);
+                }}
+                onToggleCollapse={() => setIsSidebarCollapsed(true)}
+                isVisitorMode={false}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Bottom Navigation Dock Bar */}
+      {!isClientRole && (
+        <div className="md:hidden fixed bottom-0 inset-x-0 z-[1000] bg-slate-950/95 backdrop-blur-md border-t border-slate-800/90 px-4 py-1.5 flex items-center justify-around shadow-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          <button
+            onClick={() => setIsSidebarCollapsed(true)}
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all cursor-pointer ${
+              isSidebarCollapsed ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Globe className="w-5 h-5" />
+            <span className="text-[10px]">Carte</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setIsSidebarCollapsed(true);
+              setDrawTrigger((prev) => prev + 1);
+            }}
+            className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer"
+          >
+            <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-md shadow-emerald-950/50 active:scale-90 transition-transform">
+              <Pencil className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-[10px]">Tracer</span>
+          </button>
+
+          <button
+            onClick={handleToggleLocation}
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all cursor-pointer ${
+              isLocating ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div className={`relative flex items-center justify-center ${isLocating ? 'text-cyan-400' : ''}`}>
+              <Navigation className={`w-5 h-5 ${isLocating ? 'animate-pulse' : ''}`} />
+              {isLocating && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>}
+            </div>
+            <span className="text-[10px]">{isLocating ? 'GPS Actif' : 'GPS'}</span>
+          </button>
+
+          <button
+            onClick={() => setIsSidebarCollapsed(false)}
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all cursor-pointer ${
+              !isSidebarCollapsed ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div className="relative">
+              <Layers3 className="w-5 h-5" />
+              <span className="absolute -top-1 -right-2.5 text-[9px] font-mono bg-emerald-500 text-slate-950 font-extrabold px-1.5 py-0.2 rounded-full">
+                {currentParcels.length}
+              </span>
+            </div>
+            <span className="text-[10px]">Registre</span>
+          </button>
+        </div>
+      )}
 
       {/* Lazy Loaded Admin Modals & Detail Views */}
       {!isClientRole && (

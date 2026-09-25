@@ -37,7 +37,8 @@ import {
   Maximize2,
   Palette,
   Satellite,
-  Mountain
+  Mountain,
+  RotateCcw
 } from 'lucide-react';
 import * as turf from '@turf/turf';
 
@@ -172,14 +173,18 @@ function MapBoundsController({ concessionPolygon, selectedParcel, activeView, is
   return null;
 }
 
-// Controller to smoothly fly/zoom to user GPS location when triggered
+// Controller to smoothly fly/zoom to user GPS location ONLY when explicitly triggered
 function LocationFlyToController({ flyToTrigger, userLocation }) {
   const map = useMap();
+  const lastTriggerRef = useRef(0);
+
   useEffect(() => {
-    if (userLocation && flyToTrigger) {
-      map.flyTo(userLocation, 18, { animate: true, duration: 1.2 });
+    if (userLocation && flyToTrigger && flyToTrigger !== lastTriggerRef.current) {
+      lastTriggerRef.current = flyToTrigger;
+      map.flyTo(userLocation, Math.max(map.getZoom(), 17), { animate: true, duration: 0.8 });
     }
   }, [flyToTrigger, userLocation, map]);
+
   return null;
 }
 
@@ -288,7 +293,7 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
   return (
     <>
       {/* Sleek Integrated Bottom HUD Bar */}
-      <div className="absolute bottom-2 left-2 sm:left-4 z-[1000] bg-white/95 backdrop-blur-md px-2 sm:px-3 py-1 rounded border border-slate-200 text-[10px] sm:text-[11px] font-mono text-slate-700 flex items-center justify-between shadow-xs select-none pointer-events-auto gap-2">
+      <div className="absolute bottom-16 md:bottom-2 left-2 sm:left-4 z-[1000] bg-white/95 backdrop-blur-md px-2 sm:px-3 py-1 rounded border border-slate-200 text-[10px] sm:text-[11px] font-mono text-slate-700 flex items-center justify-between shadow-xs select-none pointer-events-auto gap-2">
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1 text-slate-900 font-bold">
             <Compass className="w-3.5 h-3.5 text-emerald-600" />
@@ -421,7 +426,8 @@ export default function MapView({
   locationZoneInfo,
   isInConcession,
   locatedParcel,
-  flyToTrigger
+  flyToTrigger,
+  drawTrigger
 }) {
   const mapContainerRef = useRef(null);
   const [mapType, setMapType] = useState('google-pure');
@@ -450,6 +456,14 @@ export default function MapView({
     iconAnchor: [14, 14]
   });
 
+  // Custom Numbered Vertex Icon for Field Tracing
+  const createVertexIcon = (num) => L.divIcon({
+    className: 'custom-vertex-marker',
+    html: `<div style="background-color: #059669; color: #FFFFFF; border: 2px solid #FFFFFF; border-radius: 9999px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-family: ui-monospace, monospace; box-shadow: 0 2px 6px rgba(0,0,0,0.5);">${num}</div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11]
+  });
+
   const createCoastalLabelIcon = (text, bgColor, textColor, borderColor) => {
     return L.divIcon({
       className: 'custom-coastal-label',
@@ -464,6 +478,14 @@ export default function MapView({
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnPoints, setDrawnPoints] = useState([]);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Trigger drawing mode from mobile dock or external actions
+  useEffect(() => {
+    if (drawTrigger) {
+      setIsDrawing(true);
+      setDrawnPoints([]);
+    }
+  }, [drawTrigger]);
 
   const getLeafletCoords = (feature) => {
     if (!feature || !feature.geometry) return [];
@@ -515,9 +537,46 @@ export default function MapView({
     setDrawnPoints((prev) => [...prev, point]);
   };
 
+  const handleUndoDrawnPoint = () => {
+    setDrawnPoints((prev) => prev.slice(0, -1));
+  };
+
+  const handleAddCurrentGpsPoint = () => {
+    if (effectiveUserLocation) {
+      setDrawnPoints((prev) => [...prev, [effectiveUserLocation[0], effectiveUserLocation[1]]]);
+    } else {
+      alert("Votre position GPS n'est pas encore disponible. Activez la localisation GPS.");
+    }
+  };
+
+  // Real-time area & perimeter calculation while tracing
+  const drawnMetrics = useMemo(() => {
+    if (!drawnPoints || drawnPoints.length < 2) return null;
+    try {
+      const lineCoords = drawnPoints.map(([lat, lng]) => [lng, lat]);
+      const line = turf.lineString(lineCoords);
+      const perimeterM = turf.length(line, { units: 'meters' });
+      let areaHa = 0;
+      let areaM2 = 0;
+      if (drawnPoints.length >= 3) {
+        const polyCoords = [...lineCoords, lineCoords[0]];
+        const poly = turf.polygon([polyCoords]);
+        areaM2 = turf.area(poly);
+        areaHa = areaM2 / 10000;
+      }
+      return {
+        perimeterM: perimeterM.toFixed(1),
+        areaHa: areaHa.toFixed(3),
+        areaM2: areaM2.toFixed(1)
+      };
+    } catch (e) {
+      return null;
+    }
+  }, [drawnPoints]);
+
   const handleFinishDrawing = () => {
     if (drawnPoints.length < 3) {
-      alert('Veuillez cliquer au moins 3 points sur la carte pour former un polygone.');
+      alert('Veuillez cliquer ou marquer au moins 3 points pour former une parcelle.');
       return;
     }
     const pointsList = drawnPoints.map(([lat, lng]) => ({
@@ -835,6 +894,88 @@ export default function MapView({
                 <span>Télécharger Carte HD</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* High-Precision GPS Field Tracing Floating Toolbar */}
+      {isDrawing && (
+        <div className="absolute top-2 sm:top-3 left-1/2 -translate-x-1/2 z-[1150] w-[95%] sm:w-auto sm:min-w-[480px] max-w-xl bg-slate-950/95 backdrop-blur-xl border border-emerald-500/50 rounded-2xl shadow-2xl p-2.5 sm:p-3 text-white animate-in slide-in-from-top-4 duration-200 select-none">
+          <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2 mb-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+              <span className="font-bold text-xs sm:text-sm text-emerald-300">
+                Traçage Cadastral en Direct
+              </span>
+              <span className="text-[11px] font-mono bg-slate-800 text-slate-200 px-2 py-0.5 rounded-full border border-slate-700">
+                {drawnPoints.length} sommet{drawnPoints.length > 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {drawnMetrics && (
+              <div className="flex items-center gap-2 font-mono text-[11px]">
+                {drawnPoints.length >= 3 && (
+                  <span className="text-emerald-300 font-bold bg-emerald-950/70 border border-emerald-700/60 px-2 py-0.5 rounded">
+                    {drawnMetrics.areaHa} ha ({Math.round(drawnMetrics.areaM2)} m²)
+                  </span>
+                )}
+                <span className="text-slate-400 hidden sm:inline">
+                  Périmètre: {Math.round(drawnMetrics.perimeterM)} m
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+            {/* Add GPS point */}
+            <button
+              onClick={handleAddCurrentGpsPoint}
+              disabled={!effectiveUserLocation}
+              className="flex-1 py-2 px-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md shadow-cyan-950/40 cursor-pointer"
+              title="Enregistrer votre position GPS actuelle comme borne de la parcelle"
+            >
+              <Navigation className="w-3.5 h-3.5 text-cyan-200 flex-shrink-0" />
+              <span className="truncate">📍 Marquer Borne GPS</span>
+            </button>
+
+            {/* Undo last point */}
+            <button
+              onClick={handleUndoDrawnPoint}
+              disabled={drawnPoints.length === 0}
+              className="py-2 px-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 rounded-xl font-semibold text-xs flex items-center gap-1 transition-all active:scale-95 cursor-pointer border border-slate-700"
+              title="Annuler le dernier sommet posé"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Annuler</span>
+            </button>
+
+            {/* Finish & validate */}
+            <button
+              onClick={handleFinishDrawing}
+              disabled={drawnPoints.length < 3}
+              className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-emerald-950/40 cursor-pointer"
+              title="Terminer le tracé et ouvrir le formulaire officiel"
+            >
+              <Check className="w-3.5 h-3.5 text-emerald-100" />
+              <span>Valider ({drawnPoints.length})</span>
+            </button>
+
+            {/* Cancel all */}
+            <button
+              onClick={handleCancelDrawing}
+              className="p-2 bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-400 rounded-xl transition-all cursor-pointer border border-slate-700"
+              title="Annuler le tracé"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="mt-1 text-[10px] text-slate-400 flex items-center justify-between px-1">
+            <span>Marchez jusqu'aux bornes ou touchez l'écran pour ajouter des points.</span>
+            {locationAccuracy && (
+              <span className="font-mono text-cyan-400">GPS: ±{Math.round(locationAccuracy)}m</span>
+            )}
           </div>
         </div>
       )}
@@ -1383,13 +1524,13 @@ export default function MapView({
           );
         })}
 
-        {/* Drawn Points */}
+        {/* Drawn Points with Numbered Badges */}
         {isDrawing && drawnPoints.length > 0 && (
           <>
             {drawnPoints.map((pt, i) => (
-              <Marker key={`draw-pt-${i}`} position={pt}>
+              <Marker key={`draw-pt-${i}`} position={pt} icon={createVertexIcon(i + 1)}>
                 <Tooltip permanent direction="top" className="text-[10px] font-bold">
-                  P{i + 1}
+                  Borne {i + 1}
                 </Tooltip>
               </Marker>
             ))}
@@ -1397,10 +1538,10 @@ export default function MapView({
               <Polygon
                 positions={drawnPoints}
                 pathOptions={{
-                  color: '#F59E0B',
-                  weight: 2.5,
-                  dashArray: '4, 4',
-                  fillColor: '#F59E0B',
+                  color: '#10B981',
+                  weight: 3,
+                  dashArray: '5, 5',
+                  fillColor: '#10B981',
                   fillOpacity: 0.25
                 }}
               />

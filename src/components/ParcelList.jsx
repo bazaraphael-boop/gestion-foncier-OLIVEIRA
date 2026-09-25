@@ -98,7 +98,8 @@ export default function ParcelList({
                 className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded transition-all cursor-pointer"
                 title="Masquer / Réduire le panneau latéral"
               >
-                <PanelRightClose className="w-4 h-4" />
+                <PanelRightClose className="w-4 h-4 hidden md:block" />
+                <X className="w-4 h-4 block md:hidden" />
               </button>
             )}
           </div>
