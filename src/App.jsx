@@ -629,7 +629,7 @@ export default function App() {
 
   // --- AUTHENTICATED APP WORKSPACE ---
   return (
-    <div className="h-[100dvh] w-full bg-slate-900 font-sans flex flex-col antialiased text-slate-800 overflow-hidden select-none">
+    <div className="min-h-screen h-screen h-[100dvh] w-full bg-slate-900 font-sans flex flex-col antialiased text-slate-800 overflow-hidden select-none">
       {/* Top Header Navbar depending on role */}
       {isClientRole ? (
         <ClientNavbar

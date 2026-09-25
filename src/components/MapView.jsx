@@ -117,7 +117,13 @@ function MapBoundsController({ concessionPolygon, selectedParcel, activeView, is
     const t = setTimeout(() => {
       map.invalidateSize({ animate: false });
     }, 150);
-    return () => clearTimeout(t);
+    const t2 = setTimeout(() => {
+      map.invalidateSize({ animate: false });
+    }, 500);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(t2);
+    };
   }, [isSidebarCollapsed, map]);
 
   useEffect(() => {
@@ -728,7 +734,7 @@ export default function MapView({
   const concessionCoords = getLeafletCoords(concessionPolygon);
 
   return (
-    <div ref={mapContainerRef} className={`relative w-full h-full min-h-[550px] bg-slate-900 flex flex-col select-none ${sharpnessHD ? 'sharpness-hd' : ''}`}>
+    <div ref={mapContainerRef} className={`relative w-full h-full min-h-0 flex-1 bg-slate-900 flex flex-col select-none ${sharpnessHD ? 'sharpness-hd' : ''}`}>
 
       {/* Re-open Right Sidebar Floating Button (Top Right of Map) */}
       {isSidebarCollapsed && (
@@ -1553,7 +1559,7 @@ export default function MapView({
         <LocationFlyToController flyToTrigger={flyToTrigger} userLocation={effectiveUserLocation} />
 
         {/* User Real-Time GPS Location Beacon & Accuracy Circle */}
-        {effectiveUserLocation && (
+        {effectiveUserLocation && Array.isArray(effectiveUserLocation) && effectiveUserLocation.length >= 2 && (
           <>
             {locationAccuracy && locationAccuracy > 5 && (
               <Circle

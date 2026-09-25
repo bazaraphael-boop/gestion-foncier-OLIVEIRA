@@ -10,6 +10,16 @@
     --sar: env(safe-area-inset-right, 0px);
   }
 
+  html, body, #root {
+    height: 100%;
+    min-height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #0b1120;
+  }
+
   body {
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
@@ -52,6 +62,9 @@
 
 /* Leaflet Map Custom Styling */
 .leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
   background-color: #0b1120 !important;
   font-family: var(--font-sans, inherit);
 }

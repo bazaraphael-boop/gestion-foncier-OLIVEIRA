@@ -16,7 +16,9 @@ export default function AdminLocationHUD({
   const [showSimMenu, setShowSimMenu] = useState(false);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
 
-  if (!userLocation) return null;
+  if (!userLocation || !Array.isArray(userLocation) || userLocation.length < 2 || typeof userLocation[0] !== 'number' || typeof userLocation[1] !== 'number') {
+    return null;
+  }
 
   const [lat, lng] = userLocation;
 
