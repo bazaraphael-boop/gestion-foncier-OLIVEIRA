@@ -680,19 +680,19 @@ export default function App() {
 
       {/* Sub-cadastre Breadcrumb Bar / View Mode Switcher */}
       {activeView === 'isetech' ? (
-        <div className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800/90 px-3 sm:px-4 py-2 flex items-center justify-between gap-2 text-slate-200 text-xs shadow-sm">
+        <div className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800/90 px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-2 text-slate-200 text-xs shadow-sm">
           <div className="flex items-center gap-2 font-medium min-w-0">
             <span className="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
               <Layers3 className="w-3.5 h-3.5" />
             </span>
             <span className="truncate">
-              <span className="sm:hidden font-bold text-cyan-300">Sous-cadastre ISETECH (1 002 ha)</span>
+              <span className="sm:hidden font-bold text-cyan-300">Zone ISETECH (1 002 ha)</span>
               <span className="hidden sm:inline">Sous-cadastre spécialisé : <strong className="text-white uppercase font-semibold">ZONE ISETECH (1 002,61 ha)</strong></span>
             </span>
           </div>
           <button
             onClick={handleReturnToGlobal}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 border border-slate-700 transition-all duration-150 active:scale-95 cursor-pointer flex-shrink-0 shadow-xs"
+            className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-[11px] sm:text-xs font-semibold rounded-lg flex items-center gap-1.5 border border-slate-700 transition-all duration-150 active:scale-95 cursor-pointer flex-shrink-0 shadow-xs"
             title="Afficher la vue d'ensemble de la concession"
           >
             <ArrowLeft className="w-3.5 h-3.5 text-slate-400" />
@@ -701,7 +701,7 @@ export default function App() {
           </button>
         </div>
       ) : (
-        <div className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800/90 px-3 sm:px-4 py-2 flex items-center justify-between gap-2 text-slate-200 text-xs shadow-sm">
+        <div className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800/90 px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-2 text-slate-200 text-xs shadow-sm">
           <div className="flex items-center gap-2 font-medium min-w-0">
             <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
               <Globe className="w-3.5 h-3.5" />
@@ -713,7 +713,7 @@ export default function App() {
           </div>
           <button
             onClick={() => handleExploreSubZone('isetech')}
-            className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm shadow-cyan-950/40 transition-all duration-150 active:scale-95 cursor-pointer flex-shrink-0 border border-cyan-500/50"
+            className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] sm:text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm shadow-cyan-950/40 transition-all duration-150 active:scale-95 cursor-pointer flex-shrink-0 border border-cyan-500/50"
             title="Zoomer dans le cadastre spécialisé Zone ISETECH"
           >
             <Layers3 className="w-3.5 h-3.5 text-cyan-200" />

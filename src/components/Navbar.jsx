@@ -86,25 +86,25 @@ export default function Navbar({
     <header className="bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80 text-white w-full sticky top-0 z-[1100] shadow-md select-none pt-[env(safe-area-inset-top,0px)]">
       <div className="h-13 sm:h-14 px-3 sm:px-5 flex items-center justify-between gap-3">
         {/* Brand & Domaine Title - Respirant et lisible */}
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white flex-shrink-0 shadow-sm border border-emerald-400/30">
             <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-50" />
           </div>
           <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="font-semibold text-xs sm:text-sm text-slate-100 tracking-tight whitespace-nowrap">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <h1 className="font-bold text-xs sm:text-sm text-slate-100 tracking-tight truncate">
                 <span className="sm:hidden">Concession Oliveira</span>
                 <span className="hidden sm:inline">Concession Manuel Joaquim d'Oliveira</span>
               </h1>
-              <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full flex-shrink-0">
+              <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded-full flex-shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                 <span>Admin</span>
               </span>
             </div>
-            <div className="flex items-center gap-2 text-[9px] sm:text-[10px] text-slate-400 font-medium">
-              <span className="font-mono text-slate-400">MUANDA / RDC</span>
+            <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-slate-400 font-medium truncate">
+              <span className="font-mono text-slate-400">MUANDA</span>
               <span className="text-slate-600">•</span>
-              <span className="font-mono text-emerald-400 font-medium">{concessionArea.formattedHa}</span>
+              <span className="font-mono text-emerald-400 font-semibold">{concessionArea.formattedHa}</span>
             </div>
           </div>
         </div>
@@ -119,21 +119,21 @@ export default function Navbar({
 
         {/* Actions Hiérarchisées & Épurées */}
         <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-          {/* Action Primaire Unique : Nouvelle Parcelle */}
+          {/* Action Primaire : Nouvelle Parcelle (Desktop/Tablette uniquement, sur mobile disponible via barre inférieure) */}
           <button
             onClick={onOpenCreateForm}
-            className="px-2.5 sm:px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm shadow-emerald-950/40 cursor-pointer"
+            className="hidden sm:flex px-2.5 sm:px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-lg text-xs font-semibold items-center gap-1.5 transition-all shadow-sm shadow-emerald-950/40 cursor-pointer"
             title="Ajouter une nouvelle parcelle au cadastre"
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Nouvelle Parcelle</span>
           </button>
 
-          {/* Outil Rapide : Localiser GPS */}
+          {/* Outil Rapide : Localiser GPS (Desktop/Tablette uniquement, sur mobile dans la barre inférieure) */}
           {onToggleLocation && (
             <button
               onClick={onToggleLocation}
-              className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer border ${
+              className={`hidden sm:flex p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-medium items-center gap-1.5 transition-all active:scale-95 cursor-pointer border ${
                 isLocating
                   ? 'bg-cyan-950/80 text-cyan-300 border-cyan-500/60 shadow-xs shadow-cyan-900/30'
                   : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800 hover:border-slate-700'
