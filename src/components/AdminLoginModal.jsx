@@ -84,11 +84,47 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
         <div className="p-6 sm:p-8 space-y-6">
           <div className="text-center space-y-1">
             <h2 className="text-lg font-bold text-gray-900 tracking-tight">
-              Connexion Administration SIG
+              Espace Professionnel SIG
             </h2>
             <p className="text-xs text-gray-500">
-              Concession Manuel Joaquim d'Oliveira — Muanda / Kongo Central
+              Concession Manuel Joaquim d'Oliveira — Accès Admin &amp; Arpenteur Géomètre
             </p>
+          </div>
+
+          {/* Quick Profile Selectors */}
+          <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => {
+                setIdentifier('Bamakakidi@gmail.com');
+                setPassword('');
+                setError('');
+              }}
+              className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                identifier === 'Bamakakidi@gmail.com' || identifier === 'admin'
+                  ? 'bg-[#1a3a5c] text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Administrateur</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIdentifier('arpenteur');
+                setPassword('');
+                setError('');
+              }}
+              className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                identifier === 'arpenteur' || identifier === 'geometre'
+                  ? 'bg-cyan-700 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Arpenteur Géomètre</span>
+            </button>
           </div>
 
           {/* Form */}
@@ -109,7 +145,7 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
                     setIdentifier(e.target.value);
                     setError('');
                   }}
-                  placeholder="Ex: Bamakakidi@gmail.com ou admin"
+                  placeholder="Ex: admin ou arpenteur"
                   className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 text-xs font-medium focus:outline-none focus:border-[#1a3a5c] focus:bg-white transition-colors"
                 />
               </div>
@@ -118,7 +154,7 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
             {/* Mot de passe */}
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                Mot de passe Administrateur
+                Mot de passe {identifier === 'arpenteur' ? 'Arpenteur' : 'Administrateur'}
               </label>
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
@@ -132,7 +168,7 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
                     setPassword(e.target.value);
                     setError('');
                   }}
-                  placeholder="Entrez votre mot de passe..."
+                  placeholder={identifier === 'arpenteur' ? 'Mot de passe arpenteur...' : 'Mot de passe administrateur...'}
                   className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 text-xs font-medium focus:outline-none focus:border-[#1a3a5c] focus:bg-white transition-colors"
                 />
                 <button
@@ -175,7 +211,11 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
               ) : (
                 <>
                   <Lock className="w-4 h-4 text-blue-200" />
-                  <span>Accéder à l'Administration SIG</span>
+                  <span>
+                    {identifier === 'arpenteur' || identifier === 'geometre'
+                      ? "Accéder à l'Espace Arpenteur Géomètre"
+                      : "Accéder à l'Administration SIG"}
+                  </span>
                 </>
               )}
             </button>

@@ -36,7 +36,8 @@ export default function Navbar({
   isSyncing,
   onToggleLocation,
   isLocating,
-  locationZoneInfo
+  locationZoneInfo,
+  isArpenteur
 }) {
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -96,10 +97,17 @@ export default function Navbar({
                 <span className="sm:hidden">Concession Oliveira</span>
                 <span className="hidden sm:inline">Concession Manuel Joaquim d'Oliveira</span>
               </h1>
-              <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded-full flex-shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                <span>Admin</span>
-              </span>
+              {isArpenteur ? (
+                <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 px-1.5 py-0.2 rounded-full flex-shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                  <span>Arpenteur</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded-full flex-shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                  <span>Admin</span>
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-slate-400 font-medium truncate">
               <span className="font-mono text-slate-400">MUANDA</span>
@@ -198,13 +206,15 @@ export default function Navbar({
                   <FileCode className="w-4 h-4 text-emerald-400" />
                   <span>Importer Parcelles KML</span>
                 </button>
-                <button
-                  onClick={() => { onOpenKmlImporter(); setShowToolsDropdown(false); }}
-                  className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-200 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                >
-                  <Upload className="w-4 h-4 text-slate-400" />
-                  <span>Importer Périmètre KML</span>
-                </button>
+                {!isArpenteur && (
+                  <button
+                    onClick={() => { onOpenKmlImporter(); setShowToolsDropdown(false); }}
+                    className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-200 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4 text-slate-400" />
+                    <span>Importer Périmètre KML</span>
+                  </button>
+                )}
                 <button
                   onClick={() => { handleExportGeoJSON(); setShowToolsDropdown(false); }}
                   className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-200 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
@@ -213,43 +223,51 @@ export default function Navbar({
                   <span>Exporter le Cadastre (GeoJSON)</span>
                 </button>
 
-                {/* Section Système & Sécurité */}
-                <div className="border-t border-slate-800/80 my-1 pt-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Système &amp; Sécurité
-                </div>
-                <button
-                  onClick={() => { onOpenSecurityModal && onOpenSecurityModal(); setShowToolsDropdown(false); }}
-                  className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-200 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                >
-                  <Key className="w-4 h-4 text-amber-400" />
-                  <span>Sécurité &amp; Mot de passe</span>
-                </button>
-                <button
-                  onClick={() => { onOpenSupabaseModal(); setShowToolsDropdown(false); }}
-                  className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-200 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                >
-                  <Cloud className="w-4 h-4 text-teal-400" />
-                  <span>Configuration Cloud (Supabase)</span>
-                </button>
+                {/* Section Système & Sécurité (Admin uniquement) */}
+                {!isArpenteur && (
+                  <>
+                    <div className="border-t border-slate-800/80 my-1 pt-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Système &amp; Sécurité
+                    </div>
+                    <button
+                      onClick={() => { onOpenSecurityModal && onOpenSecurityModal(); setShowToolsDropdown(false); }}
+                      className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-200 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
+                    >
+                      <Key className="w-4 h-4 text-amber-400" />
+                      <span>Sécurité &amp; Mot de passe</span>
+                    </button>
+                    <button
+                      onClick={() => { onOpenSupabaseModal(); setShowToolsDropdown(false); }}
+                      className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-200 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
+                    >
+                      <Cloud className="w-4 h-4 text-teal-400" />
+                      <span>Configuration Cloud (Supabase)</span>
+                    </button>
+                  </>
+                )}
 
-                {/* Section Maintenance Cadastrale */}
-                <div className="border-t border-slate-800/80 my-1 pt-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Maintenance
-                </div>
-                <button
-                  onClick={() => { onResetConcession && onResetConcession(); setShowToolsDropdown(false); }}
-                  className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-300 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                >
-                  <RotateCcw className="w-4 h-4 text-slate-400" />
-                  <span>Réinitialiser Tracé Périmètre</span>
-                </button>
-                <button
-                  onClick={() => { onClearAllData(); setShowToolsDropdown(false); }}
-                  className="w-full text-left px-2.5 py-2 hover:bg-rose-950/50 text-rose-400 hover:text-rose-300 rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4 text-rose-500" />
-                  <span>Vider toutes les parcelles</span>
-                </button>
+                {/* Section Maintenance Cadastrale (Admin uniquement) */}
+                {!isArpenteur && (
+                  <>
+                    <div className="border-t border-slate-800/80 my-1 pt-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Maintenance
+                    </div>
+                    <button
+                      onClick={() => { onResetConcession && onResetConcession(); setShowToolsDropdown(false); }}
+                      className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-300 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
+                    >
+                      <RotateCcw className="w-4 h-4 text-slate-400" />
+                      <span>Réinitialiser Tracé Périmètre</span>
+                    </button>
+                    <button
+                      onClick={() => { onClearAllData(); setShowToolsDropdown(false); }}
+                      className="w-full text-left px-2.5 py-2 hover:bg-rose-950/50 text-rose-400 hover:text-rose-300 rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-500" />
+                      <span>Vider toutes les parcelles</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -261,7 +279,7 @@ export default function Navbar({
           <button
             onClick={onLogout}
             className="p-1.5 sm:px-2.5 sm:py-1.5 text-slate-400 hover:text-rose-300 hover:bg-rose-950/40 border border-transparent hover:border-rose-900/50 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer"
-            title="Fermer la session Administrateur"
+            title={isArpenteur ? "Fermer la session Arpenteur Géomètre" : "Fermer la session Administrateur"}
           >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden md:inline">Déconnexion</span>

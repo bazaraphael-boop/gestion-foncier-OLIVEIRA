@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { validateParcelGeometry, dmsToDd } from '../utils/geoUtils';
+import { validateParcelGeometry, dmsToDd, getNextRmbLotNumber } from '../utils/geoUtils';
 import { getOceanZoneInfo } from '../utils/coastalZones';
 import { X, Plus, Trash2, MapPin, Compass, CheckCircle2, ShieldAlert, Hexagon, Square, Waves } from 'lucide-react';
 
@@ -28,11 +28,12 @@ export default function ParcelFormModal({
   const [validationResult, setValidationResult] = useState(null);
 
   useEffect(() => {
+    const nextRmb = getNextRmbLotNumber(existingParcels);
     if (initialPoints && initialPoints.length >= 3) {
       setPoints(initialPoints);
-      setLotNumber(`LOT-${Math.floor(100 + Math.random() * 900)}`);
+      setLotNumber(nextRmb);
     } else {
-      setLotNumber(`LOT-${Math.floor(100 + Math.random() * 900)}`);
+      setLotNumber(nextRmb);
       setPoints([
         { latStr: '', lngStr: '' },
         { latStr: '', lngStr: '' },
@@ -41,7 +42,7 @@ export default function ParcelFormModal({
       ]);
     }
     setValidationResult(null);
-  }, [isOpen, initialPoints]);
+  }, [isOpen, initialPoints, existingParcels]);
 
   if (!isOpen) return null;
 
@@ -199,7 +200,7 @@ export default function ParcelFormModal({
                 required
                 value={lotNumber}
                 onChange={(e) => setLotNumber(e.target.value)}
-                placeholder="Ex: LOT-C402"
+                placeholder="Ex: RMB/001"
                 className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-900 focus:outline-none focus:border-slate-400 font-medium"
               />
             </div>

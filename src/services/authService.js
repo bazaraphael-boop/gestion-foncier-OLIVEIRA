@@ -16,6 +16,11 @@ const STORAGE_KEY_ATTEMPTS_ADMIN = 'geocadastre_auth_attempts_admin_v2';
 const DEFAULT_ADMIN_EMAIL = 'bamakakidi@gmail.com';
 const DEFAULT_ADMIN_USERNAME = 'admin';
 
+// Default Arpenteur Identifiants & Password
+const DEFAULT_ARPENTEUR_IDENTIFIERS = ['arpenteur', 'geometre', 'arpenteur@oliveira.cd', 'arpenteur1'];
+// SHA-256 Hash of default Arpenteur Password "arpenteur123"
+const ARPENTEUR_PASSWORD_HASH = '0d8293da85644e89d9eb85b79b30f026a3a61f061ed38778e330ed776da062d4';
+
 // SHA-256 Hash of default Client PIN "123456"
 const CLIENT_PIN_HASH = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92';
 
@@ -130,7 +135,7 @@ export async function loginClient(pin) {
 }
 
 /* ─────────────────────────────────────────────────────────────
- * ADMIN AUTHENTICATION (IDENTIFIANT/EMAIL + MOT DE PASSE)
+ * ADMIN & ARPENTEUR AUTHENTICATION
  * ───────────────────────────────────────────────────────────── */
 
 export async function loginAdmin(identifierOrPassword, maybePassword) {
@@ -150,15 +155,40 @@ export async function loginAdmin(identifierOrPassword, maybePassword) {
   if (lockout.isLocked) {
     return {
       success: false,
-      error: `Portail administration verrouillé suite à plusieurs échecs. Veuillez patienter ${lockout.remainingSeconds} secondes.`
+      error: `Portail professionnel verrouillé suite à plusieurs échecs. Veuillez patienter ${lockout.remainingSeconds} secondes.`
     };
   }
 
   if (!password) {
-    return { success: false, error: 'Veuillez saisir votre mot de passe administrateur.' };
+    return { success: false, error: 'Veuillez saisir votre mot de passe.' };
   }
 
-  // If identifier is provided, verify it matches allowed admin identifiers
+  const inputHash = await hashSHA256(password);
+
+  // 1. Authentification Arpenteur Géomètre
+  const isArpenteurIdentifier = DEFAULT_ARPENTEUR_IDENTIFIERS.includes(identifier);
+  if (isArpenteurIdentifier) {
+    const targetArpenteurHash = localStorage.getItem('geocadastre_arpenteur_password_hash') || ARPENTEUR_PASSWORD_HASH;
+    if (inputHash === targetArpenteurHash) {
+      resetLockout(STORAGE_KEY_ATTEMPTS_ADMIN);
+      const session = createSession('arpenteur');
+      return { success: true, session };
+    } else {
+      const failInfo = recordFailure(STORAGE_KEY_ATTEMPTS_ADMIN, ADMIN_LOCKOUT_MS);
+      if (failInfo.isLocked) {
+        return {
+          success: false,
+          error: `5 tentatives infructueuses. Accès arpenteur bloqué pendant ${ADMIN_LOCKOUT_MS / 1000} secondes.`
+        };
+      }
+      return {
+        success: false,
+        error: `Mot de passe arpenteur incorrect. ${failInfo.remainingAttempts} tentative(s) restante(s).`
+      };
+    }
+  }
+
+  // 2. Authentification Administrateur
   if (identifier) {
     const savedAdminEmail = (localStorage.getItem('geocadastre_admin_email') || DEFAULT_ADMIN_EMAIL).toLowerCase();
     const isValidIdentifier = (
@@ -183,10 +213,8 @@ export async function loginAdmin(identifierOrPassword, maybePassword) {
     }
   }
 
-  const inputHash = await hashSHA256(password);
-  const targetHash = localStorage.getItem('geocadastre_admin_password_hash') || ADMIN_PASSWORD_HASH;
-
-  if (inputHash === targetHash) {
+  const targetAdminHash = localStorage.getItem('geocadastre_admin_password_hash') || ADMIN_PASSWORD_HASH;
+  if (inputHash === targetAdminHash) {
     resetLockout(STORAGE_KEY_ATTEMPTS_ADMIN);
     const session = createSession('admin');
     return { success: true, session };

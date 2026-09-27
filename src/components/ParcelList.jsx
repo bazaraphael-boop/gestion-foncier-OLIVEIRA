@@ -17,7 +17,8 @@ export default function ParcelList({
   onBulkChangeStatus,
   onBulkExportGeoJSON,
   onToggleCollapse,
-  isVisitorMode
+  isVisitorMode,
+  isArpenteur
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -269,14 +270,16 @@ export default function ParcelList({
                 <span>Export</span>
               </button>
 
-              <button
-                onClick={() => setShowBulkDeleteConfirm(true)}
-                className="px-2 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded text-[11px] font-bold flex items-center gap-1"
-                title="Supprimer les parcelles sélectionnées"
-              >
-                <Trash2 className="w-3 h-3" />
-                <span>Supprimer</span>
-              </button>
+              {!isArpenteur && (
+                <button
+                  onClick={() => setShowBulkDeleteConfirm(true)}
+                  className="px-2 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                  title="Supprimer les parcelles sélectionnées (Admin uniquement)"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>Supprimer</span>
+                </button>
+              )}
 
               <button
                 onClick={onClearSelection}

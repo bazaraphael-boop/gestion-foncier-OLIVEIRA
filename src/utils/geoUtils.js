@@ -228,3 +228,24 @@ export const STATUS_COLORS = {
     badgeClass: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300'
   }
 };
+
+/**
+ * Automatically calculates the next sequential RMB parcel lot number (e.g. RMB/001, RMB/002)
+ */
+export function getNextRmbLotNumber(parcels = []) {
+  let maxNum = 0;
+  if (Array.isArray(parcels)) {
+    parcels.forEach((p) => {
+      const lot = p?.properties?.lotNumber || p?.id || '';
+      const match = String(lot).match(/RMB[/-]?(\d+)/i);
+      if (match) {
+        const n = parseInt(match[1], 10);
+        if (!isNaN(n) && n > maxNum) {
+          maxNum = n;
+        }
+      }
+    });
+  }
+  const nextNum = maxNum + 1;
+  return `RMB/${String(nextNum).padStart(3, '0')}`;
+}

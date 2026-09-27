@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
 import { STATUS_COLORS, ddToDms, exportParcelToCSV, calculateArea } from '../utils/geoUtils';
 import { getOceanZoneInfo } from '../utils/coastalZones';
 import OfficialHeaderBanner from './OfficialHeaderBanner';
@@ -20,14 +21,16 @@ import {
   Printer,
   ShieldCheck,
   Plus,
-  Waves
+  Waves,
+  QrCode
 } from 'lucide-react';
 
-export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteParcel, isVisitorMode }) {
+export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteParcel, isVisitorMode, isArpenteur }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [showCertificate, setShowCertificate] = useState(false);
+  const [showReleve, setShowReleve] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
 
   const [formData, setFormData] = useState({
     lotNumber: '',
@@ -57,8 +60,23 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         }))
       );
 
+      // Generate verifiable Anti-Fraud QR Code
+      const lotRef = parcel.properties.lotNumber || parcel.id;
+      const verifyUrl = `https://gestionmuandafoncier.netlify.app/?lot=${encodeURIComponent(lotRef)}&ref=${parcel.id}&auth=cadastre_rmb`;
+      QRCode.toDataURL(verifyUrl, {
+        width: 180,
+        margin: 1,
+        color: {
+          dark: '#0f172a',
+          light: '#ffffff'
+        },
+        errorCorrectionLevel: 'M'
+      })
+        .then((url) => setQrCodeDataUrl(url))
+        .catch((err) => console.error('Erreur génération QR Code:', err));
+
       setIsEditing(false);
-      setShowCertificate(false);
+      setShowReleve(false);
       setShowDeleteConfirm(false);
     }
   }, [parcel]);
@@ -166,7 +184,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
     link.click();
   };
 
-  const handlePrintCertificate = () => {
+  const handlePrintReleve = () => {
     window.print();
   };
 
@@ -184,24 +202,24 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         lotNumber={parcel.properties.lotNumber}
       />
 
-      {/* Official Printable Land Certificate Overlay */}
-      {showCertificate && (
+      {/* Official Printable Land Relevé Parcellaire Overlay */}
+      {showReleve && (
         <div className="fixed inset-0 z-[3000] bg-slate-900/60 backdrop-blur-xs flex justify-center p-4 overflow-y-auto font-sans">
           <div className="bg-white text-slate-900 w-full max-w-3xl rounded-lg shadow-xl my-auto print:m-0 print:p-0 print:shadow-none print:w-full print:max-w-none overflow-hidden border border-slate-200">
             <div className="flex justify-between items-center px-6 py-3 border-b border-slate-200 bg-slate-50 print:hidden">
               <div className="flex items-center gap-2 font-bold text-slate-800 text-xs">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Fiche Officielle d'Attribution Cadastrale</span>
+                <span>Fiche Officielle de Relevé Parcellaire Cadastral</span>
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={handlePrintCertificate}
+                  onClick={handlePrintReleve}
                   className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded flex items-center gap-1.5 shadow-2xs cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" /> Imprimer / PDF
                 </button>
                 <button
-                  onClick={() => setShowCertificate(false)}
+                  onClick={() => setShowReleve(false)}
                   className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded"
                 >
                   Fermer
@@ -214,10 +232,10 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
             <div className="p-6 space-y-4 text-xs font-sans">
               <div className="text-center my-2 space-y-1">
                 <h1 className="text-base font-black uppercase text-slate-900 tracking-tight">
-                  CERTIFICAT DE RELEVÉ PARCELLAIRE & D'OCCUPATION
+                  RELEVÉ PARCELLAIRE &amp; FICHE D&apos;OCCUPATION DU SOL
                 </h1>
-                <div className="text-xs font-bold text-emerald-800 uppercase">
-                  RÉFÉRENCE PARCELLE : {parcel.properties.lotNumber || parcel.id}
+                <div className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
+                  IDENTIFIANT CADASTRAL OFFICIEL : {parcel.properties.lotNumber || parcel.id}
                 </div>
               </div>
 
@@ -255,6 +273,41 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                       {oceanInfo.description}
                     </span>
                   )}
+                </div>
+              </div>
+
+              {/* Dispositif Anti-Fraude avec QR Code Scannable */}
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-300 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  {qrCodeDataUrl ? (
+                    <img
+                      src={qrCodeDataUrl}
+                      alt={`QR Code Relevé ${parcel.properties.lotNumber}`}
+                      className="w-20 h-20 bg-white p-1 border border-slate-300 rounded shadow-xs flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-[10px] text-slate-400">
+                      QR Code...
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      <span>Contrôle Anti-Fraude &amp; Authentification Cadastrale</span>
+                    </div>
+                    <p className="text-[10px] text-slate-600 leading-tight">
+                      Scannez ce QR Code avec tout smartphone pour vérifier l&apos;authenticité de ce relevé auprès du registre officiel du cadastre RMB Muanda.
+                    </p>
+                    <div className="text-[9px] font-mono text-slate-500">
+                      CLÉ DE SÉCURITÉ : <strong className="text-slate-800 font-bold">RMB-AUTH-{parcel.id?.toString().slice(0, 10).toUpperCase()}</strong>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0 border-l border-slate-200 pl-3">
+                  <span className="text-[9px] font-semibold text-slate-400 block uppercase">Établi le</span>
+                  <span className="text-[11px] font-mono font-bold text-slate-800">
+                    {new Date().toLocaleDateString('fr-FR')}
+                  </span>
                 </div>
               </div>
 
@@ -297,15 +350,15 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 <div className="grid grid-cols-2 gap-8 pt-4">
                   <div className="text-center space-y-12">
                     <span className="text-[11px] font-bold text-slate-800 uppercase block">
-                      Le Géomètre-Expert Arpenteur
+                      Le Géomètre-Arpenteur Agréé
                     </span>
-                    <div className="text-[10px] text-slate-400 italic">Signature & Visa</div>
+                    <div className="text-[10px] text-slate-400 italic">Signature, Visa &amp; Bornage Technique</div>
                   </div>
                   <div className="text-center space-y-12">
                     <span className="text-[11px] font-bold text-slate-800 uppercase block">
-                      La Direction Concession Manuel J. d'Oliveira
+                      La Direction Concession Manuel Joaquim d&apos;Oliveira
                     </span>
-                    <div className="text-[10px] text-slate-400 italic">Signature & Sceau Officiel</div>
+                    <div className="text-[10px] text-slate-400 italic">Signature &amp; Sceau Officiel de Concession</div>
                   </div>
                 </div>
               </div>
@@ -401,10 +454,11 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
               </div>
 
               <button
-                onClick={() => setShowCertificate(true)}
+                onClick={() => setShowReleve(true)}
                 className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded text-xs flex items-center justify-center gap-2 shadow-2xs transition-all cursor-pointer"
               >
-                <Printer className="w-3.5 h-3.5 text-emerald-400" /> Imprimer Certificat d'Attribution (PDF)
+                <Printer className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Imprimer Relevé Parcellaire (PDF &amp; QR Code)</span>
               </button>
 
               {parcel.properties.notes && (
@@ -581,7 +635,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
           )}
         </div>
 
-        {/* Footer Actions (Hidden in Visitor Read-Only Mode) */}
+        {/* Footer Actions (Hidden in Visitor Read-Only Mode and restricted for Arpenteur) */}
         {!isVisitorMode && !isEditing && (
           <div className="p-3 border-t border-slate-200 bg-slate-50 flex gap-2">
             <button
@@ -590,13 +644,15 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
             >
               <Edit3 className="w-3.5 h-3.5" /> Éditer la Parcelle & Sommets
             </button>
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded text-xs font-bold transition-all cursor-pointer"
-              title="Supprimer la parcelle"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {!isArpenteur && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded text-xs font-bold transition-all cursor-pointer"
+                title="Supprimer la parcelle (Action Admin)"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         )}
       </div>

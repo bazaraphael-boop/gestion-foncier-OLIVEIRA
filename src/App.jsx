@@ -316,8 +316,10 @@ export default function App() {
     };
   }, [userLocation, concessionPolygon, subZones, globalParcels, isetechParcels]);
 
-  // Is Visitor/Client Mode flag
+  // Role session flags
   const isClientRole = session?.role === 'client';
+  const isArpenteur = session?.role === 'arpenteur';
+  const isAdmin = session?.role === 'admin';
 
   // Check active session periodically to handle expiration
   useEffect(() => {
@@ -490,9 +492,9 @@ export default function App() {
     setSelectedParcel(updatedParcel);
   };
 
-  // Delete single parcel (Admin only)
+  // Delete single parcel (Admin only - Forbidden for Arpenteur)
   const handleDeleteParcel = (parcelId) => {
-    if (isClientRole) return;
+    if (isClientRole || isArpenteur) return;
     setIsetechParcels((prev) => prev.filter((p) => p.id !== parcelId));
     setGlobalParcels((prev) => prev.filter((p) => p.id !== parcelId));
     deleteParcelFromSupabase(parcelId);
@@ -514,8 +516,9 @@ export default function App() {
     setSelectedParcelIds([]);
   };
 
+  // Bulk delete parcels (Admin only - Forbidden for Arpenteur)
   const handleBulkDeleteParcels = (idsToDelete) => {
-    if (isClientRole) return;
+    if (isClientRole || isArpenteur) return;
     setIsetechParcels((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
     setGlobalParcels((prev) => prev.filter((p) => !idsToDelete.includes(p.id)));
     bulkDeleteParcelsFromSupabase(idsToDelete);
@@ -570,7 +573,7 @@ export default function App() {
   };
 
   const handleClearAllData = async () => {
-    if (isClientRole) return;
+    if (isClientRole || isArpenteur) return;
     if (confirm('Voulez-vous supprimer définitivement TOUTES les parcelles (Local & Supabase Cloud) ?')) {
       localStorage.setItem(STORAGE_KEY_PARCELS, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEY_ISETECH, JSON.stringify([]));
@@ -583,7 +586,7 @@ export default function App() {
   };
 
   const handleResetConcession = () => {
-    if (isClientRole) return;
+    if (isClientRole || isArpenteur) return;
     if (confirm('Voulez-vous réinitialiser le tracé du périmètre officiel de la concession ?')) {
       localStorage.removeItem(STORAGE_KEY_CONCESSION);
       loadDefaultConcession();
@@ -659,6 +662,7 @@ export default function App() {
           onToggleLocation={handleToggleLocation}
           isLocating={isLocating}
           locationZoneInfo={locationAnalysis.zoneInfo}
+          isArpenteur={isArpenteur}
         />
       )}
 
@@ -776,6 +780,7 @@ export default function App() {
               }}
               onToggleCollapse={() => setIsSidebarCollapsed(true)}
               isVisitorMode={false}
+              isArpenteur={isArpenteur}
             />
           </div>
         )}
@@ -816,6 +821,7 @@ export default function App() {
                 }}
                 onToggleCollapse={() => setIsSidebarCollapsed(true)}
                 isVisitorMode={false}
+                isArpenteur={isArpenteur}
               />
             </div>
           </div>
@@ -888,6 +894,7 @@ export default function App() {
               onUpdateParcel={handleUpdateParcel}
               onDeleteParcel={handleDeleteParcel}
               isVisitorMode={false}
+              isArpenteur={isArpenteur}
             />
           )}
 
