@@ -14,7 +14,8 @@ import {
   Key,
   Navigation,
   SlidersHorizontal,
-  RotateCcw
+  RotateCcw,
+  History
 } from 'lucide-react';
 import { exportParcelsToGeoJSON, calculateArea } from '../utils/geoUtils';
 
@@ -31,6 +32,7 @@ export default function Navbar({
   onToggleVisitorMode,
   onOpenSupabaseModal,
   onOpenSecurityModal,
+  onOpenAuditModal,
   onLogout,
   onSync,
   isSyncing,
@@ -229,6 +231,13 @@ export default function Navbar({
                     <div className="border-t border-slate-800/80 my-1 pt-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       Système &amp; Sécurité
                     </div>
+                    <button
+                      onClick={() => { onOpenAuditModal && onOpenAuditModal(); setShowToolsDropdown(false); }}
+                      className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-cyan-300 hover:text-cyan-200 rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
+                    >
+                      <History className="w-4 h-4 text-cyan-400" />
+                      <span>Journal d'Audit &amp; Traçabilité</span>
+                    </button>
                     <button
                       onClick={() => { onOpenSecurityModal && onOpenSecurityModal(); setShowToolsDropdown(false); }}
                       className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-200 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"

@@ -21,6 +21,7 @@ const KmlParcelImporterModal = lazy(() => import('./components/KmlParcelImporter
 const GeoJsonImporterModal = lazy(() => import('./components/GeoJsonImporterModal'));
 const SupabaseModal = lazy(() => import('./components/SupabaseModal'));
 const AdminSecurityModal = lazy(() => import('./components/AdminSecurityModal'));
+const AuditLogModal = lazy(() => import('./components/AuditLogModal'));
 
 import { DEFAULT_KML_DATA } from './data/defaultConcession';
 import { parseKMLToGeoJSON, extractMainConcessionPolygon, extractSubZones } from './utils/kmlParser';
@@ -39,6 +40,7 @@ import {
 } from './services/supabaseClient';
 
 import { getCurrentSession, logout } from './services/authService';
+import { logActivity } from './services/auditService';
 
 const STORAGE_KEY_PARCELS = 'geocadastre_parcels_v3';
 const STORAGE_KEY_ISETECH = 'geocadastre_isetech_parcels_v3';
@@ -129,6 +131,7 @@ export default function App() {
   const [isGeoJsonImporterOpen, setIsGeoJsonImporterOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [isAdminSecurityOpen, setIsAdminSecurityOpen] = useState(false);
+  const [isAuditLogOpen, setIsAuditLogOpen] = useState(false);
 
   // Admin Real-Time GPS Geolocation States
   const [userLocation, setUserLocation] = useState(null);
@@ -407,6 +410,14 @@ export default function App() {
       if (cloudParcels !== null) {
         setGlobalParcels(cloudParcels);
         setIsetechParcels(cloudParcels);
+        logActivity({
+          role: isArpenteur ? 'arpenteur' : 'admin',
+          actor: isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur',
+          action: 'CLOUD_SYNC',
+          actionLabel: 'Synchronisation Cloud Supabase réussie',
+          details: `${cloudParcels.length} parcelle(s) synchronisée(s) depuis la base distante`,
+          severity: 'info'
+        });
       }
     } catch (e) {
       console.warn('Manual sync error:', e);
@@ -461,7 +472,7 @@ export default function App() {
     setSelectedParcelIds([]);
   };
 
-  // Add new single parcel (Admin only)
+  // Add new single parcel (Admin or Arpenteur)
   const handleAddParcel = (newParcel) => {
     if (isClientRole) return;
     setIsetechParcels((prev) => [newParcel, ...prev]);
@@ -469,6 +480,17 @@ export default function App() {
     saveParcelToSupabase(newParcel);
     setSelectedParcel(newParcel);
     setInitialFormPoints(null);
+
+    const lotRef = newParcel.properties?.lotNumber || newParcel.id;
+    logActivity({
+      role: isArpenteur ? 'arpenteur' : 'admin',
+      actor: isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur',
+      action: 'PARCEL_CREATE',
+      actionLabel: `Création de la parcelle ${lotRef}`,
+      target: lotRef,
+      details: `Superficie: ${newParcel.properties?.formattedHa || 'N/A'}, Statut: ${newParcel.properties?.status || 'disponible'}, Affectataire: ${newParcel.properties?.occupantName || 'Aucun'}`,
+      severity: 'success'
+    });
   };
 
   // Bulk add parcels imported from KML or GeoJSON (Admin only)
@@ -480,26 +502,77 @@ export default function App() {
     if (newParcelsList.length > 0) {
       setSelectedParcel(newParcelsList[0]);
     }
+
+    logActivity({
+      role: isArpenteur ? 'arpenteur' : 'admin',
+      actor: isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur',
+      action: 'PARCEL_IMPORT',
+      actionLabel: `Import externe de ${newParcelsList.length} parcelle(s)`,
+      target: `${newParcelsList.length} lots`,
+      details: 'Lots importés depuis fichier GeoJSON/KML',
+      severity: 'info'
+    });
   };
 
-  // Update existing parcel (Admin only)
+  // Update existing parcel (Admin or Arpenteur)
   const handleUpdateParcel = (updatedParcel) => {
     if (isClientRole) return;
+    const existing = currentParcels.find((p) => p.id === updatedParcel.id);
+    const verticesChanged = existing && JSON.stringify(existing.geometry?.coordinates) !== JSON.stringify(updatedParcel.geometry?.coordinates);
+    const lotRef = updatedParcel.properties?.lotNumber || updatedParcel.id;
+    const actorRole = isArpenteur ? 'arpenteur' : 'admin';
+    const actorLabel = isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur';
+
     const updater = (prev) => prev.map((p) => (p.id === updatedParcel.id ? updatedParcel : p));
     setIsetechParcels(updater);
     setGlobalParcels(updater);
     saveParcelToSupabase(updatedParcel);
     setSelectedParcel(updatedParcel);
+
+    if (verticesChanged) {
+      logActivity({
+        role: actorRole,
+        actor: actorLabel,
+        action: 'PARCEL_VERTICES_EDIT',
+        actionLabel: `Bornage GPS modifié pour le lot ${lotRef}`,
+        target: lotRef,
+        details: `Bornage technique recalculé (${updatedParcel.geometry?.coordinates?.[0]?.length || 0} sommets). Superficie: ${updatedParcel.properties?.formattedHa || 'N/A'}`,
+        severity: 'warning'
+      });
+    } else {
+      logActivity({
+        role: actorRole,
+        actor: actorLabel,
+        action: 'PARCEL_UPDATE',
+        actionLabel: `Modification de la fiche du lot ${lotRef}`,
+        target: lotRef,
+        details: `Statut: ${updatedParcel.properties?.status}, Affectataire: ${updatedParcel.properties?.occupantName || 'Aucun'}`,
+        severity: 'info'
+      });
+    }
   };
 
   // Delete single parcel (Admin only - Forbidden for Arpenteur)
   const handleDeleteParcel = (parcelId) => {
     if (isClientRole || isArpenteur) return;
+    const deleted = currentParcels.find((p) => p.id === parcelId);
+    const lotRef = deleted?.properties?.lotNumber || parcelId;
+
     setIsetechParcels((prev) => prev.filter((p) => p.id !== parcelId));
     setGlobalParcels((prev) => prev.filter((p) => p.id !== parcelId));
     deleteParcelFromSupabase(parcelId);
     setSelectedParcel(null);
     setSelectedParcelIds((prev) => prev.filter((id) => id !== parcelId));
+
+    logActivity({
+      role: 'admin',
+      actor: 'Administrateur',
+      action: 'PARCEL_DELETE',
+      actionLabel: `Suppression du lot ${lotRef}`,
+      target: lotRef,
+      details: 'Parcelle définitivement retirée du cadastre',
+      severity: 'danger'
+    });
   };
 
   const handleToggleSelectParcel = (parcelId) => {
@@ -524,6 +597,16 @@ export default function App() {
     bulkDeleteParcelsFromSupabase(idsToDelete);
     setSelectedParcel(null);
     setSelectedParcelIds([]);
+
+    logActivity({
+      role: 'admin',
+      actor: 'Administrateur',
+      action: 'PARCEL_BULK_DELETE',
+      actionLabel: `Suppression groupée de ${idsToDelete.length} parcelle(s)`,
+      target: `${idsToDelete.length} lots`,
+      details: 'Suppression collective exécutée par la direction',
+      severity: 'danger'
+    });
   };
 
   const handleBulkChangeStatus = (idsToUpdate, newStatus) => {
@@ -539,6 +622,16 @@ export default function App() {
       properties: { ...p.properties, status: newStatus }
     }));
     bulkSaveParcelsToSupabase(updatedParcels);
+
+    logActivity({
+      role: isArpenteur ? 'arpenteur' : 'admin',
+      actor: isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur',
+      action: 'PARCEL_BULK_STATUS',
+      actionLabel: `Changement de statut en masse (${idsToUpdate.length} lots -> ${newStatus})`,
+      target: `${idsToUpdate.length} lots`,
+      details: `Statut modifié en : ${newStatus}`,
+      severity: 'info'
+    });
   };
 
   const handleBulkExportGeoJSON = (idsToExport) => {
@@ -550,6 +643,16 @@ export default function App() {
     a.href = url;
     a.download = `Selection_${idsToExport.length}_Parcels_${new Date().toISOString().split('T')[0]}.geojson`;
     a.click();
+
+    logActivity({
+      role: isArpenteur ? 'arpenteur' : 'admin',
+      actor: isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur',
+      action: 'PARCEL_EXPORT',
+      actionLabel: `Export GeoJSON de ${idsToExport.length} parcelle(s)`,
+      target: `${idsToExport.length} lots`,
+      details: 'Export cartographique GeoJSON généré',
+      severity: 'info'
+    });
   };
 
   const handleOpenCreateFormWithPoints = (pointsList) => {
@@ -582,6 +685,16 @@ export default function App() {
       setSelectedParcel(null);
       setSelectedParcelIds([]);
       await deleteAllParcelsInSupabase();
+
+      logActivity({
+        role: 'admin',
+        actor: 'Administrateur',
+        action: 'DATA_PURGE',
+        actionLabel: 'Purge intégrale du cadastre',
+        target: 'Toutes les parcelles',
+        details: 'Suppression totale des parcelles effectuée (Local & Supabase)',
+        severity: 'danger'
+      });
     }
   };
 
@@ -590,6 +703,16 @@ export default function App() {
     if (confirm('Voulez-vous réinitialiser le tracé du périmètre officiel de la concession ?')) {
       localStorage.removeItem(STORAGE_KEY_CONCESSION);
       loadDefaultConcession();
+
+      logActivity({
+        role: 'admin',
+        actor: 'Administrateur',
+        action: 'CONCESSION_RESET',
+        actionLabel: 'Réinitialisation du périmètre de la concession',
+        target: 'Périmètre Manuel J. d\'Oliveira (5 326 ha)',
+        details: 'Restauration du tracé géodésique officiel par défaut',
+        severity: 'warning'
+      });
     }
   };
 
@@ -656,6 +779,7 @@ export default function App() {
           isVisitorMode={false}
           onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
           onOpenSecurityModal={() => setIsAdminSecurityOpen(true)}
+          onOpenAuditModal={() => setIsAuditLogOpen(true)}
           onLogout={handleLogout}
           onSync={handleManualSync}
           isSyncing={isSyncing}
@@ -947,6 +1071,13 @@ export default function App() {
               isOpen={isAdminSecurityOpen}
               onClose={() => setIsAdminSecurityOpen(false)}
               onLogout={handleLogout}
+            />
+          )}
+
+          {isAuditLogOpen && (
+            <AuditLogModal
+              isOpen={isAuditLogOpen}
+              onClose={() => setIsAuditLogOpen(false)}
             />
           )}
         </Suspense>

@@ -8,6 +8,8 @@
  * - Secure Password & PIN Updates with validation
  */
 
+import { logActivity } from './auditService';
+
 const STORAGE_KEY_SESSION = 'geocadastre_auth_session_v1';
 const STORAGE_KEY_ATTEMPTS_CLIENT = 'geocadastre_auth_attempts_client_v2';
 const STORAGE_KEY_ATTEMPTS_ADMIN = 'geocadastre_auth_attempts_admin_v2';
@@ -124,9 +126,27 @@ export async function loginClient(pin) {
   if (inputHash === targetHash) {
     resetLockout(STORAGE_KEY_ATTEMPTS_CLIENT);
     const session = createSession('client');
+    logActivity({
+      role: 'client',
+      actor: 'Consultant Foncier (Code PIN)',
+      action: 'AUTH_LOGIN',
+      actionLabel: 'Connexion Espace Grand Public / Client',
+      details: 'Accès consultation publique par code PIN validé',
+      severity: 'info'
+    });
     return { success: true, session };
   } else {
     const failInfo = recordFailure(STORAGE_KEY_ATTEMPTS_CLIENT, CLIENT_LOCKOUT_MS);
+    logActivity({
+      role: 'anonymous',
+      actor: 'Visiteur Inconnu',
+      action: 'AUTH_FAILED',
+      actionLabel: 'Tentative erronée Code PIN Client',
+      details: failInfo.isLocked
+        ? `5 échecs consécutifs. Portail client bloqué pour ${CLIENT_LOCKOUT_MS / 1000}s`
+        : `Code PIN incorrect (${failInfo.count} échec(s))`,
+      severity: failInfo.isLocked ? 'danger' : 'warning'
+    });
     if (failInfo.isLocked) {
       return { success: false, error: `5 tentatives infructueuses. Accès bloqué pendant ${CLIENT_LOCKOUT_MS / 1000} secondes.` };
     }
@@ -172,9 +192,27 @@ export async function loginAdmin(identifierOrPassword, maybePassword) {
     if (inputHash === targetArpenteurHash) {
       resetLockout(STORAGE_KEY_ATTEMPTS_ADMIN);
       const session = createSession('arpenteur');
+      logActivity({
+        role: 'arpenteur',
+        actor: `Arpenteur Géomètre (${identifier})`,
+        action: 'AUTH_LOGIN',
+        actionLabel: 'Connexion Espace Arpenteur Géomètre',
+        details: 'Session de terrain et bornage activée',
+        severity: 'success'
+      });
       return { success: true, session };
     } else {
       const failInfo = recordFailure(STORAGE_KEY_ATTEMPTS_ADMIN, ADMIN_LOCKOUT_MS);
+      logActivity({
+        role: 'anonymous',
+        actor: `Tentative Arpenteur (${identifier})`,
+        action: 'AUTH_FAILED',
+        actionLabel: 'Échec mot de passe Arpenteur',
+        details: failInfo.isLocked
+          ? `5 échecs consécutifs. Portail bloqué pour ${ADMIN_LOCKOUT_MS / 1000}s`
+          : `Mot de passe incorrect (${failInfo.count} échec(s))`,
+        severity: failInfo.isLocked ? 'danger' : 'warning'
+      });
       if (failInfo.isLocked) {
         return {
           success: false,
@@ -200,6 +238,16 @@ export async function loginAdmin(identifierOrPassword, maybePassword) {
 
     if (!isValidIdentifier) {
       const failInfo = recordFailure(STORAGE_KEY_ATTEMPTS_ADMIN, ADMIN_LOCKOUT_MS);
+      logActivity({
+        role: 'anonymous',
+        actor: `Tentative Inconnue (${identifier})`,
+        action: 'AUTH_FAILED',
+        actionLabel: 'Identifiant Administrateur non reconnu',
+        details: failInfo.isLocked
+          ? `5 échecs consécutifs. Portail bloqué pour ${ADMIN_LOCKOUT_MS / 1000}s`
+          : `Identifiant non habilité: ${identifier}`,
+        severity: failInfo.isLocked ? 'danger' : 'warning'
+      });
       if (failInfo.isLocked) {
         return {
           success: false,
@@ -217,9 +265,27 @@ export async function loginAdmin(identifierOrPassword, maybePassword) {
   if (inputHash === targetAdminHash) {
     resetLockout(STORAGE_KEY_ATTEMPTS_ADMIN);
     const session = createSession('admin');
+    logActivity({
+      role: 'admin',
+      actor: `Administrateur (${identifier || 'admin'})`,
+      action: 'AUTH_LOGIN',
+      actionLabel: 'Connexion Espace Administration SIG',
+      details: 'Session complète de direction cadastrale ouverte',
+      severity: 'success'
+    });
     return { success: true, session };
   } else {
     const failInfo = recordFailure(STORAGE_KEY_ATTEMPTS_ADMIN, ADMIN_LOCKOUT_MS);
+    logActivity({
+      role: 'anonymous',
+      actor: `Tentative Admin (${identifier || 'admin'})`,
+      action: 'AUTH_FAILED',
+      actionLabel: 'Échec mot de passe Administrateur',
+      details: failInfo.isLocked
+        ? `5 échecs consécutifs. Portail bloqué pour ${ADMIN_LOCKOUT_MS / 1000}s`
+        : `Mot de passe administrateur erroné (${failInfo.count} échec(s))`,
+      severity: failInfo.isLocked ? 'danger' : 'warning'
+    });
     if (failInfo.isLocked) {
       return {
         success: false,
@@ -270,6 +336,26 @@ export function getCurrentSession() {
 }
 
 export function logout() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_SESSION);
+    if (raw) {
+      const session = JSON.parse(raw);
+      if (session && session.role) {
+        logActivity({
+          role: session.role,
+          actor: session.role === 'admin'
+            ? 'Administrateur'
+            : session.role === 'arpenteur'
+            ? 'Arpenteur Géomètre'
+            : 'Client / Consultant',
+          action: 'AUTH_LOGOUT',
+          actionLabel: `Déconnexion de session (${session.role})`,
+          details: 'Fermeture volontaire de session',
+          severity: 'info'
+        });
+      }
+    }
+  } catch (e) {}
   localStorage.removeItem(STORAGE_KEY_SESSION);
 }
 

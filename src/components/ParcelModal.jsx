@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
+import { logActivity } from '../services/auditService';
 import { STATUS_COLORS, ddToDms, exportParcelToCSV, calculateArea } from '../utils/geoUtils';
 import { getOceanZoneInfo } from '../utils/coastalZones';
 import OfficialHeaderBanner from './OfficialHeaderBanner';
@@ -170,8 +171,19 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Sommets_Parcelle_${parcel.properties.lotNumber || parcel.id}.csv`;
+    const lotRef = parcel.properties.lotNumber || parcel.id;
+    link.download = `Sommets_Parcelle_${lotRef}.csv`;
     link.click();
+
+    logActivity({
+      role: isArpenteur ? 'arpenteur' : 'admin',
+      actor: isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur',
+      action: 'PARCEL_EXPORT',
+      actionLabel: `Export CSV des sommets du lot ${lotRef}`,
+      target: lotRef,
+      details: `${vertices.length} sommets géodésiques exportés en format CSV`,
+      severity: 'info'
+    });
   };
 
   const handleDownloadGeoJSON = () => {
@@ -179,12 +191,33 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
+    const lotRef = parcel.properties.lotNumber || parcel.id;
     link.href = url;
-    link.download = `Parcelle_${parcel.properties.lotNumber || parcel.id}.geojson`;
+    link.download = `Parcelle_${lotRef}.geojson`;
     link.click();
+
+    logActivity({
+      role: isArpenteur ? 'arpenteur' : 'admin',
+      actor: isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur',
+      action: 'PARCEL_EXPORT',
+      actionLabel: `Export GeoJSON du lot ${lotRef}`,
+      target: lotRef,
+      details: `Fichier GeoJSON généré avec polygone et attributs`,
+      severity: 'info'
+    });
   };
 
   const handlePrintReleve = () => {
+    const lotRef = parcel.properties.lotNumber || parcel.id;
+    logActivity({
+      role: isArpenteur ? 'arpenteur' : 'admin',
+      actor: isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur',
+      action: 'PARCEL_PRINT_RELEVE',
+      actionLabel: `Impression Relevé Parcellaire du lot ${lotRef}`,
+      target: lotRef,
+      details: `Fiche officielle imprimée / exportée en PDF avec QR Code anti-fraude`,
+      severity: 'info'
+    });
     window.print();
   };
 
