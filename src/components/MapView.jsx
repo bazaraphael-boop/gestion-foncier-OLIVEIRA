@@ -466,9 +466,15 @@ export default function MapView({
   isLocating,
   onUpdateConcessionPolygon,
   isAdmin = false,
+  isArpenteur = false,
   editConcessionTrigger = 0
 }) {
   const mapContainerRef = useRef(null);
+
+  // Strict role permissions: Parcel Tracing & Concession Bornes View are strictly reserved to Admin & Arpenteur
+  const canDrawAndManageParcels = !isVisitorMode && (isAdmin || isArpenteur);
+  const canViewAndInspectBornes = !isVisitorMode && (isAdmin || isArpenteur);
+
   const [mapType, setMapType] = useState('google-pure');
   const [showRoadsOverlay, setShowRoadsOverlay] = useState(false);
   const [showBasemapMenu, setShowBasemapMenu] = useState(false);
@@ -527,14 +533,27 @@ export default function MapView({
   const [drawnPoints, setDrawnPoints] = useState([]);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Trigger drawing mode from mobile dock or external actions
+  // Trigger drawing mode only for authorized surveyor or admin
   useEffect(() => {
-    if (drawTrigger) {
+    if (drawTrigger && canDrawAndManageParcels) {
       setIsDrawing(true);
       setDrawnPoints([]);
       setLastMarkedInfo(null);
     }
-  }, [drawTrigger]);
+  }, [drawTrigger, canDrawAndManageParcels]);
+
+  // Strict enforcement: if client/visitor, ensure drawing and borne inspection are terminated immediately
+  useEffect(() => {
+    if (!canDrawAndManageParcels) {
+      setIsDrawing(false);
+      setDrawnPoints([]);
+      setLastMarkedInfo(null);
+    }
+    if (!canViewAndInspectBornes) {
+      setInspectedBorne(null);
+      setIsEditingConcession(false);
+    }
+  }, [canDrawAndManageParcels, canViewAndInspectBornes]);
 
   const getLeafletCoords = (feature) => {
     if (!feature || !feature.geometry) return [];
@@ -626,8 +645,9 @@ export default function MapView({
     });
   };
 
-  // Inspect Borne geodetic details (Altitude, Longitude, Latitude)
+  // Inspect Borne geodetic details (Altitude, Longitude, Latitude) - Admin & Arpenteur only
   const handleInspectBorne = async (borne) => {
+    if (!canViewAndInspectBornes) return;
     setInspectedBorne({
       number: borne.number,
       index: borne.index,
@@ -769,6 +789,7 @@ export default function MapView({
   };
 
   const handleStartDrawing = () => {
+    if (!canDrawAndManageParcels) return;
     setIsDrawing(true);
     setDrawnPoints([]);
     setLastMarkedInfo(null);
@@ -1144,19 +1165,21 @@ export default function MapView({
                 </div>
               </div>
 
-              {/* Concession Bornes Toggle */}
-              <div
-                onClick={() => setShowConcessionBornes(!showConcessionBornes)}
-                className="flex items-center justify-between p-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg cursor-pointer active:bg-slate-800"
-              >
-                <div className="flex items-center gap-2 text-xs font-medium">
-                  <MapPin className="w-4 h-4 text-amber-400" />
-                  <span>Bornes Périmètre P1..P32 (Altitudes)</span>
+              {/* Concession Bornes Toggle (Réservé Admin & Arpenteur) */}
+              {canViewAndInspectBornes && (
+                <div
+                  onClick={() => setShowConcessionBornes(!showConcessionBornes)}
+                  className="flex items-center justify-between p-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg cursor-pointer active:bg-slate-800"
+                >
+                  <div className="flex items-center gap-2 text-xs font-medium">
+                    <MapPin className="w-4 h-4 text-amber-400" />
+                    <span>Bornes Périmètre P1..P32 (Altitudes)</span>
+                  </div>
+                  <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${showConcessionBornes ? 'bg-amber-500' : 'bg-slate-700'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showConcessionBornes ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </div>
                 </div>
-                <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${showConcessionBornes ? 'bg-amber-500' : 'bg-slate-700'}`}>
-                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showConcessionBornes ? 'translate-x-4' : 'translate-x-0'}`} />
-                </div>
-              </div>
+              )}
 
               {/* Road Overlay Toggle */}
               <div
@@ -1219,7 +1242,7 @@ export default function MapView({
       )}
 
       {/* High-Precision Center Crosshair (Viseur Réticule pour Arpenteur & Admin) */}
-      {isDrawing && (
+      {isDrawing && canDrawAndManageParcels && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-[1000] select-none">
           <div className="relative flex items-center justify-center">
             {/* Target Reticle Circle */}
@@ -1247,7 +1270,7 @@ export default function MapView({
       )}
 
       {/* High-Precision GPS Field Tracing Floating Toolbar */}
-      {isDrawing && (
+      {isDrawing && canDrawAndManageParcels && (
         <div className="absolute top-2 sm:top-3 left-1/2 -translate-x-1/2 z-[1150] w-[96%] sm:w-auto sm:min-w-[500px] max-w-xl bg-slate-950/95 backdrop-blur-xl border border-emerald-500/60 rounded-2xl shadow-2xl p-2.5 sm:p-3 text-white animate-in slide-in-from-top-4 duration-200 select-none">
           <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2 mb-2">
             <div className="flex items-center gap-2">
@@ -1403,8 +1426,8 @@ export default function MapView({
         </div>
       )}
 
-      {/* Geodesic Borne Inspection Modal (Altitude, Longitude, Latitude) */}
-      {inspectedBorne && (
+      {/* Geodesic Borne Inspection Modal (Altitude, Longitude, Latitude) - Admin & Arpenteur Only */}
+      {inspectedBorne && canViewAndInspectBornes && (
         <div className="fixed inset-0 z-[1200] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
           <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-slate-100 animate-in zoom-in-95 duration-200">
             {/* Header */}
@@ -1696,8 +1719,8 @@ export default function MapView({
           <Sparkles className="w-4 h-4" />
         </button>
 
-        {/* Drawing Tool (Hidden in Visitor Read-Only Mode) */}
-        {!isVisitorMode && (
+        {/* Drawing Tool (Strictement réservé Admin & Arpenteur) */}
+        {canDrawAndManageParcels && (
           !isDrawing ? (
             <button
               onClick={handleStartDrawing}
@@ -1738,16 +1761,18 @@ export default function MapView({
           <Eye className="w-4 h-4" />
         </button>
 
-        {/* Concession Bornes Toggle */}
-        <button
-          onClick={() => setShowConcessionBornes(!showConcessionBornes)}
-          className={`p-2 rounded-lg border border-slate-200 shadow-sm transition-all cursor-pointer ${
-            showConcessionBornes ? 'bg-amber-50 text-amber-700 border-amber-300' : 'bg-white text-slate-700 hover:bg-slate-50'
-          }`}
-          title="Afficher/Masquer les bornes de la concession (P1...P32)"
-        >
-          <MapPin className="w-4 h-4" />
-        </button>
+        {/* Concession Bornes Toggle (Strictement réservé Admin & Arpenteur) */}
+        {canViewAndInspectBornes && (
+          <button
+            onClick={() => setShowConcessionBornes(!showConcessionBornes)}
+            className={`p-2 rounded-lg border border-slate-200 shadow-sm transition-all cursor-pointer ${
+              showConcessionBornes ? 'bg-amber-50 text-amber-700 border-amber-300' : 'bg-white text-slate-700 hover:bg-slate-50'
+            }`}
+            title="Afficher/Masquer les bornes de la concession (P1...P32)"
+          >
+            <MapPin className="w-4 h-4" />
+          </button>
+        )}
 
         {/* Concession Edit Mode Quick Toggle (Admin Only) */}
         {isAdmin && (
@@ -2026,8 +2051,8 @@ export default function MapView({
           </Polygon>
         )}
 
-        {/* Concession Perimeter Bornes (P1 to P32) with Altitude & Longitude Inspection */}
-        {showConcession && showConcessionBornes && concessionBornes.map((b) => (
+        {/* Concession Perimeter Bornes (P1 to P32) - Strictement réservé Admin & Arpenteur */}
+        {showConcession && showConcessionBornes && canViewAndInspectBornes && concessionBornes.map((b) => (
           <Marker
             key={`concession-borne-${b.number}-${b.lat.toFixed(6)}-${b.lng.toFixed(6)}`}
             position={b.position}
@@ -2237,8 +2262,8 @@ export default function MapView({
           );
         })}
 
-        {/* Drawn Points with Numbered Badges & Precision Dragging */}
-        {isDrawing && drawnPoints.length > 0 && (
+        {/* Drawn Points with Numbered Badges & Precision Dragging (Admin & Arpenteur) */}
+        {isDrawing && canDrawAndManageParcels && drawnPoints.length > 0 && (
           <>
             {drawnPoints.map((pt, i) => (
               <Marker

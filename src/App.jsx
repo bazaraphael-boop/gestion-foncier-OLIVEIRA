@@ -463,14 +463,21 @@ export default function App() {
   const handleAuthSuccess = (validSession) => {
     setSession(validSession);
     setAuthView('portal');
+    setDrawTrigger(0);
+    setEditConcessionTrigger(0);
+    setSelectedParcel(null);
+    setSelectedParcelIds([]);
   };
 
   const handleLogout = () => {
     logout();
     setSession(null);
     setAuthView('portal');
+    setDrawTrigger(0);
+    setEditConcessionTrigger(0);
     setSelectedParcel(null);
     setSelectedParcelIds([]);
+    stopLocation();
   };
 
   // Add new single parcel (Admin or Arpenteur)
@@ -916,7 +923,8 @@ export default function App() {
             onToggleLocation={handleToggleLocation}
             isLocating={isLocating}
             onUpdateConcessionPolygon={handleUpdateConcessionPolygon}
-            isAdmin={session?.role === 'admin'}
+            isAdmin={isAdmin}
+            isArpenteur={isArpenteur}
             editConcessionTrigger={editConcessionTrigger}
           />
         </main>
