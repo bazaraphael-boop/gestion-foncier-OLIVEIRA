@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { validateParcelGeometry, dmsToDd, getNextRmbLotNumber } from '../utils/geoUtils';
 import { getOceanZoneInfo } from '../utils/coastalZones';
-import { X, Plus, Trash2, MapPin, Compass, CheckCircle2, ShieldAlert, Hexagon, Square, Waves } from 'lucide-react';
+import { X, Plus, Trash2, MapPin, Compass, CheckCircle2, ShieldAlert, Hexagon, Square, Waves, Pencil } from 'lucide-react';
 
 export default function ParcelFormModal({
   isOpen,
@@ -9,7 +9,8 @@ export default function ParcelFormModal({
   onAddParcel,
   concessionPolygon,
   existingParcels,
-  initialPoints
+  initialPoints,
+  onStartDrawing
 }) {
   const [lotNumber, setLotNumber] = useState('');
   const [status, setStatus] = useState('disponible');
@@ -192,6 +193,23 @@ export default function ParcelFormModal({
 
         {/* Body Form */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
+          {/* Quick Tracing Action Button */}
+          {onStartDrawing && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-emerald-950 font-medium">
+                <Pencil className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+                <span>Tracer et marquer les bornes sur le terrain (GPS / Viseur) ?</span>
+              </div>
+              <button
+                type="button"
+                onClick={onStartDrawing}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer flex-shrink-0"
+              >
+                <span>Tracer sur la Carte</span>
+              </button>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Identifiant / N° Lot *</label>

@@ -787,6 +787,7 @@ export default function App() {
           isLocating={isLocating}
           locationZoneInfo={locationAnalysis.zoneInfo}
           isArpenteur={isArpenteur}
+          onStartDrawing={() => setDrawTrigger((prev) => prev + 1)}
         />
       )}
 
@@ -881,6 +882,8 @@ export default function App() {
             locatedParcel={locationAnalysis.locatedParcel}
             flyToTrigger={flyToTrigger}
             drawTrigger={drawTrigger}
+            onToggleLocation={handleToggleLocation}
+            isLocating={isLocating}
           />
         </main>
 
@@ -1038,6 +1041,10 @@ export default function App() {
               concessionPolygon={concessionPolygon}
               existingParcels={currentParcels}
               initialPoints={initialFormPoints}
+              onStartDrawing={() => {
+                setIsFormOpen(false);
+                setDrawTrigger((prev) => prev + 1);
+              }}
             />
           )}
 

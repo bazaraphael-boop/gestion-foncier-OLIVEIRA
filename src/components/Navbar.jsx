@@ -15,7 +15,8 @@ import {
   Navigation,
   SlidersHorizontal,
   RotateCcw,
-  History
+  History,
+  Pencil
 } from 'lucide-react';
 import { exportParcelsToGeoJSON, calculateArea } from '../utils/geoUtils';
 
@@ -39,7 +40,8 @@ export default function Navbar({
   onToggleLocation,
   isLocating,
   locationZoneInfo,
-  isArpenteur
+  isArpenteur,
+  onStartDrawing
 }) {
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -138,6 +140,18 @@ export default function Navbar({
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Nouvelle Parcelle</span>
           </button>
+
+          {/* Action Tracer : Tracé interactif sur la carte / GPS */}
+          {onStartDrawing && (
+            <button
+              onClick={onStartDrawing}
+              className="hidden sm:flex px-2.5 sm:px-3 py-1.5 bg-slate-900/90 hover:bg-slate-800 active:scale-95 text-emerald-300 hover:text-emerald-200 border border-emerald-500/50 rounded-lg text-xs font-semibold items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+              title="Tracer et marquer les bornes directement sur la carte / GPS"
+            >
+              <Pencil className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden md:inline">Tracer Parcelle</span>
+            </button>
+          )}
 
           {/* Outil Rapide : Localiser GPS (Desktop/Tablette uniquement, sur mobile dans la barre inférieure) */}
           {onToggleLocation && (

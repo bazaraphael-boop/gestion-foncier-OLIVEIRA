@@ -38,7 +38,8 @@ import {
   Palette,
   Satellite,
   Mountain,
-  RotateCcw
+  RotateCcw,
+  Crosshair
 } from 'lucide-react';
 import * as turf from '@turf/turf';
 
@@ -233,7 +234,7 @@ function TileLoadingWatcher({ onLoadingChange }) {
 }
 
 // Professional HUD with Interactive Zoom Percentage Controller & Molette D-Pad
-function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
+function ProfessionalGisHud({ onAddPoint, isDrawing, mapType, onCenterChange }) {
   const map = useMap();
   const [currentZoom, setCurrentZoom] = useState(map.getZoom());
   const [showZoomMenu, setShowZoomMenu] = useState(false);
@@ -252,6 +253,21 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
     };
   }, [map]);
 
+  // Initial and reactive center coordinates sync
+  useEffect(() => {
+    if (map && onCenterChange) {
+      const c = map.getCenter();
+      onCenterChange([c.lat, c.lng]);
+    }
+  }, [map, onCenterChange]);
+
+  // When drawing mode activates, close any active popups so the screen is completely unobstructed
+  useEffect(() => {
+    if (isDrawing && map) {
+      map.closePopup();
+    }
+  }, [isDrawing, map]);
+
   useMapEvents({
     mousemove(e) {
       const now = performance.now();
@@ -262,8 +278,18 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType }) {
         }
       }
     },
+    move() {
+      if (onCenterChange) {
+        const c = map.getCenter();
+        onCenterChange([c.lat, c.lng]);
+      }
+    },
     zoomend() {
       setCurrentZoom(map.getZoom());
+      if (onCenterChange) {
+        const c = map.getCenter();
+        onCenterChange([c.lat, c.lng]);
+      }
     },
     click(e) {
       if (isDrawing) {
@@ -433,7 +459,9 @@ export default function MapView({
   isInConcession,
   locatedParcel,
   flyToTrigger,
-  drawTrigger
+  drawTrigger,
+  onToggleLocation,
+  isLocating
 }) {
   const mapContainerRef = useRef(null);
   const [mapType, setMapType] = useState('google-pure');
@@ -448,6 +476,11 @@ export default function MapView({
   const [isTilesLoading, setIsTilesLoading] = useState(true);
 
   const effectiveUserLocation = externalUserLocation || userLocation;
+
+  // Real-Time Center Coordinates (for Crosshair Viseur) & GPS State
+  const [centerCoords, setCenterCoords] = useState([-5.8988, 12.3375]);
+  const [isGpsAcquiring, setIsGpsAcquiring] = useState(false);
+  const [lastMarkedInfo, setLastMarkedInfo] = useState(null);
 
   // Pulsing Radar Beacon Icon for Admin Real-Time GPS Localization
   const userLocationBeaconIcon = L.divIcon({
@@ -490,6 +523,7 @@ export default function MapView({
     if (drawTrigger) {
       setIsDrawing(true);
       setDrawnPoints([]);
+      setLastMarkedInfo(null);
     }
   }, [drawTrigger]);
 
@@ -537,21 +571,80 @@ export default function MapView({
   const handleStartDrawing = () => {
     setIsDrawing(true);
     setDrawnPoints([]);
+    setLastMarkedInfo(null);
   };
 
   const handleAddDrawnPoint = (point) => {
     setDrawnPoints((prev) => [...prev, point]);
+    setLastMarkedInfo(`Borne ${drawnPoints.length + 1} marquée (${point[0].toFixed(5)}°, ${point[1].toFixed(5)}°)`);
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(40); } catch (e) {}
+    }
+  };
+
+  const handleMoveDrawnPoint = (index, newLatLng) => {
+    if (!newLatLng) return;
+    setDrawnPoints((prev) => {
+      const updated = [...prev];
+      updated[index] = [newLatLng.lat, newLatLng.lng];
+      return updated;
+    });
+    setLastMarkedInfo(`Borne ${index + 1} réajustée (${newLatLng.lat.toFixed(5)}°, ${newLatLng.lng.toFixed(5)}°)`);
   };
 
   const handleUndoDrawnPoint = () => {
     setDrawnPoints((prev) => prev.slice(0, -1));
+    setLastMarkedInfo(null);
   };
 
+  // Add Point via Center Reticle Crosshair (Viseur)
+  const handleAddCenterPoint = () => {
+    if (centerCoords && centerCoords.length === 2) {
+      const pt = [centerCoords[0], centerCoords[1]];
+      setDrawnPoints((prev) => [...prev, pt]);
+      setLastMarkedInfo(`Borne ${drawnPoints.length + 1} marquée au viseur (${pt[0].toFixed(5)}°, ${pt[1].toFixed(5)}°)`);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(40); } catch (e) {}
+      }
+    }
+  };
+
+  // Mark Point via Real Field GPS (Never disabled, auto-acquires if needed)
   const handleAddCurrentGpsPoint = () => {
-    if (effectiveUserLocation) {
-      setDrawnPoints((prev) => [...prev, [effectiveUserLocation[0], effectiveUserLocation[1]]]);
+    if (effectiveUserLocation && Array.isArray(effectiveUserLocation) && effectiveUserLocation.length >= 2) {
+      const pt = [effectiveUserLocation[0], effectiveUserLocation[1]];
+      setDrawnPoints((prev) => [...prev, pt]);
+      setLastMarkedInfo(`Borne ${drawnPoints.length + 1} marquée au GPS (${pt[0].toFixed(5)}°, ${pt[1].toFixed(5)}°)`);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(60); } catch (e) {}
+      }
     } else {
-      alert("Votre position GPS n'est pas encore disponible. Activez la localisation GPS.");
+      setIsGpsAcquiring(true);
+      if (onToggleLocation && !isLocating) {
+        onToggleLocation();
+      }
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude } = pos.coords;
+            setUserLocation([latitude, longitude]);
+            setDrawnPoints((prev) => [...prev, [latitude, longitude]]);
+            setIsGpsAcquiring(false);
+            setLastMarkedInfo(`Borne ${drawnPoints.length + 1} marquée au GPS (${latitude.toFixed(5)}°, ${longitude.toFixed(5)}°)`);
+            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+              try { navigator.vibrate(60); } catch (e) {}
+            }
+          },
+          (err) => {
+            setIsGpsAcquiring(false);
+            alert("Signal GPS en attente ou non disponible. Vous pouvez pointer le viseur central sur la borne et cliquer sur 'Borne " + (drawnPoints.length + 1) + " (Viseur)' ou toucher l'écran.");
+          },
+          { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }
+        );
+      } else {
+        setIsGpsAcquiring(false);
+        alert("La géolocalisation n'est pas supportée. Pointez le viseur ou touchez l'écran pour ajouter des bornes.");
+      }
     }
   };
 
@@ -582,7 +675,7 @@ export default function MapView({
 
   const handleFinishDrawing = () => {
     if (drawnPoints.length < 3) {
-      alert('Veuillez cliquer ou marquer au moins 3 points pour former une parcelle.');
+      alert('Veuillez marquer au moins 3 bornes pour former une parcelle fermée.');
       return;
     }
     const pointsList = drawnPoints.map(([lat, lng]) => ({
@@ -592,12 +685,14 @@ export default function MapView({
 
     setIsDrawing(false);
     setDrawnPoints([]);
+    setLastMarkedInfo(null);
     onOpenCreateFormWithPoints(pointsList);
   };
 
   const handleCancelDrawing = () => {
     setIsDrawing(false);
     setDrawnPoints([]);
+    setLastMarkedInfo(null);
   };
 
   // High-Resolution 4K Map Composite Exporter
@@ -904,24 +999,52 @@ export default function MapView({
         </div>
       )}
 
+      {/* High-Precision Center Crosshair (Viseur Réticule pour Arpenteur & Admin) */}
+      {isDrawing && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-[1000] select-none">
+          <div className="relative flex items-center justify-center">
+            {/* Target Reticle Circle */}
+            <div className="w-10 h-10 rounded-full border-2 border-emerald-400/90 flex items-center justify-center shadow-2xl shadow-emerald-950/80 bg-emerald-500/15 backdrop-blur-[1px]">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-xs"></div>
+            </div>
+            {/* Horizontal & Vertical Crosshair Lines */}
+            <div className="absolute w-16 h-[1.5px] bg-emerald-400/80"></div>
+            <div className="absolute h-16 w-[1.5px] bg-emerald-400/80"></div>
+
+            {/* Next Borne Badge */}
+            <div className="absolute -top-9 px-2.5 py-1 rounded-full bg-slate-950/95 border border-emerald-400/80 text-[11px] font-mono text-emerald-300 font-bold shadow-2xl flex items-center gap-1.5 whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <span>Borne {drawnPoints.length + 1}</span>
+            </div>
+
+            {/* Center Lat/Lng Coordinates Preview */}
+            {centerCoords && (
+              <div className="absolute -bottom-8 px-2 py-0.5 rounded bg-slate-950/85 text-[10px] font-mono text-slate-300 border border-slate-700/80 whitespace-nowrap">
+                {centerCoords[0].toFixed(5)}°, {centerCoords[1].toFixed(5)}°
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* High-Precision GPS Field Tracing Floating Toolbar */}
       {isDrawing && (
-        <div className="absolute top-2 sm:top-3 left-1/2 -translate-x-1/2 z-[1150] w-[95%] sm:w-auto sm:min-w-[480px] max-w-xl bg-slate-950/95 backdrop-blur-xl border border-emerald-500/50 rounded-2xl shadow-2xl p-2.5 sm:p-3 text-white animate-in slide-in-from-top-4 duration-200 select-none">
+        <div className="absolute top-2 sm:top-3 left-1/2 -translate-x-1/2 z-[1150] w-[96%] sm:w-auto sm:min-w-[500px] max-w-xl bg-slate-950/95 backdrop-blur-xl border border-emerald-500/60 rounded-2xl shadow-2xl p-2.5 sm:p-3 text-white animate-in slide-in-from-top-4 duration-200 select-none">
           <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2 mb-2">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
               <span className="font-bold text-xs sm:text-sm text-emerald-300">
                 Traçage Cadastral en Direct
               </span>
-              <span className="text-[11px] font-mono bg-slate-800 text-slate-200 px-2 py-0.5 rounded-full border border-slate-700">
-                {drawnPoints.length} sommet{drawnPoints.length > 1 ? 's' : ''}
+              <span className="text-[11px] font-mono bg-emerald-950/80 text-emerald-300 font-bold px-2.5 py-0.5 rounded-full border border-emerald-700/60">
+                {drawnPoints.length} borne{drawnPoints.length > 1 ? 's' : ''} posée{drawnPoints.length > 1 ? 's' : ''}
               </span>
             </div>
 
             {drawnMetrics && (
               <div className="flex items-center gap-2 font-mono text-[11px]">
                 {drawnPoints.length >= 3 && (
-                  <span className="text-emerald-300 font-bold bg-emerald-950/70 border border-emerald-700/60 px-2 py-0.5 rounded">
+                  <span className="text-emerald-300 font-bold bg-emerald-950/90 border border-emerald-600 px-2 py-0.5 rounded shadow-sm">
                     {drawnMetrics.areaHa} ha ({Math.round(drawnMetrics.areaM2)} m²)
                   </span>
                 )}
@@ -933,16 +1056,36 @@ export default function MapView({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-1.5 sm:gap-2">
             {/* Add GPS point */}
             <button
               onClick={handleAddCurrentGpsPoint}
-              disabled={!effectiveUserLocation}
-              className="flex-1 py-2 px-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md shadow-cyan-950/40 cursor-pointer"
-              title="Enregistrer votre position GPS actuelle comme borne de la parcelle"
+              disabled={isGpsAcquiring}
+              className="flex-1 py-2 px-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md shadow-cyan-950/40 cursor-pointer"
+              title="Enregistrer votre position GPS actuelle sur le terrain comme borne"
             >
-              <Navigation className="w-3.5 h-3.5 text-cyan-200 flex-shrink-0" />
-              <span className="truncate">📍 Marquer Borne GPS</span>
+              {isGpsAcquiring ? (
+                <Loader2 className="w-3.5 h-3.5 text-cyan-200 animate-spin" />
+              ) : (
+                <Navigation className="w-3.5 h-3.5 text-cyan-200 flex-shrink-0" />
+              )}
+              <span className="truncate">
+                {isGpsAcquiring
+                  ? 'Recherche GPS...'
+                  : effectiveUserLocation
+                  ? `📍 Borne ${drawnPoints.length + 1} (GPS)`
+                  : `📍 Activer GPS & Borne ${drawnPoints.length + 1}`}
+              </span>
+            </button>
+
+            {/* Mark Center / Crosshair point */}
+            <button
+              onClick={handleAddCenterPoint}
+              className="flex-1 py-2 px-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md shadow-emerald-950/40 cursor-pointer border border-emerald-500/40"
+              title="Poser la borne à l'endroit pointé par le viseur central"
+            >
+              <Crosshair className="w-3.5 h-3.5 text-emerald-200 flex-shrink-0" />
+              <span className="truncate">🎯 Borne {drawnPoints.length + 1} (Viseur)</span>
             </button>
 
             {/* Undo last point */}
@@ -950,7 +1093,7 @@ export default function MapView({
               onClick={handleUndoDrawnPoint}
               disabled={drawnPoints.length === 0}
               className="py-2 px-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 rounded-xl font-semibold text-xs flex items-center gap-1 transition-all active:scale-95 cursor-pointer border border-slate-700"
-              title="Annuler le dernier sommet posé"
+              title="Annuler la dernière borne posée"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Annuler</span>
@@ -960,8 +1103,8 @@ export default function MapView({
             <button
               onClick={handleFinishDrawing}
               disabled={drawnPoints.length < 3}
-              className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-emerald-950/40 cursor-pointer"
-              title="Terminer le tracé et ouvrir le formulaire officiel"
+              className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-emerald-950/40 cursor-pointer"
+              title="Terminer le tracé et enregistrer la parcelle"
             >
               <Check className="w-3.5 h-3.5 text-emerald-100" />
               <span>Valider ({drawnPoints.length})</span>
@@ -971,16 +1114,18 @@ export default function MapView({
             <button
               onClick={handleCancelDrawing}
               className="p-2 bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-400 rounded-xl transition-all cursor-pointer border border-slate-700"
-              title="Annuler le tracé"
+              title="Quitter le mode tracé"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="mt-1 text-[10px] text-slate-400 flex items-center justify-between px-1">
-            <span>Marchez jusqu'aux bornes ou touchez l'écran pour ajouter des points.</span>
+          <div className="mt-1.5 text-[10px] text-slate-400 flex items-center justify-between px-1">
+            <span className="truncate">
+              {lastMarkedInfo || "Positionnez-vous avec le GPS, le viseur ou touchez l'écran pour marquer chaque borne."}
+            </span>
             {locationAccuracy && (
-              <span className="font-mono text-cyan-400">GPS: ±{Math.round(locationAccuracy)}m</span>
+              <span className="font-mono text-cyan-400 flex-shrink-0 ml-2">GPS: ±{Math.round(locationAccuracy)}m</span>
             )}
           </div>
         </div>
@@ -1268,7 +1413,7 @@ export default function MapView({
           activeView={activeView}
           isSidebarCollapsed={isSidebarCollapsed}
         />
-        <ProfessionalGisHud onAddPoint={handleAddDrawnPoint} isDrawing={isDrawing} mapType={mapType} />
+        <ProfessionalGisHud onAddPoint={handleAddDrawnPoint} isDrawing={isDrawing} mapType={mapType} onCenterChange={setCenterCoords} />
 
         {/* Clean Google Pure Satellite Layer */}
         {mapType === 'google-pure' && (
@@ -1356,6 +1501,7 @@ export default function MapView({
         {showConcession && concessionCoords.length > 0 && (
           <Polygon
             positions={concessionCoords}
+            interactive={!isDrawing}
             pathOptions={{
               color: '#D97706',
               weight: 2.5,
@@ -1364,9 +1510,11 @@ export default function MapView({
               fillOpacity: 0.04
             }}
           >
-            <Tooltip direction="top" className="bg-slate-900 text-white font-semibold text-[11px] px-2 py-0.5 rounded shadow-sm border border-slate-700">
-              Concession Manuel Joaquim d'Oliveira (5 326,15 ha)
-            </Tooltip>
+            {!isDrawing && (
+              <Tooltip direction="top" className="bg-slate-900 text-white font-semibold text-[11px] px-2 py-0.5 rounded shadow-sm border border-slate-700">
+                Concession Manuel Joaquim d'Oliveira (5 326,15 ha)
+              </Tooltip>
+            )}
           </Polygon>
         )}
 
@@ -1374,6 +1522,7 @@ export default function MapView({
         {showSubZones && (
           <Polygon
             positions={ISETECH_OUTER_BOUNDARY_COORDS}
+            interactive={!isDrawing}
             pathOptions={{
               color: '#0284C7',
               weight: activeView === 'isetech' ? 3.5 : 2.5,
@@ -1383,15 +1532,17 @@ export default function MapView({
             }}
             eventHandlers={{
               click: () => {
-                if (activeView === 'global' && onExploreSubZone) {
+                if (!isDrawing && activeView === 'global' && onExploreSubZone) {
                   onExploreSubZone('isetech');
                 }
               }
             }}
           >
-            <Tooltip direction="top" className="bg-cyan-900 text-cyan-100 font-bold text-[11px] px-2.5 py-1 rounded shadow-md border border-cyan-400">
-              Périmètre Zone ISETECH (1 002,61 ha) {activeView === 'global' ? '• Cliquer pour explorer' : ''}
-            </Tooltip>
+            {!isDrawing && (
+              <Tooltip direction="top" className="bg-cyan-900 text-cyan-100 font-bold text-[11px] px-2.5 py-1 rounded shadow-md border border-cyan-400">
+                Périmètre Zone ISETECH (1 002,61 ha) {activeView === 'global' ? '• Cliquer pour explorer' : ''}
+              </Tooltip>
+            )}
           </Polygon>
         )}
 
@@ -1400,6 +1551,7 @@ export default function MapView({
           <Polygon
             key={zone.id}
             positions={zone.coordinates}
+            interactive={!isDrawing}
             pathOptions={{
               color: zone.strokeColor,
               weight: 1.5,
@@ -1408,20 +1560,24 @@ export default function MapView({
               fillOpacity: zone.fillOpacity
             }}
           >
-            <Tooltip direction="center" className="bg-slate-950/95 text-white font-semibold text-[11px] px-2.5 py-1 rounded-lg shadow-md border border-slate-700 font-mono">
-              {zone.shortName} • {zone.formattedArea}
-            </Tooltip>
-            <Popup>
-              <div className="p-1 space-y-1.5 text-xs font-sans text-slate-100">
-                <div className="font-bold text-sm" style={{ color: zone.strokeColor }}>{zone.name}</div>
-                <div className="text-slate-300 text-[11px] leading-relaxed">{zone.description}</div>
-                <div className="font-semibold text-slate-200">Superficie : <span className="text-emerald-400 font-bold font-mono">{zone.formattedArea}</span></div>
-                <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-800 flex items-center justify-between">
-                  <span>Distance du rivage</span>
-                  <strong className="font-mono text-cyan-300">{zone.range}</strong>
-                </div>
-              </div>
-            </Popup>
+            {!isDrawing && (
+              <>
+                <Tooltip direction="center" className="bg-slate-950/95 text-white font-semibold text-[11px] px-2.5 py-1 rounded-lg shadow-md border border-slate-700 font-mono">
+                  {zone.shortName} • {zone.formattedArea}
+                </Tooltip>
+                <Popup>
+                  <div className="p-1 space-y-1.5 text-xs font-sans text-slate-100">
+                    <div className="font-bold text-sm" style={{ color: zone.strokeColor }}>{zone.name}</div>
+                    <div className="text-slate-300 text-[11px] leading-relaxed">{zone.description}</div>
+                    <div className="font-semibold text-slate-200">Superficie : <span className="text-emerald-400 font-bold font-mono">{zone.formattedArea}</span></div>
+                    <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-800 flex items-center justify-between">
+                      <span>Distance du rivage</span>
+                      <strong className="font-mono text-cyan-300">{zone.range}</strong>
+                    </div>
+                  </div>
+                </Popup>
+              </>
+            )}
           </Polygon>
         ))}
 
@@ -1430,15 +1586,18 @@ export default function MapView({
           <React.Fragment key={line.id}>
             <Polyline
               positions={line.coordinates}
+              interactive={!isDrawing}
               pathOptions={{
                 color: line.color,
                 weight: line.weight,
                 dashArray: line.dashArray
               }}
             >
-              <Tooltip direction="top" className="bg-slate-950/95 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg shadow-md border border-slate-700">
-                {line.label}
-              </Tooltip>
+              {!isDrawing && (
+                <Tooltip direction="top" className="bg-slate-950/95 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg shadow-md border border-slate-700">
+                  {line.label}
+                </Tooltip>
+              )}
             </Polyline>
             {line.midpoint && (
               <Marker
@@ -1471,6 +1630,7 @@ export default function MapView({
             <Polygon
               key={parcel.id}
               positions={coords}
+              interactive={!isDrawing}
               pathOptions={{
                 color: isMultiSelected ? '#0284C7' : colorConfig.hex,
                 weight: isMultiSelected ? 4.5 : isSingleSelected ? 4 : 2,
@@ -1480,86 +1640,112 @@ export default function MapView({
               }}
               eventHandlers={{
                 click: () => {
-                  onSelectParcel(parcel);
-                  if (isIsetechMain && activeView === 'global') {
-                    onExploreSubZone('isetech');
+                  if (!isDrawing) {
+                    onSelectParcel(parcel);
+                    if (isIsetechMain && activeView === 'global') {
+                      onExploreSubZone('isetech');
+                    }
                   }
                 }
               }}
             >
-              <Popup>
-                <div className="text-xs p-1 space-y-2 font-sans text-slate-800">
-                  <div className="font-bold text-sm text-slate-900">{parcel.properties?.lotNumber || 'Lot'}</div>
-                  <div className="text-slate-600">Statut : <strong>{colorConfig.label}</strong></div>
-                  <div className="font-bold text-emerald-700 text-sm">{parcel.properties?.formattedHa} ({parcel.properties?.formattedSqM})</div>
-                  {parcel.properties?.occupantName && (
-                    <div className="italic text-slate-600">{parcel.properties.occupantName}</div>
-                  )}
+              {!isDrawing && (
+                <>
+                  <Popup>
+                    <div className="text-xs p-1 space-y-2 font-sans text-slate-800">
+                      <div className="font-bold text-sm text-slate-900">{parcel.properties?.lotNumber || 'Lot'}</div>
+                      <div className="text-slate-600">Statut : <strong>{colorConfig.label}</strong></div>
+                      <div className="font-bold text-emerald-700 text-sm">{parcel.properties?.formattedHa} ({parcel.properties?.formattedSqM})</div>
+                      {parcel.properties?.occupantName && (
+                        <div className="italic text-slate-600">{parcel.properties.occupantName}</div>
+                      )}
 
-                  {(() => {
-                    const oceanInfo = getOceanZoneInfo(parcel);
-                    if (!oceanInfo) return null;
-                    return (
-                      <div
-                        className="flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-semibold border"
-                        style={{
-                          backgroundColor: `${oceanInfo.color}15`,
-                          borderColor: `${oceanInfo.color}50`,
-                          color: oceanInfo.color
-                        }}
-                      >
-                        <Waves className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span>{oceanInfo.shortName} • {oceanInfo.distanceFormatted} de l'océan</span>
-                      </div>
-                    );
-                  })()}
+                      {(() => {
+                        const oceanInfo = getOceanZoneInfo(parcel);
+                        if (!oceanInfo) return null;
+                        return (
+                          <div
+                            className="flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-semibold border"
+                            style={{
+                              backgroundColor: `${oceanInfo.color}15`,
+                              borderColor: `${oceanInfo.color}50`,
+                              color: oceanInfo.color
+                            }}
+                          >
+                            <Waves className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span>{oceanInfo.shortName} • {oceanInfo.distanceFormatted} de l'océan</span>
+                          </div>
+                        );
+                      })()}
 
-                  {isIsetechMain && activeView === 'global' && (
-                    <div className="pt-2 border-t border-slate-200">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onExploreSubZone('isetech');
-                        }}
-                        className="w-full py-1.5 px-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
-                      >
-                        <ZoomIn className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>Zoomer dans le Sous-Cadastre ISETECH</span>
-                      </button>
+                      {isIsetechMain && activeView === 'global' && (
+                        <div className="pt-2 border-t border-slate-200">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onExploreSubZone('isetech');
+                            }}
+                            className="w-full py-1.5 px-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                          >
+                            <ZoomIn className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>Zoomer dans le Sous-Cadastre ISETECH</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </Popup>
+                  </Popup>
 
-              <Tooltip direction="center" opacity={0.9} sticky>
-                <div className="text-xs p-1 font-sans text-center">
-                  <div className="font-bold text-slate-900">{parcel.properties?.lotNumber || 'Lot'}</div>
-                  <div className="font-semibold text-emerald-700">{parcel.properties?.formattedHa}</div>
-                </div>
-              </Tooltip>
+                  <Tooltip direction="center" opacity={0.9} sticky>
+                    <div className="text-xs p-1 font-sans text-center">
+                      <div className="font-bold text-slate-900">{parcel.properties?.lotNumber || 'Lot'}</div>
+                      <div className="font-semibold text-emerald-700">{parcel.properties?.formattedHa}</div>
+                    </div>
+                  </Tooltip>
+                </>
+              )}
             </Polygon>
           );
         })}
 
-        {/* Drawn Points with Numbered Badges */}
+        {/* Drawn Points with Numbered Badges & Precision Dragging */}
         {isDrawing && drawnPoints.length > 0 && (
           <>
             {drawnPoints.map((pt, i) => (
-              <Marker key={`draw-pt-${i}`} position={pt} icon={createVertexIcon(i + 1)}>
+              <Marker
+                key={`draw-pt-${i}`}
+                position={pt}
+                icon={createVertexIcon(i + 1)}
+                draggable={true}
+                eventHandlers={{
+                  dragend: (e) => {
+                    handleMoveDrawnPoint(i, e.target.getLatLng());
+                  }
+                }}
+              >
                 <Tooltip permanent direction="top" className="text-[10px] font-bold">
                   Borne {i + 1}
                 </Tooltip>
               </Marker>
             ))}
-            {drawnPoints.length >= 2 && (
+            {drawnPoints.length === 2 && (
+              <Polyline
+                positions={drawnPoints}
+                pathOptions={{
+                  color: '#10B981',
+                  weight: 3.5,
+                  dashArray: '6, 6'
+                }}
+              />
+            )}
+            {drawnPoints.length >= 3 && (
               <Polygon
                 positions={drawnPoints}
                 pathOptions={{
                   color: '#10B981',
-                  weight: 3,
-                  dashArray: '5, 5',
+                  weight: 3.5,
+                  dashArray: '6, 6',
                   fillColor: '#10B981',
-                  fillOpacity: 0.25
+                  fillOpacity: 0.3
                 }}
               />
             )}
