@@ -16,7 +16,8 @@ import {
   SlidersHorizontal,
   RotateCcw,
   History,
-  Pencil
+  Pencil,
+  MapPin
 } from 'lucide-react';
 import { exportParcelsToGeoJSON, calculateArea } from '../utils/geoUtils';
 
@@ -41,7 +42,8 @@ export default function Navbar({
   isLocating,
   locationZoneInfo,
   isArpenteur,
-  onStartDrawing
+  onStartDrawing,
+  onStartEditConcession
 }) {
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -275,6 +277,13 @@ export default function Navbar({
                     <div className="border-t border-slate-800/80 my-1 pt-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       Maintenance
                     </div>
+                    <button
+                      onClick={() => { onStartEditConcession && onStartEditConcession(); setShowToolsDropdown(false); }}
+                      className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-amber-300 hover:text-amber-200 rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
+                    >
+                      <MapPin className="w-4 h-4 text-amber-400" />
+                      <span>Éditer les Bornes de la Concession</span>
+                    </button>
                     <button
                       onClick={() => { onResetConcession && onResetConcession(); setShowToolsDropdown(false); }}
                       className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-300 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"

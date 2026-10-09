@@ -249,3 +249,33 @@ export function getNextRmbLotNumber(parcels = []) {
   const nextNum = maxNum + 1;
   return `RMB/${String(nextNum).padStart(3, '0')}`;
 }
+
+const elevationCache = new Map();
+
+/**
+ * Fetches ground elevation (altitude in meters above sea level) for a given GPS coordinate
+ * using the public Open-Meteo Elevation API (SRTM / Copernicus DEM 30m resolution).
+ */
+export async function fetchElevation(lat, lng) {
+  if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
+    return null;
+  }
+  const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+  if (elevationCache.has(key)) {
+    return elevationCache.get(key);
+  }
+  try {
+    const res = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.elevation) && data.elevation.length > 0 && data.elevation[0] !== null) {
+        const alt = Math.round(data.elevation[0] * 10) / 10;
+        elevationCache.set(key, alt);
+        return alt;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to fetch elevation for', lat, lng, err);
+  }
+  return null;
+}

@@ -140,6 +140,7 @@ export default function App() {
   const [isSimulated, setIsSimulated] = useState(false);
   const [flyToTrigger, setFlyToTrigger] = useState(0);
   const [drawTrigger, setDrawTrigger] = useState(0);
+  const [editConcessionTrigger, setEditConcessionTrigger] = useState(0);
   const watchIdRef = useRef(null);
   const isFirstFixRef = useRef(true);
 
@@ -698,6 +699,35 @@ export default function App() {
     }
   };
 
+  const handleUpdateConcessionPolygon = (newPolygon) => {
+    if (isClientRole || isArpenteur) {
+      alert("Seul l'Administrateur en chef est habilité à ajuster les bornes de la concession.");
+      return;
+    }
+    setConcessionPolygon(newPolygon);
+    try {
+      localStorage.setItem(STORAGE_KEY_CONCESSION, JSON.stringify(newPolygon));
+      saveConcessionToSupabase(newPolygon);
+    } catch (e) {
+      console.warn('Erreur sauvegarde concession:', e);
+    }
+
+    const area = calculateArea(newPolygon);
+    const verticesCount = newPolygon?.geometry?.coordinates?.[0]?.length
+      ? newPolygon.geometry.coordinates[0].length - 1
+      : 0;
+
+    logActivity({
+      role: 'admin',
+      actor: session?.user?.email || 'Administrateur',
+      action: 'CONCESSION_VERTICES_EDIT',
+      actionLabel: 'Ajustement officiel des bornes de la concession',
+      target: "Périmètre Manuel J. d'Oliveira",
+      details: `${verticesCount} bornes calibrées, nouvelle superficie: ${area.formattedHa}`,
+      severity: 'warning'
+    });
+  };
+
   const handleResetConcession = () => {
     if (isClientRole || isArpenteur) return;
     if (confirm('Voulez-vous réinitialiser le tracé du périmètre officiel de la concession ?')) {
@@ -788,6 +818,7 @@ export default function App() {
           locationZoneInfo={locationAnalysis.zoneInfo}
           isArpenteur={isArpenteur}
           onStartDrawing={() => setDrawTrigger((prev) => prev + 1)}
+          onStartEditConcession={() => setEditConcessionTrigger((prev) => prev + 1)}
         />
       )}
 
@@ -884,6 +915,9 @@ export default function App() {
             drawTrigger={drawTrigger}
             onToggleLocation={handleToggleLocation}
             isLocating={isLocating}
+            onUpdateConcessionPolygon={handleUpdateConcessionPolygon}
+            isAdmin={session?.role === 'admin'}
+            editConcessionTrigger={editConcessionTrigger}
           />
         </main>
 

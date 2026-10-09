@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Polygon, Polyline, Popup, Tooltip, useMap, Marker, useMapEvents, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { STATUS_COLORS, ddToDms } from '../utils/geoUtils';
+import { STATUS_COLORS, ddToDms, fetchElevation, calculateArea } from '../utils/geoUtils';
 import { COASTAL_ZONES, SEPARATION_LINES, getOceanZoneInfo } from '../utils/coastalZones';
 import {
   Layers,
@@ -39,7 +39,9 @@ import {
   Satellite,
   Mountain,
   RotateCcw,
-  Crosshair
+  Crosshair,
+  Trash2,
+  Save
 } from 'lucide-react';
 import * as turf from '@turf/turf';
 
@@ -461,13 +463,20 @@ export default function MapView({
   flyToTrigger,
   drawTrigger,
   onToggleLocation,
-  isLocating
+  isLocating,
+  onUpdateConcessionPolygon,
+  isAdmin = false,
+  editConcessionTrigger = 0
 }) {
   const mapContainerRef = useRef(null);
   const [mapType, setMapType] = useState('google-pure');
   const [showRoadsOverlay, setShowRoadsOverlay] = useState(false);
   const [showBasemapMenu, setShowBasemapMenu] = useState(false);
   const [showConcession, setShowConcession] = useState(true);
+  const [showConcessionBornes, setShowConcessionBornes] = useState(true);
+  const [isEditingConcession, setIsEditingConcession] = useState(false);
+  const [customConcessionPoints, setCustomConcessionPoints] = useState(null);
+  const [inspectedBorne, setInspectedBorne] = useState(null);
   const [showSubZones, setShowSubZones] = useState(true);
   const [showOceanZones, setShowOceanZones] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
@@ -539,6 +548,197 @@ export default function MapView({
       );
     }
     return [];
+  };
+
+  // Extract clean concession ring coordinates (without duplicated closing vertex)
+  const rawConcessionRing = useMemo(() => {
+    if (!concessionPolygon || !concessionPolygon.geometry) return [];
+    const coords = concessionPolygon.geometry.coordinates[0] || [];
+    if (
+      coords.length > 1 &&
+      coords[0][0] === coords[coords.length - 1][0] &&
+      coords[0][1] === coords[coords.length - 1][1]
+    ) {
+      return coords.slice(0, -1);
+    }
+    return coords;
+  }, [concessionPolygon]);
+
+  // Active ring being displayed / edited
+  const activeConcessionRing = customConcessionPoints || rawConcessionRing;
+
+  // Memoized Concession Perimeter Bornes (P1, P2... P32)
+  const concessionBornes = useMemo(() => {
+    return activeConcessionRing.map(([lng, lat], idx) => ({
+      number: idx + 1,
+      index: idx,
+      lat,
+      lng,
+      position: [lat, lng]
+    }));
+  }, [activeConcessionRing]);
+
+  // Recalculated live area and perimeter metrics during concession editing
+  const editingConcessionMetrics = useMemo(() => {
+    if (!activeConcessionRing || activeConcessionRing.length < 3) return null;
+    try {
+      const closed = [...activeConcessionRing, activeConcessionRing[0]];
+      const poly = turf.polygon([closed]);
+      const areaM2 = turf.area(poly);
+      const areaHa = areaM2 / 10000;
+      const lengthKm = turf.length(turf.lineString(closed), { units: 'kilometers' });
+      return {
+        areaHa: areaHa.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        areaSqM: Math.round(areaM2).toLocaleString('fr-FR'),
+        perimeterKm: lengthKm.toFixed(2),
+        pointsCount: activeConcessionRing.length
+      };
+    } catch (e) {
+      return null;
+    }
+  }, [activeConcessionRing]);
+
+  // Handle external trigger to start concession edit
+  useEffect(() => {
+    if (editConcessionTrigger && editConcessionTrigger > 0 && isAdmin) {
+      if (rawConcessionRing && rawConcessionRing.length > 0) {
+        setCustomConcessionPoints([...rawConcessionRing]);
+        setIsEditingConcession(true);
+      }
+    }
+  }, [editConcessionTrigger, isAdmin, rawConcessionRing]);
+
+  // Concession Borne Pin Icon with numbered badge
+  const createConcessionBorneIcon = (number, isDraggable) => {
+    const bg = isDraggable ? '#EA580C' : '#D97706';
+    return L.divIcon({
+      className: 'concession-borne-marker',
+      html: `
+        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; user-select: none;">
+          <div style="background: ${bg}; color: #FFFFFF; font-weight: 800; font-size: 10px; font-family: ui-monospace, monospace; padding: 2px 6px; border-radius: 9999px; border: 1.5px solid #FFFFFF; box-shadow: 0 2px 8px rgba(0,0,0,0.55); white-space: nowrap; display: flex; align-items: center; gap: 2px;">
+            <span>P${number}</span>
+          </div>
+          <div style="width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid ${bg};"></div>
+        </div>
+      `,
+      iconSize: [36, 26],
+      iconAnchor: [18, 26]
+    });
+  };
+
+  // Inspect Borne geodetic details (Altitude, Longitude, Latitude)
+  const handleInspectBorne = async (borne) => {
+    setInspectedBorne({
+      number: borne.number,
+      index: borne.index,
+      lat: borne.lat,
+      lng: borne.lng,
+      altitude: null,
+      isLoadingAltitude: true,
+      manualLat: borne.lat.toFixed(7),
+      manualLng: borne.lng.toFixed(7),
+      isEditingManual: false
+    });
+
+    try {
+      const elev = await fetchElevation(borne.lat, borne.lng);
+      setInspectedBorne((prev) => {
+        if (!prev || prev.index !== borne.index) return prev;
+        return {
+          ...prev,
+          altitude: elev !== null ? Math.round(elev * 10) / 10 : null,
+          isLoadingAltitude: false
+        };
+      });
+    } catch (e) {
+      setInspectedBorne((prev) => {
+        if (!prev || prev.index !== borne.index) return prev;
+        return { ...prev, isLoadingAltitude: false };
+      });
+    }
+  };
+
+  const handleStartConcessionEditing = () => {
+    if (!isAdmin) return;
+    setCustomConcessionPoints([...rawConcessionRing]);
+    setIsEditingConcession(true);
+  };
+
+  const handleCancelConcessionEditing = () => {
+    setCustomConcessionPoints(null);
+    setIsEditingConcession(false);
+  };
+
+  const handleSaveConcessionEditing = () => {
+    if (!isAdmin || !customConcessionPoints || customConcessionPoints.length < 3) return;
+    const closedCoords = [...customConcessionPoints, customConcessionPoints[0]];
+    const updatedConcession = {
+      ...concessionPolygon,
+      geometry: {
+        ...concessionPolygon.geometry,
+        coordinates: [closedCoords]
+      }
+    };
+    if (onUpdateConcessionPolygon) {
+      onUpdateConcessionPolygon(updatedConcession);
+    }
+    setIsEditingConcession(false);
+    setCustomConcessionPoints(null);
+  };
+
+  const handleMoveConcessionBorne = (index, newLatLng) => {
+    if (!isAdmin || !isEditingConcession) return;
+    const currentRing = customConcessionPoints || rawConcessionRing;
+    const newPoints = [...currentRing];
+    newPoints[index] = [newLatLng.lng, newLatLng.lat];
+    setCustomConcessionPoints(newPoints);
+
+    if (inspectedBorne && inspectedBorne.index === index) {
+      handleInspectBorne({
+        number: index + 1,
+        index,
+        lat: newLatLng.lat,
+        lng: newLatLng.lng
+      });
+    }
+  };
+
+  const handleSaveManualCoordinates = (newLat, newLng) => {
+    if (!isAdmin || !inspectedBorne) return;
+    const latNum = parseFloat(newLat);
+    const lngNum = parseFloat(newLng);
+    if (isNaN(latNum) || isNaN(lngNum)) {
+      alert('Coordonnées invalides. Veuillez saisir des nombres décimaux valides.');
+      return;
+    }
+    const currentPts = customConcessionPoints ? [...customConcessionPoints] : [...rawConcessionRing];
+    const updatedPts = [...currentPts];
+    updatedPts[inspectedBorne.index] = [lngNum, latNum];
+    setCustomConcessionPoints(updatedPts);
+    if (!isEditingConcession) {
+      setIsEditingConcession(true);
+    }
+    handleInspectBorne({
+      number: inspectedBorne.number,
+      index: inspectedBorne.index,
+      lat: latNum,
+      lng: lngNum
+    });
+  };
+
+  const handleDeleteConcessionBorne = (index) => {
+    if (!isAdmin) return;
+    const currentPts = customConcessionPoints || rawConcessionRing;
+    if (currentPts.length <= 3) {
+      alert('Une concession doit comporter au moins 3 sommets pour former une aire valide.');
+      return;
+    }
+    if (!isEditingConcession) {
+      setIsEditingConcession(true);
+    }
+    const nextPts = currentPts.filter((_, i) => i !== index);
+    setCustomConcessionPoints(nextPts);
+    setInspectedBorne(null);
   };
 
   let defaultCenter = [-5.8988, 12.3375]; // Centered directly on Zone ISETECH cadastre
@@ -826,7 +1026,12 @@ export default function MapView({
     }
   };
 
-  const concessionCoords = getLeafletCoords(concessionPolygon);
+  const concessionCoords = useMemo(() => {
+    if (activeConcessionRing && activeConcessionRing.length > 0) {
+      return activeConcessionRing.map(([lng, lat]) => [lat, lng]);
+    }
+    return getLeafletCoords(concessionPolygon);
+  }, [activeConcessionRing, concessionPolygon]);
 
   return (
     <div ref={mapContainerRef} className={`relative w-full h-full min-h-0 flex-1 bg-slate-900 flex flex-col select-none ${sharpnessHD ? 'sharpness-hd' : ''}`}>
@@ -936,6 +1141,20 @@ export default function MapView({
                 </div>
                 <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${showConcession ? 'bg-emerald-500' : 'bg-slate-700'}`}>
                   <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showConcession ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+              </div>
+
+              {/* Concession Bornes Toggle */}
+              <div
+                onClick={() => setShowConcessionBornes(!showConcessionBornes)}
+                className="flex items-center justify-between p-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg cursor-pointer active:bg-slate-800"
+              >
+                <div className="flex items-center gap-2 text-xs font-medium">
+                  <MapPin className="w-4 h-4 text-amber-400" />
+                  <span>Bornes Périmètre P1..P32 (Altitudes)</span>
+                </div>
+                <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${showConcessionBornes ? 'bg-amber-500' : 'bg-slate-700'}`}>
+                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showConcessionBornes ? 'translate-x-4' : 'translate-x-0'}`} />
                 </div>
               </div>
 
@@ -1131,6 +1350,263 @@ export default function MapView({
         </div>
       )}
 
+      {/* Concession Perimeter Calibration Toolbar (Admin Only) */}
+      {isEditingConcession && isAdmin && (
+        <div className="absolute top-2 sm:top-3 left-1/2 -translate-x-1/2 z-[1150] w-[96%] sm:w-auto sm:min-w-[540px] max-w-2xl bg-slate-950/95 backdrop-blur-xl border border-amber-500/70 rounded-2xl shadow-2xl p-2.5 sm:p-3 text-white animate-in slide-in-from-top-4 duration-200 select-none">
+          <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2 mb-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+              <span className="font-bold text-xs sm:text-sm text-amber-300">
+                Édition des Bornes Périmétriques
+              </span>
+              <span className="text-[11px] font-mono bg-amber-950/80 text-amber-300 font-bold px-2.5 py-0.5 rounded-full border border-amber-700/60">
+                {activeConcessionRing.length} bornes
+              </span>
+            </div>
+
+            {editingConcessionMetrics && (
+              <div className="flex items-center gap-2 font-mono text-[11px]">
+                <span className="text-amber-300 font-bold bg-amber-950/90 border border-amber-600 px-2 py-0.5 rounded shadow-sm">
+                  {editingConcessionMetrics.areaHa} ha
+                </span>
+                <span className="text-slate-400 hidden sm:inline">
+                  Périmètre: {editingConcessionMetrics.perimeterKm} km
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="text-[11px] text-slate-300 mb-2.5 flex items-center gap-1.5">
+            <Crosshair className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+            <span>Faites glisser les bornes orange (P1...P{activeConcessionRing.length}) sur la carte pour les calibrer, ou touchez une borne pour inspecter son altitude.</span>
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <button
+              onClick={handleCancelConcessionEditing}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5 text-rose-400" />
+              <span>Annuler</span>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSaveConcessionEditing}
+                className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-950/50 transition-all cursor-pointer"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Enregistrer le Périmètre</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Geodesic Borne Inspection Modal (Altitude, Longitude, Latitude) */}
+      {inspectedBorne && (
+        <div className="fixed inset-0 z-[1200] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-slate-100 animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-slate-900 via-amber-950/40 to-slate-900 p-4 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center font-bold font-mono text-sm shadow-inner">
+                  P{inspectedBorne.number}
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+                    Borne Périmétrique P{inspectedBorne.number}
+                  </h3>
+                  <p className="text-[11px] text-amber-300/80 font-medium">
+                    Concession Manuel Joaquim d'Oliveira
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setInspectedBorne(null)}
+                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                title="Fermer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 space-y-3.5">
+              {/* Altitude Box (Open-Meteo DEM SRTM) */}
+              <div className="bg-gradient-to-br from-slate-800/80 to-slate-850 p-3.5 rounded-xl border border-slate-700/70 shadow-inner">
+                <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                  <span className="flex items-center gap-1.5 font-medium text-slate-300">
+                    <Mountain className="w-4 h-4 text-emerald-400" />
+                    Altitude Topographique
+                  </span>
+                  <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded border border-slate-700 text-slate-400 font-mono">
+                    DEM SRTM 90m
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  {inspectedBorne.isLoadingAltitude ? (
+                    <div className="flex items-center gap-2 py-1 text-emerald-400 text-xs font-mono">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Mesure altimétrique en cours...</span>
+                    </div>
+                  ) : inspectedBorne.altitude !== null ? (
+                    <>
+                      <span className="text-3xl font-black font-mono text-emerald-400 tracking-tight">
+                        {inspectedBorne.altitude} m
+                      </span>
+                      <span className="text-xs text-slate-400 font-medium">
+                        au-dessus du niveau moyen de la mer (MSL)
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">
+                      Altitude non mesurable pour ce point
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Coordinates Grid (Longitude & Latitude) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* Longitude */}
+                <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
+                  <div className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Longitude (X)</span>
+                    <span className="text-[10px] text-slate-400">Est</span>
+                  </div>
+                  <div className="font-mono text-sm font-bold text-white">
+                    {inspectedBorne.lng.toFixed(7)}°
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                    {ddToDms(inspectedBorne.lng, false)}
+                  </div>
+                </div>
+
+                {/* Latitude */}
+                <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
+                  <div className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Latitude (Y)</span>
+                    <span className="text-[10px] text-slate-400">Sud</span>
+                  </div>
+                  <div className="font-mono text-sm font-bold text-white">
+                    {inspectedBorne.lat.toFixed(7)}°
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                    {ddToDms(inspectedBorne.lat, true)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Admin Calibration Controls */}
+              {isAdmin && (
+                <div className="bg-slate-950/60 border border-amber-500/30 rounded-xl p-3 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                      <Crosshair className="w-3.5 h-3.5 text-amber-400" />
+                      Calibrage Géodésique (Admin)
+                    </span>
+                    {!inspectedBorne.isEditingManual ? (
+                      <button
+                        onClick={() => setInspectedBorne((prev) => ({ ...prev, isEditingManual: true }))}
+                        className="text-[11px] text-amber-400 hover:text-amber-300 font-medium underline cursor-pointer"
+                      >
+                        Saisie manuelle
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setInspectedBorne((prev) => ({ ...prev, isEditingManual: false }))}
+                        className="text-[11px] text-slate-400 hover:text-slate-300 cursor-pointer"
+                      >
+                        Annuler saisie
+                      </button>
+                    )}
+                  </div>
+
+                  {inspectedBorne.isEditingManual ? (
+                    <div className="space-y-2 pt-1 border-t border-slate-800">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-0.5">Latitude (° décimaux)</label>
+                          <input
+                            type="text"
+                            value={inspectedBorne.manualLat}
+                            onChange={(e) => setInspectedBorne((prev) => ({ ...prev, manualLat: e.target.value }))}
+                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
+                            placeholder="-5.8988"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 block mb-0.5">Longitude (° décimaux)</label>
+                          <input
+                            type="text"
+                            value={inspectedBorne.manualLng}
+                            onChange={(e) => setInspectedBorne((prev) => ({ ...prev, manualLng: e.target.value }))}
+                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
+                            placeholder="12.3375"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleSaveManualCoordinates(inspectedBorne.manualLat, inspectedBorne.manualLng)}
+                        className="w-full py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Repositionner la Borne</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-slate-400 flex items-center justify-between">
+                      <span>{isEditingConcession ? "Cette borne est glissable sur la carte." : "Pour déplacer cette borne :"}</span>
+                      {!isEditingConcession ? (
+                        <button
+                          onClick={() => {
+                            handleStartConcessionEditing();
+                          }}
+                          className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded text-[11px] font-semibold transition-colors cursor-pointer"
+                        >
+                          Activer Mode Déplacement
+                        </button>
+                      ) : (
+                        <span className="text-emerald-400 font-bold text-[10px]">Glisser-déposer actif</span>
+                      )}
+                    </div>
+                  )}
+
+                  {isEditingConcession && activeConcessionRing.length > 3 && (
+                    <div className="pt-2 border-t border-slate-800 flex justify-end">
+                      <button
+                        onClick={() => handleDeleteConcessionBorne(inspectedBorne.index)}
+                        className="text-rose-400 hover:text-rose-300 text-[11px] flex items-center gap-1 hover:underline cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Supprimer cette borne du tracé</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!isAdmin && (
+                <div className="text-[11px] text-slate-400 bg-slate-800/40 p-2.5 rounded-xl border border-slate-800 text-center">
+                  Consultation géodésique officielle. La modification des bornes périmétriques est réservée à l'Administrateur.
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-950 p-3 border-t border-slate-800 flex justify-end">
+              <button
+                onClick={() => setInspectedBorne(null)}
+                className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sleek Minimal Icon-Only Floating GIS Toolbar (Desktop Only) */}
       <div className="hidden md:flex absolute top-4 left-4 z-[1000] flex-col gap-1 select-none">
 
@@ -1261,6 +1737,38 @@ export default function MapView({
         >
           <Eye className="w-4 h-4" />
         </button>
+
+        {/* Concession Bornes Toggle */}
+        <button
+          onClick={() => setShowConcessionBornes(!showConcessionBornes)}
+          className={`p-2 rounded-lg border border-slate-200 shadow-sm transition-all cursor-pointer ${
+            showConcessionBornes ? 'bg-amber-50 text-amber-700 border-amber-300' : 'bg-white text-slate-700 hover:bg-slate-50'
+          }`}
+          title="Afficher/Masquer les bornes de la concession (P1...P32)"
+        >
+          <MapPin className="w-4 h-4" />
+        </button>
+
+        {/* Concession Edit Mode Quick Toggle (Admin Only) */}
+        {isAdmin && (
+          <button
+            onClick={() => {
+              if (isEditingConcession) {
+                handleCancelConcessionEditing();
+              } else {
+                handleStartConcessionEditing();
+              }
+            }}
+            className={`p-2 rounded-lg border shadow-sm transition-all cursor-pointer ${
+              isEditingConcession
+                ? 'bg-amber-600 text-white border-amber-700 animate-pulse'
+                : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
+            }`}
+            title={isEditingConcession ? "Annuler le mode édition des bornes" : "Éditer et calibrer les bornes de la concession"}
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+        )}
 
         {/* Coastal Zoning / Separation Lines Toggle */}
         <button
@@ -1501,22 +2009,44 @@ export default function MapView({
         {showConcession && concessionCoords.length > 0 && (
           <Polygon
             positions={concessionCoords}
-            interactive={!isDrawing}
+            interactive={!isDrawing && !isEditingConcession}
             pathOptions={{
-              color: '#D97706',
-              weight: 2.5,
-              dashArray: '6, 6',
-              fillColor: '#D97706',
-              fillOpacity: 0.04
+              color: isEditingConcession ? '#EA580C' : '#D97706',
+              weight: isEditingConcession ? 3.5 : 2.5,
+              dashArray: isEditingConcession ? '4, 4' : '6, 6',
+              fillColor: isEditingConcession ? '#EA580C' : '#D97706',
+              fillOpacity: isEditingConcession ? 0.08 : 0.04
             }}
           >
-            {!isDrawing && (
+            {!isDrawing && !isEditingConcession && (
               <Tooltip direction="top" className="bg-slate-900 text-white font-semibold text-[11px] px-2 py-0.5 rounded shadow-sm border border-slate-700">
                 Concession Manuel Joaquim d'Oliveira (5 326,15 ha)
               </Tooltip>
             )}
           </Polygon>
         )}
+
+        {/* Concession Perimeter Bornes (P1 to P32) with Altitude & Longitude Inspection */}
+        {showConcession && showConcessionBornes && concessionBornes.map((b) => (
+          <Marker
+            key={`concession-borne-${b.number}-${b.lat.toFixed(6)}-${b.lng.toFixed(6)}`}
+            position={b.position}
+            icon={createConcessionBorneIcon(b.number, isEditingConcession && isAdmin)}
+            draggable={isEditingConcession && isAdmin}
+            eventHandlers={{
+              click: () => handleInspectBorne(b),
+              dragend: (e) => {
+                handleMoveConcessionBorne(b.index, e.target.getLatLng());
+              }
+            }}
+          >
+            <Tooltip direction="top" offset={[0, -14]} opacity={0.92}>
+              <div className="text-[11px] font-sans font-bold text-slate-900 text-center">
+                Borne P{b.number} {isEditingConcession && isAdmin ? '(Déplaçable)' : '• Toucher pour altitude'}
+              </div>
+            </Tooltip>
+          </Marker>
+        ))}
 
         {/* Outer Delimitation Boundary of Zone ISETECH */}
         {showSubZones && (
