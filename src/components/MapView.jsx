@@ -1896,7 +1896,7 @@ export default function MapView({
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3.5 h-3.5 rounded bg-emerald-500/20 border-2 border-emerald-500"></div>
-              <span className="text-slate-300 text-[11px]"><strong className="text-emerald-400">Zone D</strong> : 601 m et + (4 930,66 ha)</span>
+              <span className="text-slate-300 text-[11px]"><strong className="text-emerald-400">Zone D</strong> : 601 m et + (Zone continentale intérieure)</span>
             </div>
             <div className="flex items-center gap-2 pt-1 border-t border-slate-800 text-[10px] text-slate-400">
               <div className="w-4 h-0 border-2 border-dashed border-red-500"></div>
