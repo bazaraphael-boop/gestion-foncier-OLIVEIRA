@@ -67,12 +67,14 @@ export async function fetchParcelsFromSupabase() {
 
     if (error) throw error;
     if (data) {
-      return data.map((row) => ({
-        id: row.id,
-        type: row.type || 'Feature',
-        geometry: typeof row.geometry === 'string' ? JSON.parse(row.geometry) : row.geometry,
-        properties: typeof row.properties === 'string' ? JSON.parse(row.properties) : row.properties
-      }));
+      return data
+        .filter((row) => !row.id || !row.id.startsWith('__'))
+        .map((row) => ({
+          id: row.id,
+          type: row.type || 'Feature',
+          geometry: typeof row.geometry === 'string' ? JSON.parse(row.geometry) : row.geometry,
+          properties: typeof row.properties === 'string' ? JSON.parse(row.properties) : row.properties
+        }));
     }
     return [];
   } catch (err) {
@@ -227,15 +229,37 @@ export async function fetchConcessionFromSupabase() {
   if (!client) return null;
 
   try {
+    // 1. Primary: load from 'parcels' table with special id '__concession_boundary__'
     const { data, error } = await client
+      .from('parcels')
+      .select('*')
+      .eq('id', '__concession_boundary__')
+      .maybeSingle();
+
+    if (!error && data && data.geometry) {
+      const geom = typeof data.geometry === 'string' ? JSON.parse(data.geometry) : data.geometry;
+      const props = typeof data.properties === 'string' ? JSON.parse(data.properties) : (data.properties || {});
+      return {
+        type: 'Feature',
+        id: 'main_concession',
+        properties: {
+          name: "Concession Manuel Joaquim d'Oliveira",
+          areaHa: data.area_ha || props.areaHa || 5516.96,
+          ...props
+        },
+        geometry: geom
+      };
+    }
+
+    // 2. Secondary fallback: check dedicated 'concession' table if it exists
+    const { data: cData, error: cErr } = await client
       .from('concession')
       .select('*')
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (error) throw error;
-    if (data && data.geometry) {
-      return typeof data.geometry === 'string' ? JSON.parse(data.geometry) : data.geometry;
+    if (!cErr && cData && cData.geometry) {
+      return typeof cData.geometry === 'string' ? JSON.parse(cData.geometry) : cData.geometry;
     }
     return null;
   } catch (err) {
@@ -249,21 +273,45 @@ export async function saveConcessionToSupabase(concessionPolygon) {
   if (!client || !concessionPolygon) return false;
 
   try {
+    const geometry = concessionPolygon.geometry || concessionPolygon;
+    const properties = concessionPolygon.properties || {};
+    const areaHa = properties.areaHa || 5516.96;
+
     const row = {
-      id: 'main_concession',
-      name: "Concession Manuel Joaquim d'Oliveira",
-      geometry: concessionPolygon,
+      id: '__concession_boundary__',
+      lot_number: 'CONCESSION_OFFICIELLE',
+      status: 'concession',
+      occupant_name: "Concession Manuel Joaquim d'Oliveira",
+      area_ha: areaHa,
+      properties: {
+        ...properties,
+        type: 'concession_boundary',
+        name: "Concession Manuel Joaquim d'Oliveira",
+        synced_at: new Date().toISOString()
+      },
+      geometry: geometry,
       updated_at: new Date().toISOString()
     };
 
     const { error } = await client
-      .from('concession')
+      .from('parcels')
       .upsert(row, { onConflict: 'id' });
 
-    if (error) throw error;
+    if (error) {
+      console.warn('Supabase saveConcession parcels table warning:', error.message);
+      // Optional fallback attempt to 'concession' table
+      await client.from('concession').upsert({
+        id: 'main_concession',
+        name: "Concession Manuel Joaquim d'Oliveira",
+        geometry: concessionPolygon,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' }).catch(() => {});
+      return false;
+    }
     return true;
   } catch (err) {
     console.warn('Supabase saveConcession fallback:', err.message);
     return false;
   }
 }
+

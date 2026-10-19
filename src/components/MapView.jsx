@@ -471,9 +471,9 @@ export default function MapView({
 }) {
   const mapContainerRef = useRef(null);
 
-  // Strict role permissions: Parcel Tracing & Concession Bornes View are strictly reserved to Admin & Arpenteur
+  // Strict role permissions: Parcel Tracing is strictly reserved to Admin & Arpenteur, Bornes are viewable by all
   const canDrawAndManageParcels = !isVisitorMode && (isAdmin || isArpenteur);
-  const canViewAndInspectBornes = !isVisitorMode && (isAdmin || isArpenteur);
+  const canViewAndInspectBornes = true;
 
   const [mapType, setMapType] = useState('google-pure');
   const [showRoadsOverlay, setShowRoadsOverlay] = useState(false);
@@ -1761,7 +1761,7 @@ export default function MapView({
           <Eye className="w-4 h-4" />
         </button>
 
-        {/* Concession Bornes Toggle (Strictement réservé Admin & Arpenteur) */}
+        {/* Concession Bornes Toggle */}
         {canViewAndInspectBornes && (
           <button
             onClick={() => setShowConcessionBornes(!showConcessionBornes)}

@@ -36,6 +36,7 @@ import {
   bulkDeleteParcelsFromSupabase,
   deleteAllParcelsInSupabase,
   saveConcessionToSupabase,
+  fetchConcessionFromSupabase,
   subscribeToRealtimeParcels
 } from './services/supabaseClient';
 
@@ -356,8 +357,23 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
-    const syncLatestParcels = async () => {
+    const syncLatestData = async () => {
       try {
+        // 1. Sync latest Concession from Supabase Cloud
+        const cloudConcession = await fetchConcessionFromSupabase();
+        if (isMounted && cloudConcession && cloudConcession.geometry) {
+          setConcessionPolygon((prev) => {
+            const prevStr = JSON.stringify(prev);
+            const cloudStr = JSON.stringify(cloudConcession);
+            if (prevStr === cloudStr) return prev;
+            try {
+              localStorage.setItem(STORAGE_KEY_CONCESSION, cloudStr);
+            } catch (e) {}
+            return cloudConcession;
+          });
+        }
+
+        // 2. Sync latest Parcels from Supabase Cloud
         const cloudParcels = await fetchParcelsFromSupabase();
         if (isMounted && cloudParcels !== null) {
           setGlobalParcels((prev) => {
@@ -379,19 +395,19 @@ export default function App() {
     };
 
     // 1. Initial Cloud Sync
-    syncLatestParcels();
+    syncLatestData();
 
     // 2. Realtime WebSocket Channel Subscription
     const channel = subscribeToRealtimeParcels(() => {
       if (isMounted) {
-        syncLatestParcels();
+        syncLatestData();
       }
     });
 
     // 3. Periodic Background Polling Fallback (Every 25 Seconds)
     const intervalId = setInterval(() => {
       if (isMounted) {
-        syncLatestParcels();
+        syncLatestData();
       }
     }, 25000);
 
@@ -407,6 +423,14 @@ export default function App() {
   const handleManualSync = async () => {
     setIsSyncing(true);
     try {
+      const cloudConcession = await fetchConcessionFromSupabase();
+      if (cloudConcession && cloudConcession.geometry) {
+        setConcessionPolygon(cloudConcession);
+        try {
+          localStorage.setItem(STORAGE_KEY_CONCESSION, JSON.stringify(cloudConcession));
+        } catch (e) {}
+      }
+
       const cloudParcels = await fetchParcelsFromSupabase();
       if (cloudParcels !== null) {
         setGlobalParcels(cloudParcels);
@@ -416,7 +440,7 @@ export default function App() {
           actor: isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur',
           action: 'CLOUD_SYNC',
           actionLabel: 'Synchronisation Cloud Supabase réussie',
-          details: `${cloudParcels.length} parcelle(s) synchronisée(s) depuis la base distante`,
+          details: `Concession et ${cloudParcels.length} parcelle(s) synchronisées avec le Cloud`,
           severity: 'info'
         });
       }
@@ -430,7 +454,9 @@ export default function App() {
   // Save to LocalStorage & Supabase Cloud
   useEffect(() => {
     if (concessionPolygon && session?.role === 'admin') {
-      localStorage.setItem(STORAGE_KEY_CONCESSION, JSON.stringify(concessionPolygon));
+      try {
+        localStorage.setItem(STORAGE_KEY_CONCESSION, JSON.stringify(concessionPolygon));
+      } catch (e) {}
       saveConcessionToSupabase(concessionPolygon);
     }
   }, [concessionPolygon, session]);
