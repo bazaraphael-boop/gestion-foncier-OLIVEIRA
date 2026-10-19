@@ -394,3 +394,122 @@ export async function updateClientPIN(newPin) {
   return { success: true, message: 'Nouveau code PIN Client enregistré avec succès.' };
 }
 
+export function resetAdminLockout() {
+  resetLockout(STORAGE_KEY_ATTEMPTS_ADMIN);
+  return { success: true };
+}
+
+export function getDefaultCredentials() {
+  return {
+    adminEmail: DEFAULT_ADMIN_EMAIL,
+    adminUsername: DEFAULT_ADMIN_USERNAME,
+    adminDefaultPassword: 'admin123',
+    arpenteurDefaultPassword: 'arpenteur123',
+    clientDefaultPin: '123456'
+  };
+}
+
+/**
+ * Récupération et réinitialisation d'accès administrateur ou arpenteur
+ * @param {string} identifierOrEmail - Identifiant ou email officiel
+ * @param {string|null} newPassword - Nouveau mot de passe (si null, restaure le mot de passe d'origine par défaut)
+ */
+export async function recoverAdminPassword(identifierOrEmail, newPassword = null) {
+  const cleanId = (identifierOrEmail || '').trim().toLowerCase();
+  if (!cleanId) {
+    return { success: false, error: 'Veuillez saisir votre email ou identifiant officiel.' };
+  }
+
+  // 1. Check if Arpenteur
+  const isArpenteur = DEFAULT_ARPENTEUR_IDENTIFIERS.includes(cleanId);
+  if (isArpenteur) {
+    if (newPassword) {
+      if (newPassword.length < 6) {
+        return { success: false, error: 'Le nouveau mot de passe doit comporter au moins 6 caractères.' };
+      }
+      const newHash = await hashSHA256(newPassword);
+      localStorage.setItem('geocadastre_arpenteur_password_hash', newHash);
+    } else {
+      // Restore default arpenteur password (arpenteur123)
+      localStorage.removeItem('geocadastre_arpenteur_password_hash');
+    }
+
+    // Always clear security lockout
+    resetLockout(STORAGE_KEY_ATTEMPTS_ADMIN);
+
+    logActivity({
+      role: 'arpenteur',
+      actor: `Arpenteur Géomètre (${cleanId})`,
+      action: 'AUTH_RECOVERY',
+      actionLabel: 'Récupération mot de passe Arpenteur',
+      details: newPassword
+        ? 'Nouveau mot de passe arpenteur défini après validation'
+        : 'Restauration du mot de passe arpenteur par défaut (arpenteur123)',
+      severity: 'warning'
+    });
+
+    return {
+      success: true,
+      role: 'arpenteur',
+      isDefault: !newPassword,
+      password: !newPassword ? 'arpenteur123' : newPassword,
+      message: !newPassword
+        ? 'Mot de passe arpenteur réinitialisé par défaut : arpenteur123'
+        : 'Nouveau mot de passe arpenteur défini avec succès.'
+    };
+  }
+
+  // 2. Check if Admin
+  const savedAdminEmail = (localStorage.getItem('geocadastre_admin_email') || DEFAULT_ADMIN_EMAIL).toLowerCase();
+  const isValidAdmin = (
+    cleanId === savedAdminEmail ||
+    cleanId === DEFAULT_ADMIN_USERNAME ||
+    cleanId === 'bamakakidi@gmail.com' ||
+    cleanId === 'bamakakidi' ||
+    cleanId === 'oliveira'
+  );
+
+  if (!isValidAdmin) {
+    return {
+      success: false,
+      error: `Identifiant ou email non reconnu. Saisissez l'email de direction (${DEFAULT_ADMIN_EMAIL}) ou 'admin'.`
+    };
+  }
+
+  if (newPassword) {
+    if (newPassword.length < 6) {
+      return { success: false, error: 'Le nouveau mot de passe doit comporter au moins 6 caractères.' };
+    }
+    const newHash = await hashSHA256(newPassword);
+    localStorage.setItem('geocadastre_admin_password_hash', newHash);
+  } else {
+    // Restore default admin password (admin123)
+    localStorage.removeItem('geocadastre_admin_password_hash');
+  }
+
+  // Always clear security lockout
+  resetLockout(STORAGE_KEY_ATTEMPTS_ADMIN);
+
+  logActivity({
+    role: 'admin',
+    actor: `Administrateur (${cleanId})`,
+    action: 'AUTH_RECOVERY',
+    actionLabel: 'Récupération mot de passe Administrateur',
+    details: newPassword
+      ? 'Nouveau mot de passe administrateur défini après validation'
+      : 'Restauration du mot de passe admin par défaut (admin123)',
+    severity: 'warning'
+  });
+
+  return {
+    success: true,
+    role: 'admin',
+    isDefault: !newPassword,
+    password: !newPassword ? 'admin123' : newPassword,
+    message: !newPassword
+      ? 'Mot de passe administrateur restauré par défaut : admin123'
+      : 'Nouveau mot de passe administrateur défini avec succès.'
+  };
+}
+
+
