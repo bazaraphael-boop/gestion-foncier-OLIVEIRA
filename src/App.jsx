@@ -50,7 +50,13 @@ const STORAGE_KEY_CONCESSION = 'geocadastre_concession_v3';
 function getInitialConcession() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_CONCESSION);
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const ring = parsed?.geometry?.coordinates?.[0] || parsed?.coordinates?.[0];
+      if (Array.isArray(ring) && ring.length >= 20) {
+        return parsed;
+      }
+    }
   } catch (e) {}
   const geojson = parseKMLToGeoJSON(DEFAULT_KML_DATA);
   return extractMainConcessionPolygon(geojson);
@@ -339,14 +345,19 @@ export default function App() {
   }, [session]);
 
   // Cache version migration to clear obsolete local storage on all devices
-  const CACHE_VERSION = 'v5_sync_2026_09_08';
+  const CACHE_VERSION = 'v7_restore_concession_5326ha';
   useEffect(() => {
     try {
       const v = localStorage.getItem('geocadastre_cache_ver');
       if (v !== CACHE_VERSION) {
-        localStorage.removeItem(STORAGE_KEY_PARCELS);
-        localStorage.removeItem(STORAGE_KEY_ISETECH);
+        localStorage.removeItem(STORAGE_KEY_CONCESSION);
         localStorage.setItem('geocadastre_cache_ver', CACHE_VERSION);
+        const geojson = parseKMLToGeoJSON(DEFAULT_KML_DATA);
+        const officialPoly = extractMainConcessionPolygon(geojson);
+        if (officialPoly) {
+          setConcessionPolygon(officialPoly);
+          saveConcessionToSupabase(officialPoly);
+        }
       }
     } catch (e) {}
   }, []);
@@ -362,15 +373,18 @@ export default function App() {
         // 1. Sync latest Concession from Supabase Cloud
         const cloudConcession = await fetchConcessionFromSupabase();
         if (isMounted && cloudConcession && cloudConcession.geometry) {
-          setConcessionPolygon((prev) => {
-            const prevStr = JSON.stringify(prev);
-            const cloudStr = JSON.stringify(cloudConcession);
-            if (prevStr === cloudStr) return prev;
-            try {
-              localStorage.setItem(STORAGE_KEY_CONCESSION, cloudStr);
-            } catch (e) {}
-            return cloudConcession;
-          });
+          const ring = cloudConcession.geometry.coordinates?.[0];
+          if (Array.isArray(ring) && ring.length >= 20) {
+            setConcessionPolygon((prev) => {
+              const prevStr = JSON.stringify(prev);
+              const cloudStr = JSON.stringify(cloudConcession);
+              if (prevStr === cloudStr) return prev;
+              try {
+                localStorage.setItem(STORAGE_KEY_CONCESSION, cloudStr);
+              } catch (e) {}
+              return cloudConcession;
+            });
+          }
         }
 
         // 2. Sync latest Parcels from Supabase Cloud

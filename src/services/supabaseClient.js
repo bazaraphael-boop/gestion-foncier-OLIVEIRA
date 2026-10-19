@@ -238,17 +238,20 @@ export async function fetchConcessionFromSupabase() {
 
     if (!error && data && data.geometry) {
       const geom = typeof data.geometry === 'string' ? JSON.parse(data.geometry) : data.geometry;
-      const props = typeof data.properties === 'string' ? JSON.parse(data.properties) : (data.properties || {});
-      return {
-        type: 'Feature',
-        id: 'main_concession',
-        properties: {
-          name: "Concession Manuel Joaquim d'Oliveira",
-          areaHa: data.area_ha || props.areaHa || 5516.96,
-          ...props
-        },
-        geometry: geom
-      };
+      const ring = geom?.coordinates?.[0];
+      if (Array.isArray(ring) && ring.length >= 20) {
+        const props = typeof data.properties === 'string' ? JSON.parse(data.properties) : (data.properties || {});
+        return {
+          type: 'Feature',
+          id: 'main_concession',
+          properties: {
+            name: "Concession Manuel Joaquim d'Oliveira",
+            areaHa: data.area_ha || props.areaHa || 5326.15,
+            ...props
+          },
+          geometry: geom
+        };
+      }
     }
 
     // 2. Secondary fallback: check dedicated 'concession' table if it exists
@@ -275,7 +278,7 @@ export async function saveConcessionToSupabase(concessionPolygon) {
   try {
     const geometry = concessionPolygon.geometry || concessionPolygon;
     const properties = concessionPolygon.properties || {};
-    const areaHa = properties.areaHa || 5516.96;
+    const areaHa = properties.areaHa || 5326.15;
 
     const row = {
       id: '__concession_boundary__',
