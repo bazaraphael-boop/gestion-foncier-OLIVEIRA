@@ -236,7 +236,7 @@ function TileLoadingWatcher({ onLoadingChange }) {
 }
 
 // Professional HUD with Interactive Zoom Percentage Controller & Molette D-Pad
-function ProfessionalGisHud({ onAddPoint, isDrawing, mapType, onCenterChange }) {
+function ProfessionalGisHud({ onAddPoint, isDrawing, mapType, onCenterChange, onZoomChange }) {
   const map = useMap();
   const [currentZoom, setCurrentZoom] = useState(map.getZoom());
   const [showZoomMenu, setShowZoomMenu] = useState(false);
@@ -255,13 +255,18 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType, onCenterChange }) 
     };
   }, [map]);
 
-  // Initial and reactive center coordinates sync
+  // Initial and reactive center coordinates & zoom sync
   useEffect(() => {
-    if (map && onCenterChange) {
-      const c = map.getCenter();
-      onCenterChange([c.lat, c.lng]);
+    if (map) {
+      if (onCenterChange) {
+        const c = map.getCenter();
+        onCenterChange([c.lat, c.lng]);
+      }
+      if (onZoomChange) {
+        onZoomChange(map.getZoom());
+      }
     }
-  }, [map, onCenterChange]);
+  }, [map, onCenterChange, onZoomChange]);
 
   // When drawing mode activates, close any active popups so the screen is completely unobstructed
   useEffect(() => {
@@ -287,7 +292,11 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType, onCenterChange }) 
       }
     },
     zoomend() {
-      setCurrentZoom(map.getZoom());
+      const z = map.getZoom();
+      setCurrentZoom(z);
+      if (onZoomChange) {
+        onZoomChange(z);
+      }
       if (onCenterChange) {
         const c = map.getCenter();
         onCenterChange([c.lat, c.lng]);
@@ -476,10 +485,11 @@ export default function MapView({
   const canViewAndInspectBornes = true;
 
   const [mapType, setMapType] = useState('google-pure');
+  const [mapZoom, setMapZoom] = useState(13);
   const [showRoadsOverlay, setShowRoadsOverlay] = useState(false);
   const [showBasemapMenu, setShowBasemapMenu] = useState(false);
   const [showConcession, setShowConcession] = useState(true);
-  const [showConcessionBornes, setShowConcessionBornes] = useState(true);
+  const [showConcessionBornes, setShowConcessionBornes] = useState(false);
   const [isEditingConcession, setIsEditingConcession] = useState(false);
   const [customConcessionPoints, setCustomConcessionPoints] = useState(null);
   const [inspectedBorne, setInspectedBorne] = useState(null);
@@ -521,7 +531,7 @@ export default function MapView({
   const createCoastalLabelIcon = (text, bgColor, textColor, borderColor) => {
     return L.divIcon({
       className: 'custom-coastal-label',
-      html: `<div style="background-color: ${bgColor}; color: ${textColor}; border: 1.5px solid ${borderColor}; padding: 2px 7px; border-radius: 9999px; font-size: 10px; font-weight: 700; font-family: ui-sans-serif, system-ui, sans-serif; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.35); transform: translate(-50%, -50%); display: inline-block;">${text}</div>`,
+      html: `<div style="background-color: rgba(15, 23, 42, 0.88); backdrop-filter: blur(4px); color: ${textColor}; border: 1px solid ${borderColor}; padding: 1.5px 6px; border-radius: 9999px; font-size: 9px; font-weight: 600; font-family: ui-sans-serif, system-ui, sans-serif; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.4); transform: translate(-50%, -50%); display: inline-block;">${text}</div>`,
       iconSize: [0, 0]
     });
   };
@@ -627,21 +637,50 @@ export default function MapView({
     }
   }, [editConcessionTrigger, isAdmin, rawConcessionRing]);
 
-  // Concession Borne Pin Icon with numbered badge
-  const createConcessionBorneIcon = (number, isDraggable) => {
-    const bg = isDraggable ? '#EA580C' : '#D97706';
-    return L.divIcon({
-      className: 'concession-borne-marker',
-      html: `
-        <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; user-select: none;">
-          <div style="background: ${bg}; color: #FFFFFF; font-weight: 800; font-size: 10px; font-family: ui-monospace, monospace; padding: 2px 6px; border-radius: 9999px; border: 1.5px solid #FFFFFF; box-shadow: 0 2px 8px rgba(0,0,0,0.55); white-space: nowrap; display: flex; align-items: center; gap: 2px;">
-            <span>P${number}</span>
+  // Concession Borne Pin Icon with adaptive zoom-level styling
+  const createConcessionBorneIcon = (number, isDraggable, isZoomedIn) => {
+    // 1. Draggable Editing Mode (Admin calibration)
+    if (isDraggable) {
+      return L.divIcon({
+        className: 'concession-borne-marker-edit',
+        html: `
+          <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: grab; user-select: none;">
+            <div style="background: #EA580C; color: #FFFFFF; font-weight: 800; font-size: 10px; font-family: ui-monospace, monospace; padding: 2px 7px; border-radius: 9999px; border: 2px solid #FFFFFF; box-shadow: 0 2px 10px rgba(234, 88, 12, 0.65); white-space: nowrap;">
+              <span>P${number}</span>
+            </div>
+            <div style="width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid #EA580C;"></div>
           </div>
-          <div style="width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid ${bg};"></div>
-        </div>
+        `,
+        iconSize: [36, 26],
+        iconAnchor: [18, 26]
+      });
+    }
+
+    // 2. High-Zoom Detail Mode (zoom >= 14): Refined compact numbered badge
+    if (isZoomedIn) {
+      return L.divIcon({
+        className: 'concession-borne-marker-badge',
+        html: `
+          <div style="display: flex; flex-direction: column; align-items: center; cursor: pointer; user-select: none; transition: transform 0.15s ease;">
+            <div style="background: rgba(217, 119, 6, 0.92); backdrop-filter: blur(2px); color: #FFFFFF; font-weight: 700; font-size: 9px; font-family: ui-monospace, monospace; padding: 1.5px 5px; border-radius: 9999px; border: 1.5px solid #FFFFFF; box-shadow: 0 1px 4px rgba(0,0,0,0.4); white-space: nowrap;">
+              <span>P${number}</span>
+            </div>
+            <div style="width: 0; height: 0; border-left: 3px solid transparent; border-right: 3px solid transparent; border-top: 4px solid rgba(217, 119, 6, 0.92);"></div>
+          </div>
+        `,
+        iconSize: [28, 20],
+        iconAnchor: [14, 20]
+      });
+    }
+
+    // 3. Overview Mode (zoom < 14): Sleek minimalist geodesic micro-dot marker
+    return L.divIcon({
+      className: 'concession-borne-marker-dot',
+      html: `
+        <div style="width: 9px; height: 9px; border-radius: 9999px; background: #F59E0B; border: 1.5px solid #FFFFFF; box-shadow: 0 0 3px rgba(0,0,0,0.5), 0 0 6px rgba(245, 158, 11, 0.6); cursor: pointer;" title="Borne P${number}"></div>
       `,
-      iconSize: [36, 26],
-      iconAnchor: [18, 26]
+      iconSize: [9, 9],
+      iconAnchor: [4.5, 4.5]
     });
   };
 
@@ -1765,10 +1804,12 @@ export default function MapView({
         {canViewAndInspectBornes && (
           <button
             onClick={() => setShowConcessionBornes(!showConcessionBornes)}
-            className={`p-2 rounded-lg border border-slate-200 shadow-sm transition-all cursor-pointer ${
-              showConcessionBornes ? 'bg-amber-50 text-amber-700 border-amber-300' : 'bg-white text-slate-700 hover:bg-slate-50'
+            className={`p-2 rounded-lg border shadow-sm transition-all cursor-pointer ${
+              showConcessionBornes
+                ? 'bg-amber-500 text-white border-amber-600 shadow-xs ring-2 ring-amber-400/30'
+                : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 border-slate-200'
             }`}
-            title="Afficher/Masquer les bornes de la concession (P1...P32)"
+            title={showConcessionBornes ? "Masquer les bornes de la concession" : "Afficher les bornes de la concession (P1...P32)"}
           >
             <MapPin className="w-4 h-4" />
           </button>
@@ -1946,7 +1987,13 @@ export default function MapView({
           activeView={activeView}
           isSidebarCollapsed={isSidebarCollapsed}
         />
-        <ProfessionalGisHud onAddPoint={handleAddDrawnPoint} isDrawing={isDrawing} mapType={mapType} onCenterChange={setCenterCoords} />
+        <ProfessionalGisHud
+          onAddPoint={handleAddDrawnPoint}
+          isDrawing={isDrawing}
+          mapType={mapType}
+          onCenterChange={setCenterCoords}
+          onZoomChange={setMapZoom}
+        />
 
         {/* Clean Google Pure Satellite Layer */}
         {mapType === 'google-pure' && (
@@ -2051,12 +2098,12 @@ export default function MapView({
           </Polygon>
         )}
 
-        {/* Concession Perimeter Bornes (P1 to P32) - Strictement réservé Admin & Arpenteur */}
+        {/* Concession Perimeter Bornes (P1 to P32) */}
         {showConcession && showConcessionBornes && canViewAndInspectBornes && concessionBornes.map((b) => (
           <Marker
             key={`concession-borne-${b.number}-${b.lat.toFixed(6)}-${b.lng.toFixed(6)}`}
             position={b.position}
-            icon={createConcessionBorneIcon(b.number, isEditingConcession && isAdmin)}
+            icon={createConcessionBorneIcon(b.number, isEditingConcession && isAdmin, mapZoom >= 14)}
             draggable={isEditingConcession && isAdmin}
             eventHandlers={{
               click: () => handleInspectBorne(b),
@@ -2065,7 +2112,7 @@ export default function MapView({
               }
             }}
           >
-            <Tooltip direction="top" offset={[0, -14]} opacity={0.92}>
+            <Tooltip direction="top" offset={[0, (mapZoom >= 14 || isEditingConcession) ? -14 : -5]} opacity={0.92}>
               <div className="text-[11px] font-sans font-bold text-slate-900 text-center">
                 Borne P{b.number} {isEditingConcession && isAdmin ? '(Déplaçable)' : '• Toucher pour altitude'}
               </div>
@@ -2154,7 +2201,7 @@ export default function MapView({
                 </Tooltip>
               )}
             </Polyline>
-            {line.midpoint && (
+            {line.midpoint && mapZoom >= 14 && (
               <Marker
                 position={line.midpoint}
                 icon={createCoastalLabelIcon(
