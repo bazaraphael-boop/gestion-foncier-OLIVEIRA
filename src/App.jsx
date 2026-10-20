@@ -966,6 +966,7 @@ export default function App() {
             isAdmin={isAdmin}
             isArpenteur={isArpenteur}
             editConcessionTrigger={editConcessionTrigger}
+            onCancelConcessionEditing={() => setEditConcessionTrigger(0)}
           />
         </main>
 

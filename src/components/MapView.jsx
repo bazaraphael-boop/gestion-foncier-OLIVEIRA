@@ -476,7 +476,8 @@ export default function MapView({
   onUpdateConcessionPolygon,
   isAdmin = false,
   isArpenteur = false,
-  editConcessionTrigger = 0
+  editConcessionTrigger = 0,
+  onCancelConcessionEditing
 }) {
   const mapContainerRef = useRef(null);
 
@@ -628,12 +629,17 @@ export default function MapView({
   }, [activeConcessionRing]);
 
   // Handle external trigger to start concession edit
+  const lastHandledTriggerRef = useRef(0);
   useEffect(() => {
-    if (editConcessionTrigger && editConcessionTrigger > 0 && isAdmin) {
+    if (editConcessionTrigger && editConcessionTrigger > lastHandledTriggerRef.current && isAdmin) {
+      lastHandledTriggerRef.current = editConcessionTrigger;
       if (rawConcessionRing && rawConcessionRing.length > 0) {
         setCustomConcessionPoints([...rawConcessionRing]);
         setIsEditingConcession(true);
+        setShowConcessionBornes(true);
       }
+    } else if (!editConcessionTrigger) {
+      lastHandledTriggerRef.current = 0;
     }
   }, [editConcessionTrigger, isAdmin, rawConcessionRing]);
 
@@ -644,8 +650,8 @@ export default function MapView({
       return L.divIcon({
         className: 'concession-borne-marker-edit',
         html: `
-          <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: grab; user-select: none;">
-            <div style="background: #EA580C; color: #FFFFFF; font-weight: 800; font-size: 10px; font-family: ui-monospace, monospace; padding: 2px 7px; border-radius: 9999px; border: 2px solid #FFFFFF; box-shadow: 0 2px 10px rgba(234, 88, 12, 0.65); white-space: nowrap;">
+          <div style="position: relative; display: flex; flex-direction: column; align-items: center; cursor: grab; user-select: none; pointer-events: auto; touch-action: none;">
+            <div style="background: #EA580C; color: #FFFFFF; font-weight: 800; font-size: 11px; font-family: ui-monospace, monospace; padding: 2px 7px; border-radius: 9999px; border: 2px solid #FFFFFF; box-shadow: 0 2px 10px rgba(234, 88, 12, 0.7); white-space: nowrap;">
               <span>P${number}</span>
             </div>
             <div style="width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid #EA580C;"></div>
@@ -721,11 +727,15 @@ export default function MapView({
     if (!isAdmin) return;
     setCustomConcessionPoints([...rawConcessionRing]);
     setIsEditingConcession(true);
+    setShowConcessionBornes(true);
   };
 
   const handleCancelConcessionEditing = () => {
     setCustomConcessionPoints(null);
     setIsEditingConcession(false);
+    if (onCancelConcessionEditing) {
+      onCancelConcessionEditing();
+    }
   };
 
   const handleSaveConcessionEditing = () => {
@@ -743,6 +753,9 @@ export default function MapView({
     }
     setIsEditingConcession(false);
     setCustomConcessionPoints(null);
+    if (onCancelConcessionEditing) {
+      onCancelConcessionEditing();
+    }
   };
 
   const handleMoveConcessionBorne = (index, newLatLng) => {
@@ -2099,14 +2112,17 @@ export default function MapView({
         )}
 
         {/* Concession Perimeter Bornes (P1 to P32) */}
-        {showConcession && showConcessionBornes && canViewAndInspectBornes && concessionBornes.map((b) => (
+        {showConcession && (showConcessionBornes || isEditingConcession) && canViewAndInspectBornes && concessionBornes.map((b) => (
           <Marker
-            key={`concession-borne-${b.number}-${b.lat.toFixed(6)}-${b.lng.toFixed(6)}`}
+            key={`concession-borne-${b.number}`}
             position={b.position}
             icon={createConcessionBorneIcon(b.number, isEditingConcession && isAdmin, mapZoom >= 14)}
             draggable={isEditingConcession && isAdmin}
             eventHandlers={{
               click: () => handleInspectBorne(b),
+              drag: (e) => {
+                handleMoveConcessionBorne(b.index, e.target.getLatLng());
+              },
               dragend: (e) => {
                 handleMoveConcessionBorne(b.index, e.target.getLatLng());
               }
