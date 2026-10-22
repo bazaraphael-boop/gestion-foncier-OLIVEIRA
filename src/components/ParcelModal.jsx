@@ -110,6 +110,23 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
   const handleSave = (e) => {
     e.preventDefault();
 
+    // Arpenteur: attributes only, the boundary points (bornes) stay unchanged (Admin only)
+    if (isArpenteur) {
+      onUpdateParcel({
+        ...parcel,
+        properties: {
+          ...parcel.properties,
+          lotNumber: formData.lotNumber,
+          status: formData.status,
+          occupantName: formData.occupantName,
+          notes: formData.notes,
+          updatedAt: new Date().toISOString().split('T')[0]
+        }
+      });
+      setIsEditing(false);
+      return;
+    }
+
     const ringCoords = [];
     for (let i = 0; i < editVertices.length; i++) {
       const v = editVertices[i];
@@ -602,6 +619,11 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 ></textarea>
               </div>
 
+              {isArpenteur ? (
+                <div className="bg-amber-50 p-3 rounded border border-amber-200 text-amber-800 text-[11px] font-medium">
+                  Les bornes (sommets GPS) de la parcelle ne peuvent être modifiées que par l&apos;Administrateur.
+                </div>
+              ) : (
               <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-slate-800 text-xs">
@@ -648,6 +670,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                   ))}
                 </div>
               </div>
+              )}
 
               <div className="flex gap-2 pt-2">
                 <button
@@ -675,7 +698,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
               onClick={() => setIsEditing(true)}
               className="flex-1 py-2 px-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded text-xs flex items-center justify-center gap-1.5 transition-all shadow-2xs"
             >
-              <Edit3 className="w-3.5 h-3.5" /> Éditer la Parcelle & Sommets
+              <Edit3 className="w-3.5 h-3.5" /> {isArpenteur ? 'Éditer la Fiche de la Parcelle' : 'Éditer la Parcelle & Sommets'}
             </button>
             {!isArpenteur && (
               <button

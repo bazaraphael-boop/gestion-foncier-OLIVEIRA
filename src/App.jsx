@@ -10,7 +10,6 @@ import { getOceanZoneInfo } from './utils/coastalZones';
 import * as turf from '@turf/turf';
 
 import PortalSelectionModal from './components/PortalSelectionModal';
-import ClientPinModal from './components/ClientPinModal';
 import AdminLoginModal from './components/AdminLoginModal';
 
 // Lazy load secondary modals to drastically accelerate initial loading
@@ -575,11 +574,15 @@ export default function App() {
     });
   };
 
-  // Update existing parcel (Admin or Arpenteur)
+  // Update existing parcel (Admin, or Arpenteur for attributes only: bornes are Admin only)
   const handleUpdateParcel = (updatedParcel) => {
     if (isClientRole) return;
     const existing = currentParcels.find((p) => p.id === updatedParcel.id);
     const verticesChanged = existing && JSON.stringify(existing.geometry?.coordinates) !== JSON.stringify(updatedParcel.geometry?.coordinates);
+    if (verticesChanged && isArpenteur) {
+      alert("Seul l'Administrateur est habilité à modifier les bornes d'une parcelle.");
+      return;
+    }
     const lotRef = updatedParcel.properties?.lotNumber || updatedParcel.id;
     const actorRole = isArpenteur ? 'arpenteur' : 'admin';
     const actorLabel = isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur';
@@ -824,17 +827,8 @@ export default function App() {
     );
   }
 
-  // --- UNAUTHENTICATED GATE (Portal Selection / Client PIN / Admin Login) ---
+  // --- UNAUTHENTICATED GATE (Portal Selection / Professional Login) ---
   if (!session) {
-    if (authView === 'client_pin') {
-      return (
-        <ClientPinModal
-          onSuccess={handleAuthSuccess}
-          onBack={() => setAuthView('portal')}
-        />
-      );
-    }
-
     if (authView === 'admin_login') {
       return (
         <AdminLoginModal
@@ -847,7 +841,6 @@ export default function App() {
     return (
       <PortalSelectionModal
         onSelectAdmin={() => setAuthView('admin_login')}
-        onSelectClient={() => setAuthView('client_pin')}
       />
     );
   }

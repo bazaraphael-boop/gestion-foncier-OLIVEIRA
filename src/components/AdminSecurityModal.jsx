@@ -1,9 +1,9 @@
 ﻿import React, { useState } from 'react';
-import { ShieldCheck, Key, Lock, CheckCircle2, AlertCircle, X, LogOut, Eye, EyeOff } from 'lucide-react';
-import { updateAdminPassword, updateClientPIN, CLIENT_ACCOUNT_EMAIL } from '../services/authService';
+import { ShieldCheck, Lock, CheckCircle2, AlertCircle, X, LogOut, Eye, EyeOff } from 'lucide-react';
+import { updateAdminPassword } from '../services/authService';
 
 export default function AdminSecurityModal({ isOpen, onClose, onLogout, session }) {
-  const [activeTab, setActiveTab] = useState('admin_pwd'); // 'admin_pwd' | 'client_pin' | 'session'
+  const [activeTab, setActiveTab] = useState('admin_pwd'); // 'admin_pwd' | 'session'
 
   // Admin Password state
   const [currentAdminPwd, setCurrentAdminPwd] = useState('');
@@ -12,12 +12,6 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout, session 
   const [showAdminPwds, setShowAdminPwds] = useState(false);
   const [adminPwdMsg, setAdminPwdMsg] = useState({ type: '', text: '' });
   const [isAdminSubmitting, setIsAdminSubmitting] = useState(false);
-
-  // Client PIN state
-  const [newClientPin, setNewClientPin] = useState('');
-  const [confirmClientPin, setConfirmClientPin] = useState('');
-  const [clientPinMsg, setClientPinMsg] = useState({ type: '', text: '' });
-  const [isClientSubmitting, setIsClientSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -54,38 +48,6 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout, session 
     }
   };
 
-  // Handle Client PIN Change
-  const handleUpdateClientPIN = async (e) => {
-    e.preventDefault();
-    setClientPinMsg({ type: '', text: '' });
-
-    if (!/^\d{6}$/.test(newClientPin)) {
-      setClientPinMsg({ type: 'error', text: 'Le code PIN client doit comporter exactement 6 chiffres.' });
-      return;
-    }
-
-    if (newClientPin !== confirmClientPin) {
-      setClientPinMsg({ type: 'error', text: 'Les deux codes PIN ne correspondent pas.' });
-      return;
-    }
-
-    setIsClientSubmitting(true);
-    try {
-      const res = await updateClientPIN(newClientPin);
-      if (res.success) {
-        setClientPinMsg({ type: 'success', text: 'Nouveau code PIN Client (6 chiffres) enregistré avec succès.' });
-        setNewClientPin('');
-        setConfirmClientPin('');
-      } else {
-        setClientPinMsg({ type: 'error', text: res.error || 'Erreur lors de la modification du PIN.' });
-      }
-    } catch (err) {
-      setClientPinMsg({ type: 'error', text: 'Erreur inattendue lors de la mise à jour du PIN.' });
-    } finally {
-      setIsClientSubmitting(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-[3500] bg-slate-900/60 backdrop-blur-xs flex justify-center items-center p-4 font-sans select-none animate-in fade-in duration-200">
       <div className="bg-white text-slate-800 w-full max-w-lg rounded-xl shadow-2xl border border-slate-200 overflow-hidden my-auto animate-in zoom-in-95 duration-200">
@@ -97,7 +59,7 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout, session 
             </div>
             <div>
               <h3 className="font-bold text-sm tracking-tight">Sécurité & Contrôle des Accès</h3>
-              <p className="text-[11px] text-blue-200">Gestion des identifiants, codes PIN et sessions</p>
+              <p className="text-[11px] text-blue-200">Gestion du mot de passe et de la session</p>
             </div>
           </div>
           <button
@@ -119,16 +81,6 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout, session 
             }`}
           >
             Mot de Passe Admin
-          </button>
-          <button
-            onClick={() => setActiveTab('client_pin')}
-            className={`flex-1 py-3 px-3 text-center border-b-2 transition-colors cursor-pointer ${
-              activeTab === 'client_pin'
-                ? 'border-[#1a6e3c] text-[#1a6e3c] bg-white font-bold'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Code PIN Client
           </button>
           <button
             onClick={() => setActiveTab('session')}
@@ -227,81 +179,6 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout, session 
                 >
                   <Lock className="w-3.5 h-3.5" />
                   <span>{isAdminSubmitting ? 'Mise à jour...' : 'Enregistrer le nouveau mot de passe'}</span>
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* TAB 2: CLIENT PIN */}
-          {activeTab === 'client_pin' && (
-            <form onSubmit={handleUpdateClientPIN} className="space-y-4">
-              <div className="text-xs text-gray-600 mb-2">
-                Définissez le code PIN à 6 chiffres permettant aux clients et occupants de consulter la carte cadastrale sans droits d'édition (compte partagé {CLIENT_ACCOUNT_EMAIL}).
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                  Nouveau code PIN Client (6 chiffres numériques)
-                </label>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={6}
-                  required
-                  value={newClientPin}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                    setNewClientPin(val);
-                  }}
-                  placeholder="6 chiffres"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs tracking-widest font-mono text-center text-base focus:outline-none focus:border-[#1a6e3c]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                  Confirmer le code PIN Client
-                </label>
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={6}
-                  required
-                  value={confirmClientPin}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-                    setConfirmClientPin(val);
-                  }}
-                  placeholder="Répétez les 6 chiffres..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs tracking-widest font-mono text-center text-base focus:outline-none focus:border-[#1a6e3c]"
-                />
-              </div>
-
-              {clientPinMsg.text && (
-                <div
-                  className={`p-3 rounded-lg text-xs flex items-center gap-2 ${
-                    clientPinMsg.type === 'success'
-                      ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                      : 'bg-rose-50 border border-rose-200 text-rose-800'
-                  }`}
-                >
-                  {clientPinMsg.type === 'success' ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-                  )}
-                  <span>{clientPinMsg.text}</span>
-                </div>
-              )}
-
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={isClientSubmitting || newClientPin.length !== 6 || confirmClientPin.length !== 6}
-                  className="px-4 py-2 bg-[#1a6e3c] hover:bg-[#145730] disabled:bg-gray-300 text-white font-bold rounded-lg text-xs transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
-                >
-                  <Key className="w-3.5 h-3.5" />
-                  <span>{isClientSubmitting ? 'Enregistrement...' : 'Mettre à jour le code PIN Client'}</span>
                 </button>
               </div>
             </form>

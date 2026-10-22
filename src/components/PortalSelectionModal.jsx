@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function PortalSelectionModal({ onSelectAdmin, onSelectClient }) {
+export default function PortalSelectionModal({ onSelectAdmin }) {
   return (
     <div
       className="fixed inset-0 z-[4000] flex flex-col overflow-y-auto font-sans antialiased"
@@ -28,44 +28,44 @@ export default function PortalSelectionModal({ onSelectAdmin, onSelectClient }) 
       {/* Corps principal */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
         <p className="text-xs sm:text-sm text-white/80 mb-6 text-center max-w-lg leading-relaxed drop-shadow">
-          Consultation cartographique officielle du cadastre foncier.
-          Veuillez entrer votre code d&apos;accès PIN à 6 chiffres pour consulter la concession.
+          Plateforme cartographique officielle du cadastre foncier.
+          Accès réservé aux gestionnaires et arpenteurs habilités.
         </p>
 
-        {/* Portail Client Unique Centré */}
+        {/* Accès Espace Professionnel */}
         <div className="w-full max-w-md">
           <button
-            onClick={onSelectClient}
-            className="group w-full bg-white/95 backdrop-blur-sm border border-white/60 hover:border-[#1a6e3c] hover:bg-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-200 text-left overflow-hidden cursor-pointer"
+            onClick={onSelectAdmin}
+            className="group w-full bg-white/95 backdrop-blur-sm border border-white/60 hover:border-[#1a3a5c] hover:bg-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-200 text-left overflow-hidden cursor-pointer"
           >
-            <div className="h-2 w-full bg-[#1a6e3c]" />
+            <div className="h-2 w-full bg-[#1a3a5c]" />
             <div className="p-6 sm:p-8 space-y-4">
-              <div className="w-12 h-12 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-[#1a6e3c]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <div className="w-12 h-12 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-[#1a3a5c]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                 </svg>
               </div>
 
               <div>
-                <p className="text-[11px] font-bold text-[#1a6e3c] uppercase tracking-widest mb-1">
-                  Espace Grand Public &amp; Occupants
+                <p className="text-[11px] font-bold text-[#1a3a5c] uppercase tracking-widest mb-1">
+                  Direction Cadastrale
                 </p>
-                <h2 className="text-lg sm:text-xl font-bold text-gray-800 group-hover:text-[#1a6e3c] transition-colors">
-                  Portail Client &amp; Consultation
+                <h2 className="text-lg sm:text-xl font-bold text-gray-800 group-hover:text-[#1a3a5c] transition-colors">
+                  Espace Professionnel SIG
                 </h2>
                 <p className="text-xs text-gray-500 leading-relaxed mt-2">
-                  Accédez à la vue satellite et cartographique de la concession, aux limites géodésiques et à la légende cadastrale via votre code PIN à 6 chiffres.
+                  Administration et arpentage : carte de la concession, parcelles, bornes géodésiques et journal d&apos;audit.
                 </p>
               </div>
 
               <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-xs font-bold text-[#1a6e3c] flex items-center gap-2">
+                <span className="text-xs font-bold text-[#1a3a5c] flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
-                  Saisir le code PIN (6 chiffres)
+                  Se connecter
                 </span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-400 group-hover:text-[#1a6e3c] group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-gray-400 group-hover:text-[#1a3a5c] group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
               </div>
@@ -81,17 +81,6 @@ export default function PortalSelectionModal({ onSelectAdmin, onSelectClient }) 
           <div className="flex items-center gap-4">
             <span>089 11 00 000 &nbsp;|&nbsp; 089 619 55 55</span>
             <span>Bamakakidi@gmail.com</span>
-            {/* Accès discret réservé Administration */}
-            <button
-              onClick={onSelectAdmin}
-              className="text-blue-300/30 hover:text-blue-100 transition-colors p-1 cursor-pointer ml-1"
-              title="Accès réservé administration"
-              aria-label="Administration"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </button>
           </div>
         </div>
       </footer>

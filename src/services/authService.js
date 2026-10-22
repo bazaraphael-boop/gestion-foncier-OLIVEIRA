@@ -2,8 +2,7 @@
  * Authentication & Role-Based Session Service (Supabase Auth)
  * Features:
  * - Real accounts managed by Supabase Auth (email + password)
- * - Role read from the public.profiles table (admin | arpenteur | client)
- * - Client portal: shared Supabase account whose password is the 6-digit PIN
+ * - Role read from the public.profiles table (admin | arpenteur)
  * - Rate limiting and session refresh handled server-side by Supabase
  * - Data access enforced by Row Level Security (see supabase/migrations)
  */
@@ -11,10 +10,7 @@
 import { getSupabaseInstance } from './supabaseClient';
 import { logActivity, flushAuditLogs } from './auditService';
 
-// Shared account used by the client PIN portal
-export const CLIENT_ACCOUNT_EMAIL = import.meta.env.VITE_CLIENT_ACCOUNT_EMAIL || 'client@oliveira.cd';
-
-const VALID_ROLES = ['admin', 'arpenteur', 'client'];
+const VALID_ROLES = ['admin', 'arpenteur'];
 
 function translateAuthError(error) {
   const msg = (error?.message || '').toLowerCase();
@@ -69,31 +65,6 @@ async function signIn(email, password, allowedRoles) {
     return { success: false, error: "Ce compte n'est pas habilité pour cet espace." };
   }
   return { success: true, session };
-}
-
-/* ─────────────────────────────────────────────────────────────
- * CLIENT AUTHENTICATION
- * ───────────────────────────────────────────────────────────── */
-
-export async function loginClient(pin) {
-  if (!pin || !/^\d{6}$/.test(pin)) {
-    return { success: false, error: 'Le code PIN doit comporter exactement 6 chiffres.' };
-  }
-
-  const res = await signIn(CLIENT_ACCOUNT_EMAIL, pin, ['client']);
-  if (res.success) {
-    logActivity({
-      role: 'client',
-      actor: 'Consultant Foncier (Code PIN)',
-      action: 'AUTH_LOGIN',
-      actionLabel: 'Connexion Espace Grand Public / Client',
-      details: 'Accès consultation publique par code PIN validé',
-      severity: 'info'
-    });
-  } else if (res.error === 'Identifiant ou mot de passe incorrect.') {
-    res.error = 'Code PIN incorrect.';
-  }
-  return res;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -153,11 +124,7 @@ export async function logout(session) {
   if (session?.role) {
     logActivity({
       role: session.role,
-      actor: session.role === 'admin'
-        ? 'Administrateur'
-        : session.role === 'arpenteur'
-        ? 'Arpenteur Géomètre'
-        : 'Client / Consultant',
+      actor: session.role === 'admin' ? 'Administrateur' : 'Arpenteur Géomètre',
       action: 'AUTH_LOGOUT',
       actionLabel: `Déconnexion de session (${session.role})`,
       details: 'Fermeture volontaire de session',
@@ -202,20 +169,4 @@ export async function updateAdminPassword(currentPassword, newPassword) {
     return { success: false, error: translateAuthError(error) };
   }
   return { success: true, message: 'Mot de passe mis à jour avec succès sur tous les appareils.' };
-}
-
-// Change the shared client PIN (admin only, enforced by the database function)
-export async function updateClientPIN(newPin) {
-  if (!newPin || !/^\d{6}$/.test(newPin)) {
-    return { success: false, error: 'Le code PIN client doit contenir exactement 6 chiffres numériques.' };
-  }
-  const client = getSupabaseInstance();
-  const { error } = await client.rpc('admin_set_client_pin', {
-    client_email: CLIENT_ACCOUNT_EMAIL,
-    new_pin: newPin
-  });
-  if (error) {
-    return { success: false, error: error.message || 'Mise à jour du code PIN impossible.' };
-  }
-  return { success: true, message: 'Nouveau code PIN Client enregistré avec succès.' };
 }
