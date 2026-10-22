@@ -101,9 +101,20 @@ export function logActivity({
   }
 
   // 2. Asynchronous Cloud Persistence to Supabase (Non-blocking)
-  saveAuditLogToSupabase(newLog).catch(() => {});
+  const pending = saveAuditLogToSupabase(newLog).catch(() => {});
+  pendingCloudSaves.add(pending);
+  pending.finally(() => pendingCloudSaves.delete(pending));
 
   return newLog;
+}
+
+const pendingCloudSaves = new Set();
+
+/**
+ * Wait for queued cloud saves (e.g. before signing out, while the token is still valid)
+ */
+export async function flushAuditLogs() {
+  await Promise.all([...pendingCloudSaves]);
 }
 
 /**

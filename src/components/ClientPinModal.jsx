@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Lock, ArrowLeft, ShieldAlert, KeyRound, Check, Loader2 } from 'lucide-react';
-import { loginClient, getLockoutStatus } from '../services/authService';
+import { loginClient } from '../services/authService';
 
 export default function ClientPinModal({ onSuccess, onBack }) {
   const [pinDigits, setPinDigits] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [lockoutInfo, setLockoutInfo] = useState({ isLocked: false, remainingSeconds: 0 });
 
   const inputRefs = [
     useRef(null),
@@ -24,21 +23,7 @@ export default function ClientPinModal({ onSuccess, onBack }) {
     }
   }, []);
 
-  // Lockout countdown timer loop
-  useEffect(() => {
-    const checkLock = () => {
-      const lock = getLockoutStatus();
-      setLockoutInfo(lock);
-    };
-
-    checkLock();
-    const interval = setInterval(checkLock, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   const handleDigitChange = (index, value) => {
-    if (lockoutInfo.isLocked) return;
-
     // Only allow numeric digits
     if (value && !/^\d$/.test(value)) return;
 
@@ -65,7 +50,6 @@ export default function ClientPinModal({ onSuccess, onBack }) {
   };
 
   const submitPin = async (fullPin) => {
-    if (lockoutInfo.isLocked) return;
     setIsLoading(true);
     setError('');
 
@@ -133,14 +117,12 @@ export default function ClientPinModal({ onSuccess, onBack }) {
                 type="password"
                 inputMode="numeric"
                 maxLength={1}
-                disabled={lockoutInfo.isLocked || isLoading}
+                disabled={isLoading}
                 value={digit}
                 onChange={(e) => handleDigitChange(idx, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(idx, e)}
                 className={`w-11 h-13 sm:w-12 sm:h-14 bg-slate-950 border-2 rounded-xl text-center text-xl font-bold text-white focus:outline-none transition-all ${
-                  lockoutInfo.isLocked
-                    ? 'border-slate-800 opacity-50 cursor-not-allowed'
-                    : error
+                  error
                     ? 'border-rose-500 text-rose-400 focus:border-rose-500'
                     : digit
                     ? 'border-emerald-500 text-emerald-400 bg-emerald-950/20'
@@ -150,15 +132,8 @@ export default function ClientPinModal({ onSuccess, onBack }) {
             ))}
           </div>
 
-          {/* Error & Anti-Bruteforce Lockout Alert */}
-          {lockoutInfo.isLocked ? (
-            <div className="p-3 bg-rose-950/60 border border-rose-800/80 rounded-xl text-rose-300 text-xs text-center flex items-center justify-center gap-2 animate-in fade-in">
-              <ShieldAlert className="w-4 h-4 text-rose-400 flex-shrink-0 animate-bounce" />
-              <span>
-                Accès bloqué. Veuillez patienter <strong>{lockoutInfo.remainingSeconds}s</strong>
-              </span>
-            </div>
-          ) : error ? (
+          {/* Error Alert (rate limiting is enforced by Supabase Auth) */}
+          {error ? (
             <div className="p-3 bg-rose-950/40 border border-rose-800/60 rounded-xl text-rose-300 text-xs text-center flex items-center justify-center gap-2 animate-in fade-in">
               <ShieldAlert className="w-4 h-4 text-rose-400 flex-shrink-0" />
               <span>{error}</span>
@@ -168,7 +143,7 @@ export default function ClientPinModal({ onSuccess, onBack }) {
           {/* Action Button */}
           <button
             type="submit"
-            disabled={lockoutInfo.isLocked || isLoading || pinDigits.join('').length !== 6}
+            disabled={isLoading || pinDigits.join('').length !== 6}
             className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer"
           >
             {isLoading ? (
@@ -186,7 +161,7 @@ export default function ClientPinModal({ onSuccess, onBack }) {
         </form>
 
         <div className="text-[11px] text-slate-500 text-center">
-          Sécurité cryptographique SHA-256 • Concession Manuel J. d'Oliveira
+          Accès sécurisé Supabase • Concession Manuel J. d'Oliveira
         </div>
       </div>
     </div>

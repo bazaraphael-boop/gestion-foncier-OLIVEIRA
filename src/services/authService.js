@@ -1,109 +1,74 @@
 /**
- * Secure Authentication & Role-Based Session Management Service
+ * Authentication & Role-Based Session Service (Supabase Auth)
  * Features:
- * - SHA-256 Cryptographic Hashing via Web Crypto API (No plain-text credentials)
- * - Independent Anti-Bruteforce Throttling for Admin and Client
- * - Email / Identifiant + Password check for Admin
- * - Session Inactivity Expiration (30 mins) with Session Invalidation
- * - Secure Password & PIN Updates with validation
+ * - Real accounts managed by Supabase Auth (email + password)
+ * - Role read from the public.profiles table (admin | arpenteur | client)
+ * - Client portal: shared Supabase account whose password is the 6-digit PIN
+ * - Rate limiting and session refresh handled server-side by Supabase
+ * - Data access enforced by Row Level Security (see supabase/migrations)
  */
 
-import { logActivity } from './auditService';
+import { getSupabaseInstance } from './supabaseClient';
+import { logActivity, flushAuditLogs } from './auditService';
 
-const STORAGE_KEY_SESSION = 'geocadastre_auth_session_v1';
-const STORAGE_KEY_ATTEMPTS_CLIENT = 'geocadastre_auth_attempts_client_v2';
-const STORAGE_KEY_ATTEMPTS_ADMIN = 'geocadastre_auth_attempts_admin_v2';
+// Shared account used by the client PIN portal
+export const CLIENT_ACCOUNT_EMAIL = import.meta.env.VITE_CLIENT_ACCOUNT_EMAIL || 'client@oliveira.cd';
 
-// Default Admin Email / Identifiants autorisés
-const DEFAULT_ADMIN_EMAIL = 'bamakakidi@gmail.com';
-const DEFAULT_ADMIN_USERNAME = 'admin';
+const VALID_ROLES = ['admin', 'arpenteur', 'client'];
 
-// Default Arpenteur Identifiants & Password
-const DEFAULT_ARPENTEUR_IDENTIFIERS = ['arpenteur', 'geometre', 'arpenteur@oliveira.cd', 'arpenteur1'];
-// SHA-256 Hash of default Arpenteur Password "arpenteur123"
-const ARPENTEUR_PASSWORD_HASH = '0d8293da85644e89d9eb85b79b30f026a3a61f061ed38778e330ed776da062d4';
-
-// SHA-256 Hash of default Client PIN "123456"
-const CLIENT_PIN_HASH = '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92';
-
-// SHA-256 Hash of default Admin Password "admin123"
-const ADMIN_PASSWORD_HASH = '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9';
-
-// Session expiration: 30 minutes (in milliseconds)
-const SESSION_EXPIRATION_MS = 30 * 60 * 1000;
-
-// Maximum failed attempts before lockout
-const MAX_FAILED_ATTEMPTS = 5;
-
-// Lockout duration: 60 seconds for Admin, 30s for Client
-const ADMIN_LOCKOUT_MS = 60 * 1000;
-const CLIENT_LOCKOUT_MS = 30 * 1000;
-
-// Helper: Hash input string to SHA-256 Hex format using browser Web Crypto API
-export async function hashSHA256(str) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(str);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-/* ─────────────────────────────────────────────────────────────
- * LOCKOUT & ANTI-BRUTE FORCE HELPERS
- * ───────────────────────────────────────────────────────────── */
-
-function getLockout(storageKey, defaultDurationMs) {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (raw) {
-      const data = JSON.parse(raw);
-      if (data.lockedUntil) {
-        const now = Date.now();
-        if (now < data.lockedUntil) {
-          const remainingSeconds = Math.ceil((data.lockedUntil - now) / 1000);
-          return { isLocked: true, remainingSeconds, count: data.count || 0 };
-        } else {
-          localStorage.removeItem(storageKey);
-        }
-      }
-      return { isLocked: false, remainingSeconds: 0, count: data.count || 0 };
-    }
-  } catch (e) {}
-  return { isLocked: false, remainingSeconds: 0, count: 0 };
-}
-
-function recordFailure(storageKey, lockoutMs) {
-  try {
-    const status = getLockout(storageKey, lockoutMs);
-    const newCount = (status.count || 0) + 1;
-    let lockedUntil = null;
-    if (newCount >= MAX_FAILED_ATTEMPTS) {
-      lockedUntil = Date.now() + lockoutMs;
-    }
-    localStorage.setItem(storageKey, JSON.stringify({ count: newCount, lockedUntil }));
-    return {
-      count: newCount,
-      isLocked: !!lockedUntil,
-      remainingSeconds: lockedUntil ? Math.ceil(lockoutMs / 1000) : 0,
-      remainingAttempts: Math.max(0, MAX_FAILED_ATTEMPTS - newCount)
-    };
-  } catch (e) {
-    return { count: 1, isLocked: false, remainingSeconds: 0, remainingAttempts: MAX_FAILED_ATTEMPTS - 1 };
+function translateAuthError(error) {
+  const msg = (error?.message || '').toLowerCase();
+  if (error?.status === 429 || msg.includes('rate limit') || msg.includes('too many')) {
+    return 'Trop de tentatives. Veuillez patienter quelques minutes avant de réessayer.';
   }
+  if (msg.includes('invalid login credentials')) {
+    return 'Identifiant ou mot de passe incorrect.';
+  }
+  if (msg.includes('email not confirmed')) {
+    return "Ce compte n'a pas encore été confirmé.";
+  }
+  if (msg.includes('fetch') || msg.includes('network')) {
+    return 'Connexion au serveur impossible. Vérifiez votre accès Internet.';
+  }
+  return error?.message || 'Une erreur technique est survenue lors de la connexion.';
 }
 
-function resetLockout(storageKey) {
-  try {
-    localStorage.removeItem(storageKey);
-  } catch (e) {}
+// Build the app session object from a Supabase auth session
+async function buildSession(authSession) {
+  if (!authSession?.user) return null;
+  const client = getSupabaseInstance();
+  const { data, error } = await client
+    .from('profiles')
+    .select('role, full_name')
+    .eq('id', authSession.user.id)
+    .maybeSingle();
+
+  if (error || !data || !VALID_ROLES.includes(data.role)) return null;
+
+  return {
+    role: data.role,
+    name: data.full_name || authSession.user.email,
+    user: { id: authSession.user.id, email: authSession.user.email }
+  };
 }
 
-export function getLockoutStatus() {
-  return getLockout(STORAGE_KEY_ATTEMPTS_CLIENT, CLIENT_LOCKOUT_MS);
-}
+async function signIn(email, password, allowedRoles) {
+  const client = getSupabaseInstance();
+  if (!client) {
+    return { success: false, error: 'Service d’authentification indisponible.' };
+  }
 
-export function getAdminLockoutStatus() {
-  return getLockout(STORAGE_KEY_ATTEMPTS_ADMIN, ADMIN_LOCKOUT_MS);
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+  if (error) {
+    return { success: false, error: translateAuthError(error) };
+  }
+
+  const session = await buildSession(data.session);
+  if (!session || !allowedRoles.includes(session.role)) {
+    await client.auth.signOut();
+    return { success: false, error: "Ce compte n'est pas habilité pour cet espace." };
+  }
+  return { success: true, session };
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -111,21 +76,12 @@ export function getAdminLockoutStatus() {
  * ───────────────────────────────────────────────────────────── */
 
 export async function loginClient(pin) {
-  const lockout = getLockoutStatus();
-  if (lockout.isLocked) {
-    return { success: false, error: `Trop d'essais incorrects. Veuillez patienter ${lockout.remainingSeconds}s.` };
-  }
-
-  if (!pin || pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+  if (!pin || !/^\d{6}$/.test(pin)) {
     return { success: false, error: 'Le code PIN doit comporter exactement 6 chiffres.' };
   }
 
-  const inputHash = await hashSHA256(pin);
-  const targetHash = localStorage.getItem('geocadastre_client_pin_hash') || CLIENT_PIN_HASH;
-
-  if (inputHash === targetHash) {
-    resetLockout(STORAGE_KEY_ATTEMPTS_CLIENT);
-    const session = createSession('client');
+  const res = await signIn(CLIENT_ACCOUNT_EMAIL, pin, ['client']);
+  if (res.success) {
     logActivity({
       role: 'client',
       actor: 'Consultant Foncier (Code PIN)',
@@ -134,270 +90,132 @@ export async function loginClient(pin) {
       details: 'Accès consultation publique par code PIN validé',
       severity: 'info'
     });
-    return { success: true, session };
-  } else {
-    const failInfo = recordFailure(STORAGE_KEY_ATTEMPTS_CLIENT, CLIENT_LOCKOUT_MS);
-    logActivity({
-      role: 'anonymous',
-      actor: 'Visiteur Inconnu',
-      action: 'AUTH_FAILED',
-      actionLabel: 'Tentative erronée Code PIN Client',
-      details: failInfo.isLocked
-        ? `5 échecs consécutifs. Portail client bloqué pour ${CLIENT_LOCKOUT_MS / 1000}s`
-        : `Code PIN incorrect (${failInfo.count} échec(s))`,
-      severity: failInfo.isLocked ? 'danger' : 'warning'
-    });
-    if (failInfo.isLocked) {
-      return { success: false, error: `5 tentatives infructueuses. Accès bloqué pendant ${CLIENT_LOCKOUT_MS / 1000} secondes.` };
-    }
-    return { success: false, error: `Code PIN incorrect. ${failInfo.remainingAttempts} tentative(s) restante(s).` };
+  } else if (res.error === 'Identifiant ou mot de passe incorrect.') {
+    res.error = 'Code PIN incorrect.';
   }
+  return res;
 }
 
 /* ─────────────────────────────────────────────────────────────
  * ADMIN & ARPENTEUR AUTHENTICATION
  * ───────────────────────────────────────────────────────────── */
 
-export async function loginAdmin(identifierOrPassword, maybePassword) {
-  // Support either loginAdmin(identifier, password) or legacy loginAdmin(password)
-  let identifier = '';
-  let password = '';
-
-  if (maybePassword !== undefined) {
-    identifier = (identifierOrPassword || '').trim().toLowerCase();
-    password = maybePassword;
-  } else {
-    // Single arg passed: treat as password
-    password = identifierOrPassword;
+export async function loginAdmin(email, password) {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail || !password) {
+    return { success: false, error: 'Veuillez saisir votre email et votre mot de passe.' };
   }
 
-  const lockout = getAdminLockoutStatus();
-  if (lockout.isLocked) {
-    return {
-      success: false,
-      error: `Portail professionnel verrouillé suite à plusieurs échecs. Veuillez patienter ${lockout.remainingSeconds} secondes.`
-    };
-  }
-
-  if (!password) {
-    return { success: false, error: 'Veuillez saisir votre mot de passe.' };
-  }
-
-  const inputHash = await hashSHA256(password);
-
-  // 1. Authentification Arpenteur Géomètre
-  const isArpenteurIdentifier = DEFAULT_ARPENTEUR_IDENTIFIERS.includes(identifier);
-  if (isArpenteurIdentifier) {
-    const targetArpenteurHash = localStorage.getItem('geocadastre_arpenteur_password_hash') || ARPENTEUR_PASSWORD_HASH;
-    if (inputHash === targetArpenteurHash) {
-      resetLockout(STORAGE_KEY_ATTEMPTS_ADMIN);
-      const session = createSession('arpenteur');
-      logActivity({
-        role: 'arpenteur',
-        actor: `Arpenteur Géomètre (${identifier})`,
-        action: 'AUTH_LOGIN',
-        actionLabel: 'Connexion Espace Arpenteur Géomètre',
-        details: 'Session de terrain et bornage activée',
-        severity: 'success'
-      });
-      return { success: true, session };
-    } else {
-      const failInfo = recordFailure(STORAGE_KEY_ATTEMPTS_ADMIN, ADMIN_LOCKOUT_MS);
-      logActivity({
-        role: 'anonymous',
-        actor: `Tentative Arpenteur (${identifier})`,
-        action: 'AUTH_FAILED',
-        actionLabel: 'Échec mot de passe Arpenteur',
-        details: failInfo.isLocked
-          ? `5 échecs consécutifs. Portail bloqué pour ${ADMIN_LOCKOUT_MS / 1000}s`
-          : `Mot de passe incorrect (${failInfo.count} échec(s))`,
-        severity: failInfo.isLocked ? 'danger' : 'warning'
-      });
-      if (failInfo.isLocked) {
-        return {
-          success: false,
-          error: `5 tentatives infructueuses. Accès arpenteur bloqué pendant ${ADMIN_LOCKOUT_MS / 1000} secondes.`
-        };
-      }
-      return {
-        success: false,
-        error: `Mot de passe arpenteur incorrect. ${failInfo.remainingAttempts} tentative(s) restante(s).`
-      };
-    }
-  }
-
-  // 2. Authentification Administrateur
-  if (identifier) {
-    const savedAdminEmail = (localStorage.getItem('geocadastre_admin_email') || DEFAULT_ADMIN_EMAIL).toLowerCase();
-    const isValidIdentifier = (
-      identifier === savedAdminEmail ||
-      identifier === DEFAULT_ADMIN_USERNAME ||
-      identifier === 'bamakakidi' ||
-      identifier === 'oliveira'
-    );
-
-    if (!isValidIdentifier) {
-      const failInfo = recordFailure(STORAGE_KEY_ATTEMPTS_ADMIN, ADMIN_LOCKOUT_MS);
-      logActivity({
-        role: 'anonymous',
-        actor: `Tentative Inconnue (${identifier})`,
-        action: 'AUTH_FAILED',
-        actionLabel: 'Identifiant Administrateur non reconnu',
-        details: failInfo.isLocked
-          ? `5 échecs consécutifs. Portail bloqué pour ${ADMIN_LOCKOUT_MS / 1000}s`
-          : `Identifiant non habilité: ${identifier}`,
-        severity: failInfo.isLocked ? 'danger' : 'warning'
-      });
-      if (failInfo.isLocked) {
-        return {
-          success: false,
-          error: `5 tentatives infructueuses. Portail bloqué pendant ${ADMIN_LOCKOUT_MS / 1000} secondes.`
-        };
-      }
-      return {
-        success: false,
-        error: `Identifiant ou mot de passe incorrect. ${failInfo.remainingAttempts} essai(s) restant(s).`
-      };
-    }
-  }
-
-  const targetAdminHash = localStorage.getItem('geocadastre_admin_password_hash') || ADMIN_PASSWORD_HASH;
-  if (inputHash === targetAdminHash) {
-    resetLockout(STORAGE_KEY_ATTEMPTS_ADMIN);
-    const session = createSession('admin');
+  const res = await signIn(cleanEmail, password, ['admin', 'arpenteur']);
+  if (res.success) {
+    const isArpenteur = res.session.role === 'arpenteur';
     logActivity({
-      role: 'admin',
-      actor: `Administrateur (${identifier || 'admin'})`,
+      role: res.session.role,
+      actor: `${isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur'} (${cleanEmail})`,
       action: 'AUTH_LOGIN',
-      actionLabel: 'Connexion Espace Administration SIG',
-      details: 'Session complète de direction cadastrale ouverte',
+      actionLabel: isArpenteur ? 'Connexion Espace Arpenteur Géomètre' : 'Connexion Espace Administration SIG',
+      details: isArpenteur ? 'Session de terrain et bornage activée' : 'Session complète de direction cadastrale ouverte',
       severity: 'success'
     });
-    return { success: true, session };
-  } else {
-    const failInfo = recordFailure(STORAGE_KEY_ATTEMPTS_ADMIN, ADMIN_LOCKOUT_MS);
-    logActivity({
-      role: 'anonymous',
-      actor: `Tentative Admin (${identifier || 'admin'})`,
-      action: 'AUTH_FAILED',
-      actionLabel: 'Échec mot de passe Administrateur',
-      details: failInfo.isLocked
-        ? `5 échecs consécutifs. Portail bloqué pour ${ADMIN_LOCKOUT_MS / 1000}s`
-        : `Mot de passe administrateur erroné (${failInfo.count} échec(s))`,
-      severity: failInfo.isLocked ? 'danger' : 'warning'
-    });
-    if (failInfo.isLocked) {
-      return {
-        success: false,
-        error: `5 tentatives infructueuses. Portail bloqué pendant ${ADMIN_LOCKOUT_MS / 1000} secondes.`
-      };
-    }
-    return {
-      success: false,
-      error: `Identifiant ou mot de passe incorrect. ${failInfo.remainingAttempts} tentative(s) restante(s).`
-    };
   }
+  return res;
 }
 
 /* ─────────────────────────────────────────────────────────────
  * SESSION MANAGEMENT
  * ───────────────────────────────────────────────────────────── */
 
-function createSession(role) {
-  const session = {
-    role,
-    createdAt: Date.now(),
-    expiresAt: Date.now() + SESSION_EXPIRATION_MS,
-    token: `token_${role}_${Math.random().toString(36).substring(2)}_${Date.now()}`
-  };
-  localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(session));
-  return session;
-}
-
-export function getCurrentSession() {
+export async function getCurrentSession() {
+  const client = getSupabaseInstance();
+  if (!client) return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_SESSION);
-    if (!raw) return null;
-    const session = JSON.parse(raw);
-
-    // Check expiration
-    if (Date.now() > session.expiresAt) {
-      logout();
-      return null;
-    }
-
-    // Touch session to renew inactivity timer
-    session.expiresAt = Date.now() + SESSION_EXPIRATION_MS;
-    localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(session));
-    return session;
+    const { data } = await client.auth.getSession();
+    return await buildSession(data.session);
   } catch (e) {
+    console.warn('Lecture de session impossible:', e);
     return null;
   }
 }
 
-export function logout() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_SESSION);
-    if (raw) {
-      const session = JSON.parse(raw);
-      if (session && session.role) {
-        logActivity({
-          role: session.role,
-          actor: session.role === 'admin'
-            ? 'Administrateur'
-            : session.role === 'arpenteur'
-            ? 'Arpenteur Géomètre'
-            : 'Client / Consultant',
-          action: 'AUTH_LOGOUT',
-          actionLabel: `Déconnexion de session (${session.role})`,
-          details: 'Fermeture volontaire de session',
-          severity: 'info'
-        });
-      }
+// Calls onChange(null) when the user signs out (also emitted when the refresh token expires)
+export function onSessionChange(onChange) {
+  const client = getSupabaseInstance();
+  if (!client) return () => {};
+  const { data } = client.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') {
+      onChange(null);
     }
-  } catch (e) {}
-  localStorage.removeItem(STORAGE_KEY_SESSION);
+  });
+  return () => data.subscription.unsubscribe();
+}
+
+export async function logout(session) {
+  if (session?.role) {
+    logActivity({
+      role: session.role,
+      actor: session.role === 'admin'
+        ? 'Administrateur'
+        : session.role === 'arpenteur'
+        ? 'Arpenteur Géomètre'
+        : 'Client / Consultant',
+      action: 'AUTH_LOGOUT',
+      actionLabel: `Déconnexion de session (${session.role})`,
+      details: 'Fermeture volontaire de session',
+      severity: 'info'
+    });
+  }
+  await flushAuditLogs();
+  const client = getSupabaseInstance();
+  if (client) {
+    await client.auth.signOut();
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────
- * CREDENTIALS & SECURITY MANAGEMENT (ADMIN ONLY)
+ * CREDENTIALS & SECURITY MANAGEMENT
  * ───────────────────────────────────────────────────────────── */
 
+// Change the password of the signed-in account (admin or arpenteur)
 export async function updateAdminPassword(currentPassword, newPassword) {
   if (!currentPassword || !newPassword) {
     return { success: false, error: 'Veuillez remplir tous les champs de mot de passe.' };
   }
-
-  if (newPassword.length < 6) {
-    return { success: false, error: 'Le nouveau mot de passe doit comporter au moins 6 caractères.' };
+  if (newPassword.length < 10) {
+    return { success: false, error: 'Le nouveau mot de passe doit comporter au moins 10 caractères.' };
   }
 
-  // Verify current password
-  const currentHash = await hashSHA256(currentPassword);
-  const targetHash = localStorage.getItem('geocadastre_admin_password_hash') || ADMIN_PASSWORD_HASH;
+  const client = getSupabaseInstance();
+  const { data: userData } = await client.auth.getUser();
+  const email = userData?.user?.email;
+  if (!email) {
+    return { success: false, error: 'Session expirée. Veuillez vous reconnecter.' };
+  }
 
-  if (currentHash !== targetHash) {
+  // Verify current password before changing it
+  const { error: verifyError } = await client.auth.signInWithPassword({ email, password: currentPassword });
+  if (verifyError) {
     return { success: false, error: 'Le mot de passe actuel est incorrect.' };
   }
 
-  const newHash = await hashSHA256(newPassword);
-  localStorage.setItem('geocadastre_admin_password_hash', newHash);
-  return { success: true, message: 'Mot de passe administrateur mis à jour avec succès.' };
+  const { error } = await client.auth.updateUser({ password: newPassword });
+  if (error) {
+    return { success: false, error: translateAuthError(error) };
+  }
+  return { success: true, message: 'Mot de passe mis à jour avec succès sur tous les appareils.' };
 }
 
+// Change the shared client PIN (admin only, enforced by the database function)
 export async function updateClientPIN(newPin) {
-  if (!newPin || newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+  if (!newPin || !/^\d{6}$/.test(newPin)) {
     return { success: false, error: 'Le code PIN client doit contenir exactement 6 chiffres numériques.' };
   }
-  const hash = await hashSHA256(newPin);
-  localStorage.setItem('geocadastre_client_pin_hash', hash);
+  const client = getSupabaseInstance();
+  const { error } = await client.rpc('admin_set_client_pin', {
+    client_email: CLIENT_ACCOUNT_EMAIL,
+    new_pin: newPin
+  });
+  if (error) {
+    return { success: false, error: error.message || 'Mise à jour du code PIN impossible.' };
+  }
   return { success: true, message: 'Nouveau code PIN Client enregistré avec succès.' };
 }
-
-export function resetAdminLockout() {
-  resetLockout(STORAGE_KEY_ATTEMPTS_ADMIN);
-  return { success: true };
-}
-
-
-

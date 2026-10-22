@@ -1,30 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ShieldCheck, ArrowLeft, Lock, KeyRound, User, Eye, EyeOff, Loader2, ShieldAlert } from 'lucide-react';
-import { loginAdmin, getAdminLockoutStatus } from '../services/authService';
+import { loginAdmin } from '../services/authService';
 
 export default function AdminLoginModal({ onSuccess, onBack }) {
-  const [identifier, setIdentifier] = useState('Bamakakidi@gmail.com');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [lockoutInfo, setLockoutInfo] = useState({ isLocked: false, remainingSeconds: 0 });
-
-  // Real-time lockout countdown loop
-  useEffect(() => {
-    const checkLock = () => {
-      const lock = getAdminLockoutStatus();
-      setLockoutInfo(lock);
-    };
-
-    checkLock();
-    const interval = setInterval(checkLock, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (lockoutInfo.isLocked) return;
     if (!password) {
       setError('Veuillez renseigner le mot de passe.');
       return;
@@ -39,8 +25,6 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
         onSuccess(res.session);
       } else {
         setError(res.error);
-        const lock = getAdminLockoutStatus();
-        setLockoutInfo(lock);
       }
     } catch (err) {
       setError('Une erreur technique est survenue lors de la connexion.');
@@ -91,61 +75,27 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
             </p>
           </div>
 
-          {/* Quick Profile Selectors */}
-          <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
-            <button
-              type="button"
-              onClick={() => {
-                setIdentifier('Bamakakidi@gmail.com');
-                setPassword('');
-                setError('');
-              }}
-              className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                identifier === 'Bamakakidi@gmail.com' || identifier === 'admin'
-                  ? 'bg-[#1a3a5c] text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Administrateur</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIdentifier('arpenteur');
-                setPassword('');
-                setError('');
-              }}
-              className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                identifier === 'arpenteur' || identifier === 'geometre'
-                  ? 'bg-cyan-700 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>Arpenteur Géomètre</span>
-            </button>
-          </div>
-
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Identifiant ou Email */}
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                Identifiant ou Email officiel
+                Email professionnel
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
                 <input
-                  type="text"
+                  type="email"
                   required
+                  autoFocus
+                  autoComplete="username"
                   value={identifier}
-                  disabled={lockoutInfo.isLocked || isLoading}
+                  disabled={isLoading}
                   onChange={(e) => {
                     setIdentifier(e.target.value);
                     setError('');
                   }}
-                  placeholder="Ex: admin ou arpenteur"
+                  placeholder="prenom.nom@exemple.cd"
                   className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 text-xs font-medium focus:outline-none focus:border-[#1a3a5c] focus:bg-white transition-colors"
                 />
               </div>
@@ -154,21 +104,21 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
             {/* Mot de passe */}
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                Mot de passe {identifier === 'arpenteur' ? 'Arpenteur' : 'Administrateur'}
+                Mot de passe
               </label>
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  autoFocus
+                  autoComplete="current-password"
                   value={password}
-                  disabled={lockoutInfo.isLocked || isLoading}
+                  disabled={isLoading}
                   onChange={(e) => {
                     setPassword(e.target.value);
                     setError('');
                   }}
-                  placeholder={identifier === 'arpenteur' ? 'Mot de passe arpenteur...' : 'Mot de passe administrateur...'}
+                  placeholder="Votre mot de passe..."
                   className="w-full pl-9 pr-10 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-gray-800 text-xs font-medium focus:outline-none focus:border-[#1a3a5c] focus:bg-white transition-colors"
                 />
                 <button
@@ -182,15 +132,8 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
               </div>
             </div>
 
-            {/* Lockout Countdown Alert */}
-            {lockoutInfo.isLocked ? (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs text-center flex items-center justify-center gap-2">
-                <ShieldAlert className="w-4 h-4 text-red-500 flex-shrink-0 animate-bounce" />
-                <span>
-                  Sécurité activée : portail verrouillé pendant <strong>{lockoutInfo.remainingSeconds}s</strong>
-                </span>
-              </div>
-            ) : error ? (
+            {/* Error Alert */}
+            {error ? (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs text-center flex items-center justify-center gap-2">
                 <ShieldAlert className="w-4 h-4 text-red-500 flex-shrink-0" />
                 <span>{error}</span>
@@ -200,7 +143,7 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading || lockoutInfo.isLocked || !password}
+              disabled={isLoading || !password}
               className="w-full py-3 bg-[#1a3a5c] hover:bg-[#122840] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
             >
               {isLoading ? (
@@ -211,11 +154,7 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
               ) : (
                 <>
                   <Lock className="w-4 h-4 text-blue-200" />
-                  <span>
-                    {identifier === 'arpenteur' || identifier === 'geometre'
-                      ? "Accéder à l'Espace Arpenteur Géomètre"
-                      : "Accéder à l'Administration SIG"}
-                  </span>
+                  <span>Accéder à l'Espace Professionnel</span>
                 </>
               )}
             </button>
@@ -224,7 +163,7 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
           {/* Security Notice */}
           <div className="pt-2 border-t border-gray-100 flex items-center justify-center gap-2 text-[11px] text-gray-400 text-center">
             <Lock className="w-3.5 h-3.5 text-gray-400" />
-            <span>Sécurité cryptographique SHA-256 • Accès strict réservé aux gestionnaires habilités</span>
+            <span>Comptes nominatifs Supabase • Accès strict réservé aux gestionnaires habilités</span>
           </div>
         </div>
       </div>

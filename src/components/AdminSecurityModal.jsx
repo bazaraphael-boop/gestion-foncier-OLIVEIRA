@@ -1,10 +1,8 @@
 ﻿import React, { useState } from 'react';
 import { ShieldCheck, Key, Lock, CheckCircle2, AlertCircle, X, LogOut, Eye, EyeOff } from 'lucide-react';
-import { updateAdminPassword, updateClientPIN, logout } from '../services/authService';
+import { updateAdminPassword, updateClientPIN, CLIENT_ACCOUNT_EMAIL } from '../services/authService';
 
-export default function AdminSecurityModal({ isOpen, onClose, onLogout }) {
-  if (!isOpen) return null;
-
+export default function AdminSecurityModal({ isOpen, onClose, onLogout, session }) {
   const [activeTab, setActiveTab] = useState('admin_pwd'); // 'admin_pwd' | 'client_pin' | 'session'
 
   // Admin Password state
@@ -21,6 +19,8 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout }) {
   const [clientPinMsg, setClientPinMsg] = useState({ type: '', text: '' });
   const [isClientSubmitting, setIsClientSubmitting] = useState(false);
 
+  if (!isOpen) return null;
+
   // Handle Admin Password Change
   const handleUpdateAdminPassword = async (e) => {
     e.preventDefault();
@@ -31,8 +31,8 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout }) {
       return;
     }
 
-    if (newAdminPwd.length < 6) {
-      setAdminPwdMsg({ type: 'error', text: 'Le nouveau mot de passe doit comporter au moins 6 caractères.' });
+    if (newAdminPwd.length < 10) {
+      setAdminPwdMsg({ type: 'error', text: 'Le nouveau mot de passe doit comporter au moins 10 caractères.' });
       return;
     }
 
@@ -148,7 +148,7 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout }) {
           {activeTab === 'admin_pwd' && (
             <form onSubmit={handleUpdateAdminPassword} className="space-y-4">
               <div className="text-xs text-gray-600 mb-2">
-                Modifiez le mot de passe d'accès administrateur de la Concession Manuel Joaquim d'Oliveira.
+                Modifiez le mot de passe de votre compte. Le changement s'applique immédiatement sur tous les appareils.
               </div>
 
               <div>
@@ -176,7 +176,7 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout }) {
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                  Nouveau mot de passe (min. 6 caractères)
+                  Nouveau mot de passe (min. 10 caractères)
                 </label>
                 <input
                   type={showAdminPwds ? 'text' : 'password'}
@@ -236,7 +236,7 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout }) {
           {activeTab === 'client_pin' && (
             <form onSubmit={handleUpdateClientPIN} className="space-y-4">
               <div className="text-xs text-gray-600 mb-2">
-                Définissez le code PIN à 6 chiffres permettant aux clients et occupants de consulter la carte cadastrale sans droits d'édition.
+                Définissez le code PIN à 6 chiffres permettant aux clients et occupants de consulter la carte cadastrale sans droits d'édition (compte partagé {CLIENT_ACCOUNT_EMAIL}).
               </div>
 
               <div>
@@ -253,7 +253,7 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout }) {
                     const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                     setNewClientPin(val);
                   }}
-                  placeholder="Ex: 123456"
+                  placeholder="6 chiffres"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs tracking-widest font-mono text-center text-base focus:outline-none focus:border-[#1a6e3c]"
                 />
               </div>
@@ -317,15 +317,15 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout }) {
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-slate-200">
                   <span className="text-gray-500">Email officiel associé :</span>
-                  <span className="font-medium text-slate-900">Bamakakidi@gmail.com</span>
+                  <span className="font-medium text-slate-900">{session?.user?.email || '-'}</span>
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-slate-200">
-                  <span className="text-gray-500">Expiration automatique :</span>
-                  <span className="font-medium text-slate-900">30 minutes d'inactivité</span>
+                  <span className="text-gray-500">Authentification :</span>
+                  <span className="font-medium text-slate-900">Supabase Auth (compte nominatif)</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
                   <span className="text-gray-500">Protection brute-force :</span>
-                  <span className="text-emerald-700 font-medium">Active (Verrouillage 60s après 5 échecs)</span>
+                  <span className="text-emerald-700 font-medium">Active (limitation côté serveur Supabase)</span>
                 </div>
               </div>
 

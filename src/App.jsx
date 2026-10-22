@@ -40,7 +40,7 @@ import {
   subscribeToRealtimeParcels
 } from './services/supabaseClient';
 
-import { getCurrentSession, logout } from './services/authService';
+import { getCurrentSession, onSessionChange, logout } from './services/authService';
 import { logActivity } from './services/auditService';
 
 const STORAGE_KEY_PARCELS = 'geocadastre_parcels_v3';
@@ -85,8 +85,9 @@ function getInitialIsetechParcels() {
 }
 
 export default function App() {
-  // Authentication & Role Session State ('admin' | 'client' | null)
-  const [session, setSession] = useState(() => getCurrentSession());
+  // Authentication & Role Session State ('admin' | 'arpenteur' | 'client' | null)
+  const [session, setSession] = useState(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [authView, setAuthView] = useState(() => {
     try {
       const search = window.location.search || '';
@@ -332,17 +333,27 @@ export default function App() {
   const isArpenteur = session?.role === 'arpenteur';
   const isAdmin = session?.role === 'admin';
 
-  // Check active session periodically to handle expiration
+  // Restore the Supabase session on load and react to sign-out / token expiration
   useEffect(() => {
-    const interval = setInterval(() => {
-      const active = getCurrentSession();
-      if (!active && session) {
+    let isMounted = true;
+    getCurrentSession().then((restored) => {
+      if (!isMounted) return;
+      setSession(restored);
+      setIsAuthReady(true);
+    });
+    const unsubscribe = onSessionChange((next) => {
+      if (isMounted && !next) {
         setSession(null);
         setAuthView('portal');
       }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [session]);
+    });
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  const sessionUserId = session?.user?.id;
 
   // Cache version migration to clear obsolete local storage on all devices
   const CACHE_VERSION = 'v7_restore_concession_5326ha';
@@ -355,8 +366,8 @@ export default function App() {
         const geojson = parseKMLToGeoJSON(DEFAULT_KML_DATA);
         const officialPoly = extractMainConcessionPolygon(geojson);
         if (officialPoly) {
+          // Cloud save happens through the admin-only effect below
           setConcessionPolygon(officialPoly);
-          saveConcessionToSupabase(officialPoly);
         }
       }
     } catch (e) {}
@@ -364,8 +375,10 @@ export default function App() {
 
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Automatic Real-Time WebSockets Subscription & Polling Sync
+  // Automatic Real-Time WebSockets Subscription & Polling Sync (signed-in users only:
+  // RLS returns no rows to anonymous visitors, which must not wipe the local cache)
   useEffect(() => {
+    if (!sessionUserId) return;
     let isMounted = true;
 
     const syncLatestData = async () => {
@@ -432,7 +445,7 @@ export default function App() {
         channel.unsubscribe();
       }
     };
-  }, []);
+  }, [sessionUserId]);
 
   const handleManualSync = async () => {
     setIsSyncing(true);
@@ -509,8 +522,8 @@ export default function App() {
     setSelectedParcelIds([]);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout(session);
     setSession(null);
     setAuthView('portal');
     setDrawTrigger(0);
@@ -801,6 +814,15 @@ export default function App() {
       await bulkSaveParcelsToSupabase(globalParcels);
     }
   };
+
+  // --- RESTORING SESSION ---
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen h-[100dvh] w-full bg-slate-900 flex items-center justify-center text-slate-400 text-xs font-sans">
+        Vérification de la session…
+      </div>
+    );
+  }
 
   // --- UNAUTHENTICATED GATE (Portal Selection / Client PIN / Admin Login) ---
   if (!session) {
@@ -1161,6 +1183,7 @@ export default function App() {
               isOpen={isAdminSecurityOpen}
               onClose={() => setIsAdminSecurityOpen(false)}
               onLogout={handleLogout}
+              session={session}
             />
           )}
 
