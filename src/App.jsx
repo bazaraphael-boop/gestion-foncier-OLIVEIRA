@@ -961,6 +961,7 @@ export default function App() {
             selectedParcel={selectedParcel}
             selectedParcelIds={selectedParcelIds}
             onSelectParcel={(p) => setSelectedParcel(p)}
+            onUpdateParcel={handleUpdateParcel}
             onOpenCreateFormWithPoints={handleOpenCreateFormWithPoints}
             activeView={activeView}
             onExploreSubZone={handleExploreSubZone}

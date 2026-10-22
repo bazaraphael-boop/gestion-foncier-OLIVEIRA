@@ -110,6 +110,15 @@ const ISETECH_OUTER_BOUNDARY_COORDS = [
   [-5.914822, 12.3417897]
 ];
 
+// Selected Parcel Borne Icon (draggable for Admin only). Created once per borne:
+// a new icon on each render would reset the marker and cancel an ongoing drag.
+const createParcelBorneIcon = (num, isDraggable) => L.divIcon({
+  className: 'parcel-borne-marker',
+  html: `<div style="background-color: ${isDraggable ? '#EA580C' : '#0F172A'}; color: #FFFFFF; border: 2px solid #FFFFFF; border-radius: 9999px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-family: ui-monospace, monospace; box-shadow: 0 2px 8px rgba(0,0,0,0.55); cursor: ${isDraggable ? 'grab' : 'pointer'};">B${num}</div>`,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12]
+});
+
 // Auto-fit bounds controller with deep zoom for ISETECH sub-parcels
 function MapBoundsController({ concessionPolygon, selectedParcel, activeView, isSidebarCollapsed }) {
   const map = useMap();
@@ -474,6 +483,7 @@ export default function MapView({
   onToggleLocation,
   isLocating,
   onUpdateConcessionPolygon,
+  onUpdateParcel,
   isAdmin = false,
   isArpenteur = false,
   editConcessionTrigger = 0,
@@ -528,6 +538,69 @@ export default function MapView({
     iconSize: [22, 22],
     iconAnchor: [11, 11]
   });
+
+  // Bornes of the selected parcel as [lat, lng] (closing vertex removed)
+  const selectedParcelBornes = useMemo(() => {
+    if (!selectedParcel || selectedParcel.geometry?.type !== 'Polygon') return [];
+    const ring = selectedParcel.geometry.coordinates?.[0] || [];
+    const first = ring[0];
+    const last = ring[ring.length - 1];
+    const isClosed = ring.length > 3 && first[0] === last[0] && first[1] === last[1];
+    return (isClosed ? ring.slice(0, -1) : ring).map(([lng, lat]) => [lat, lng]);
+  }, [selectedParcel]);
+
+  // Live position of bornes while the Admin drags one
+  const [parcelBorneDraft, setParcelBorneDraft] = useState(null);
+  const displayedParcelBornes =
+    parcelBorneDraft && parcelBorneDraft.parcelId === selectedParcel?.id ? parcelBorneDraft.points : selectedParcelBornes;
+  const canMoveParcelBornes = isAdmin && !isVisitorMode && typeof onUpdateParcel === 'function';
+  const parcelBorneCount = selectedParcelBornes.length;
+  const parcelBorneIcons = useMemo(
+    () => Array.from({ length: parcelBorneCount }, (_, i) => createParcelBorneIcon(i + 1, canMoveParcelBornes)),
+    [parcelBorneCount, canMoveParcelBornes]
+  );
+
+  const movedParcelBornes = (index, latlng) =>
+    displayedParcelBornes.map((pt, i) => (i === index ? [latlng.lat, latlng.lng] : pt));
+
+  const handleDragParcelBorne = (index, latlng) => {
+    setParcelBorneDraft({ parcelId: selectedParcel.id, points: movedParcelBornes(index, latlng) });
+  };
+
+  const handleDropParcelBorne = (index, marker) => {
+    const points = movedParcelBornes(index, marker.getLatLng());
+    setParcelBorneDraft(null);
+
+    const ring = points.map(([lat, lng]) => [lng, lat]);
+    ring.push([...ring[0]]);
+    const geometry = { type: 'Polygon', coordinates: [ring] };
+    const newArea = calculateArea(geometry);
+    const lotRef = selectedParcel.properties?.lotNumber || selectedParcel.id;
+
+    const confirmed = window.confirm(
+      `Déplacer la borne B${index + 1} du lot ${lotRef} ?
+
+Nouvelle position : ${points[index][0].toFixed(6)}, ${points[index][1].toFixed(6)}
+Nouvelle superficie : ${newArea.formattedHa} (avant : ${selectedParcel.properties?.formattedHa || '-'})`
+    );
+    if (!confirmed) {
+      marker.setLatLng(selectedParcelBornes[index]);
+      return;
+    }
+
+    onUpdateParcel({
+      ...selectedParcel,
+      properties: {
+        ...selectedParcel.properties,
+        areaSqM: newArea.sqMeters,
+        areaHa: newArea.hectares,
+        formattedSqM: newArea.formattedSqM,
+        formattedHa: newArea.formattedHa,
+        updatedAt: new Date().toISOString().split('T')[0]
+      },
+      geometry
+    });
+  };
 
   const createCoastalLabelIcon = (text, bgColor, textColor, borderColor) => {
     return L.divIcon({
@@ -2240,7 +2313,9 @@ export default function MapView({
           const isIsetechMain = parcel.id === 'parcelle_isetech' || (parcel.properties && parcel.properties.lotNumber === 'LOT-ISETECH');
           const statusKey = (parcel.properties && parcel.properties.status) || 'disponible';
           const colorConfig = STATUS_COLORS[statusKey] || STATUS_COLORS.disponible;
-          const coords = getLeafletCoords(parcel);
+          const coords = isSingleSelected && parcelBorneDraft?.parcelId === parcel.id
+            ? parcelBorneDraft.points
+            : getLeafletCoords(parcel);
 
           if (!coords || coords.length === 0) return null;
 
@@ -2324,6 +2399,28 @@ export default function MapView({
             </Polygon>
           );
         })}
+
+        {/* Bornes of the selected parcel (draggable by Admin only) */}
+        {!isDrawing && !isEditingConcession && displayedParcelBornes.map((pt, i) => (
+          <Marker
+            key={`parcel-borne-${selectedParcel.id}-${i}`}
+            position={pt}
+            icon={parcelBorneIcons[i]}
+            draggable={canMoveParcelBornes}
+            zIndexOffset={1000}
+            eventHandlers={{
+              drag: (e) => handleDragParcelBorne(i, e.target.getLatLng()),
+              dragend: (e) => handleDropParcelBorne(i, e.target)
+            }}
+          >
+            <Tooltip direction="top" offset={[0, -14]} opacity={0.92}>
+              <div className="text-[11px] font-sans text-slate-900 text-center">
+                <div className="font-bold">Borne B{i + 1}{canMoveParcelBornes ? ' • Glisser pour déplacer' : ''}</div>
+                <div className="font-mono">{pt[0].toFixed(6)}, {pt[1].toFixed(6)}</div>
+              </div>
+            </Tooltip>
+          </Marker>
+        ))}
 
         {/* Drawn Points with Numbered Badges & Precision Dragging (Admin & Arpenteur) */}
         {isDrawing && canDrawAndManageParcels && drawnPoints.length > 0 && (
