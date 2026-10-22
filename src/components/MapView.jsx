@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { STATUS_COLORS, ddToDms, fetchElevation, calculateArea } from '../utils/geoUtils';
 import { COASTAL_ZONES, SEPARATION_LINES, getOceanZoneInfo } from '../utils/coastalZones';
+import BorneMoveConfirmModal from './BorneMoveConfirmModal';
 import {
   Layers,
   MapPin,
@@ -567,31 +568,45 @@ export default function MapView({
     setParcelBorneDraft({ parcelId: selectedParcel.id, points: movedParcelBornes(index, latlng) });
   };
 
+  // Borne move awaiting confirmation in BorneMoveConfirmModal
+  const [pendingBorneMove, setPendingBorneMove] = useState(null);
+
   const handleDropParcelBorne = (index, marker) => {
     const points = movedParcelBornes(index, marker.getLatLng());
-    setParcelBorneDraft(null);
+    // Keep the new shape on the map while the Admin confirms
+    setParcelBorneDraft({ parcelId: selectedParcel.id, points });
 
     const ring = points.map(([lat, lng]) => [lng, lat]);
     ring.push([...ring[0]]);
     const geometry = { type: 'Polygon', coordinates: [ring] };
-    const newArea = calculateArea(geometry);
-    const lotRef = selectedParcel.properties?.lotNumber || selectedParcel.id;
 
-    const confirmed = window.confirm(
-      `Déplacer la borne B${index + 1} du lot ${lotRef} ?
+    setPendingBorneMove({
+      parcel: selectedParcel,
+      marker,
+      geometry,
+      borneNumber: index + 1,
+      lotRef: selectedParcel.properties?.lotNumber || selectedParcel.id,
+      before: selectedParcelBornes[index],
+      after: points[index],
+      oldArea: calculateArea(selectedParcel.geometry),
+      newArea: calculateArea(geometry)
+    });
+  };
 
-Nouvelle position : ${points[index][0].toFixed(6)}, ${points[index][1].toFixed(6)}
-Nouvelle superficie : ${newArea.formattedHa} (avant : ${selectedParcel.properties?.formattedHa || '-'})`
-    );
-    if (!confirmed) {
-      marker.setLatLng(selectedParcelBornes[index]);
-      return;
+  const handleCancelBorneMove = () => {
+    if (pendingBorneMove) {
+      pendingBorneMove.marker.setLatLng(pendingBorneMove.before);
     }
+    setParcelBorneDraft(null);
+    setPendingBorneMove(null);
+  };
 
+  const handleConfirmBorneMove = () => {
+    const { parcel, geometry, newArea } = pendingBorneMove;
     onUpdateParcel({
-      ...selectedParcel,
+      ...parcel,
       properties: {
-        ...selectedParcel.properties,
+        ...parcel.properties,
         areaSqM: newArea.sqMeters,
         areaHa: newArea.hectares,
         formattedSqM: newArea.formattedSqM,
@@ -600,6 +615,8 @@ Nouvelle superficie : ${newArea.formattedHa} (avant : ${selectedParcel.propertie
       },
       geometry
     });
+    setParcelBorneDraft(null);
+    setPendingBorneMove(null);
   };
 
   const createCoastalLabelIcon = (text, bgColor, textColor, borderColor) => {
@@ -2406,7 +2423,7 @@ Nouvelle superficie : ${newArea.formattedHa} (avant : ${selectedParcel.propertie
             key={`parcel-borne-${selectedParcel.id}-${i}`}
             position={pt}
             icon={parcelBorneIcons[i]}
-            draggable={canMoveParcelBornes}
+            draggable={canMoveParcelBornes && !pendingBorneMove}
             zIndexOffset={1000}
             eventHandlers={{
               drag: (e) => handleDragParcelBorne(i, e.target.getLatLng()),
@@ -2543,6 +2560,12 @@ Nouvelle superficie : ${newArea.formattedHa} (avant : ${selectedParcel.propertie
           </>
         )}
       </MapContainer>
+
+      <BorneMoveConfirmModal
+        move={pendingBorneMove}
+        onConfirm={handleConfirmBorneMove}
+        onCancel={handleCancelBorneMove}
+      />
     </div>
   );
 }
