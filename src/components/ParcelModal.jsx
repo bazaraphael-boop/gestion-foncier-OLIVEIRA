@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import QRCode from 'qrcode';
 import { logActivity } from '../services/auditService';
-import { STATUS_COLORS, ddToDms, exportParcelToCSV, calculateArea } from '../utils/geoUtils';
+import { STATUS_COLORS, ddToDms, exportParcelToCSV, calculateArea, getParcelBornes, getSideLengths, formatMeters } from '../utils/geoUtils';
 import { getOceanZoneInfo } from '../utils/coastalZones';
 import OfficialHeaderBanner from './OfficialHeaderBanner';
 import DeleteConfirmModal from './DeleteConfirmModal';
+import { SituationPlan, BornagePlan } from './ParcelPlans';
 import {
   X,
   User,
@@ -26,7 +28,7 @@ import {
   QrCode
 } from 'lucide-react';
 
-export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteParcel, isVisitorMode, isArpenteur }) {
+export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteParcel, isVisitorMode, isArpenteur, allParcels = [], concessionPolygon }) {
   const [isEditing, setIsEditing] = useState(false);
   const [showReleve, setShowReleve] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -87,7 +89,10 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
   const colorConfig = STATUS_COLORS[parcel.properties.status] || STATUS_COLORS.disponible;
   const areaInfo = calculateArea(parcel);
   const oceanInfo = getOceanZoneInfo(parcel);
-  const vertices = parcel.geometry.coordinates[0];
+  // Bornes without the closing vertex (which repeats B1)
+  const bornes = getParcelBornes(parcel);
+  const sideLengths = getSideLengths(parcel);
+  const perimeter = sideLengths.reduce((sum, m) => sum + m, 0);
 
   const handleVertexChange = (index, field, value) => {
     const newVerts = [...editVertices];
@@ -198,7 +203,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
       action: 'PARCEL_EXPORT',
       actionLabel: `Export CSV des sommets du lot ${lotRef}`,
       target: lotRef,
-      details: `${vertices.length} sommets géodésiques exportés en format CSV`,
+      details: `${bornes.length} bornes géodésiques exportées en format CSV`,
       severity: 'info'
     });
   };
@@ -252,9 +257,9 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         lotNumber={parcel.properties.lotNumber}
       />
 
-      {/* Official Printable Land Relevé Parcellaire Overlay */}
-      {showReleve && (
-        <div className="fixed inset-0 z-[3000] bg-slate-900/60 backdrop-blur-xs flex justify-center p-4 overflow-y-auto font-sans">
+      {/* Official Printable Land Relevé Parcellaire Overlay (rendered at body level so it prints alone) */}
+      {showReleve && createPortal(
+        <div className="releve-print-overlay fixed inset-0 z-[3000] bg-slate-900/60 backdrop-blur-xs flex justify-center p-4 overflow-y-auto font-sans">
           <div className="bg-white text-slate-900 w-full max-w-3xl rounded-lg shadow-xl my-auto print:m-0 print:p-0 print:shadow-none print:w-full print:max-w-none overflow-hidden border border-slate-200">
             <div className="flex justify-between items-center px-6 py-3 border-b border-slate-200 bg-slate-50 print:hidden">
               <div className="flex items-center gap-2 font-bold text-slate-800 text-xs">
@@ -326,6 +331,32 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 </div>
               </div>
 
+              {/* Plans: situation in the concession + bornage / morcellement */}
+              <div className="releve-plans grid grid-cols-[1fr_2fr] items-start gap-3">
+                <figure className="border border-slate-300 rounded overflow-hidden bg-white">
+                  <figcaption className="px-2.5 py-1.5 bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wider text-slate-800">
+                    Plan de situation
+                  </figcaption>
+                  <SituationPlan parcel={parcel} parcels={allParcels} concessionPolygon={concessionPolygon} />
+                  <div className="px-2.5 py-1.5 border-t border-slate-200 text-[9.5px] text-slate-600 flex flex-wrap gap-x-3 gap-y-0.5">
+                    <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 bg-red-600" /> Lot {parcel.properties.lotNumber}</span>
+                    <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 bg-slate-300 border border-slate-400" /> Autres lots</span>
+                    <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 bg-amber-100 border border-dashed border-amber-600" /> Concession</span>
+                  </div>
+                </figure>
+                <figure className="border border-slate-300 rounded overflow-hidden bg-white">
+                  <figcaption className="px-2.5 py-1.5 bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wider text-slate-800">
+                    Plan de bornage &amp; morcellement
+                  </figcaption>
+                  <BornagePlan parcel={parcel} parcels={allParcels} />
+                  <div className="px-2.5 py-1.5 border-t border-slate-200 text-[9.5px] text-slate-600 flex flex-wrap gap-x-3 gap-y-0.5">
+                    <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-orange-600" /> Bornes B1–B{bornes.length}</span>
+                    <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 bg-slate-200 border border-slate-400" /> Lots voisins</span>
+                    <span>Périmètre : <strong className="text-slate-800">{formatMeters(perimeter)}</strong></span>
+                  </div>
+                </figure>
+              </div>
+
               {/* Dispositif Anti-Fraude avec QR Code Scannable */}
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-300 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
@@ -363,29 +394,39 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
 
               <div>
                 <h3 className="font-bold text-slate-900 text-[11px] uppercase tracking-wider mb-1.5">
-                  Coordonnées Géodésiques des Sommets GPS (WGS84)
+                  Coordonnées Géodésiques des Bornes (WGS84)
                 </h3>
                 <table className="w-full text-left text-[11px] border border-slate-300 font-mono">
                   <thead className="bg-slate-100 text-slate-700">
                     <tr>
-                      <th className="p-1.5 border border-slate-300">Sommet #</th>
+                      <th className="p-1.5 border border-slate-300">Borne</th>
                       <th className="p-1.5 border border-slate-300">Latitude (DD)</th>
                       <th className="p-1.5 border border-slate-300">Longitude (DD)</th>
                       <th className="p-1.5 border border-slate-300">Format DMS</th>
+                      <th className="p-1.5 border border-slate-300 text-right">Côté vers borne suivante</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {vertices.map((pt, i) => (
+                    {bornes.map((pt, i) => (
                       <tr key={i} className="border-b border-slate-200">
-                        <td className="p-1.5 border border-slate-300 font-bold">P{i + 1}</td>
+                        <td className="p-1.5 border border-slate-300 font-bold">B{i + 1}</td>
                         <td className="p-1.5 border border-slate-300">{pt[1].toFixed(6)}</td>
                         <td className="p-1.5 border border-slate-300">{pt[0].toFixed(6)}</td>
                         <td className="p-1.5 border border-slate-300 text-[10px]">
                           {ddToDms(pt[1], true)} | {ddToDms(pt[0], false)}
                         </td>
+                        <td className="p-1.5 border border-slate-300 text-right whitespace-nowrap">
+                          B{i + 1} → B{(i + 1) % bornes.length + 1} : <strong>{formatMeters(sideLengths[i])}</strong>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot className="bg-slate-50">
+                    <tr>
+                      <td colSpan={4} className="p-1.5 border border-slate-300 font-bold text-right uppercase text-[10px]">Périmètre total</td>
+                      <td className="p-1.5 border border-slate-300 text-right font-bold">{formatMeters(perimeter)}</td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
 
@@ -414,7 +455,8 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Main Sidebar Modal */}
@@ -522,7 +564,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
               <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-2.5">
                 <div className="flex justify-between items-center">
                   <div className="text-xs text-slate-900 font-bold flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-emerald-600" /> Sommets GPS ({vertices.length})
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600" /> Bornes GPS ({bornes.length})
                   </div>
                   <div className="flex gap-1">
                     <button
@@ -551,9 +593,9 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-slate-800">
-                      {vertices.map((pt, i) => (
+                      {bornes.map((pt, i) => (
                         <tr key={i} className="hover:bg-slate-50">
-                          <td className="p-1.5 font-bold text-slate-500">P{i + 1}</td>
+                          <td className="p-1.5 font-bold text-slate-500">B{i + 1}</td>
                           <td className="p-1.5">{pt[1].toFixed(6)}</td>
                           <td className="p-1.5">{pt[0].toFixed(6)}</td>
                         </tr>
@@ -627,14 +669,14 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
               <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-slate-800 text-xs">
-                    Édition des Sommets GPS ({editVertices.length} Sommets)
+                    Édition des Bornes GPS ({editVertices.length} bornes)
                   </span>
                   <button
                     type="button"
                     onClick={handleAddVertexField}
                     className="text-emerald-700 text-[11px] font-bold flex items-center gap-1 hover:underline"
                   >
-                    <Plus className="w-3 h-3" /> Sommet P{editVertices.length + 1}
+                    <Plus className="w-3 h-3" /> Borne B{editVertices.length + 1}
                   </button>
                 </div>
 
@@ -642,7 +684,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                   {editVertices.map((vt, idx) => (
                     <div key={idx} className="flex items-center gap-1.5">
                       <span className="font-bold text-slate-500 w-6 text-right font-mono text-[11px]">
-                        P{idx + 1}.
+                        B{idx + 1}.
                       </span>
                       <input
                         type="text"

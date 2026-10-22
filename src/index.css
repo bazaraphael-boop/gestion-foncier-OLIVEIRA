@@ -145,3 +145,41 @@
 .leaflet-control-attribution a {
   color: #38bdf8 !important;
 }
+
+/* Relevé Parcellaire: print only the official sheet (A4), with its colours and plans */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  body:has(.releve-print-overlay) > #root {
+    display: none !important;
+  }
+
+  .releve-print-overlay {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+  }
+
+  .releve-print-overlay * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .releve-plans figure,
+  .releve-print-overlay table {
+    break-inside: avoid;
+  }
+}

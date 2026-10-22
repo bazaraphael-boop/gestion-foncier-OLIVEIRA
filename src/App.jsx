@@ -1121,6 +1121,8 @@ export default function App() {
               onDeleteParcel={handleDeleteParcel}
               isVisitorMode={false}
               isArpenteur={isArpenteur}
+              allParcels={currentParcels}
+              concessionPolygon={concessionPolygon}
             />
           )}
 

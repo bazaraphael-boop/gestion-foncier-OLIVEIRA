@@ -189,16 +189,38 @@ export function ddToDms(dd, isLatitude = true) {
   return `${degrees}°${minutes}'${seconds}" ${direction}`;
 }
 
-export function exportParcelToCSV(parcel) {
-  const coords = parcel.geometry.coordinates[0];
-  let csv = 'Index,Latitude,Longitude,Latitude_DMS,Longitude_DMS\n';
+// Bornes of a polygon ring as [lng, lat], without the closing vertex that repeats the first one
+export function getParcelBornes(parcelOrGeometry) {
+  const geometry = parcelOrGeometry?.geometry || parcelOrGeometry;
+  const ring = geometry?.type === 'Polygon' ? geometry.coordinates?.[0] || [] : [];
+  if (ring.length < 2) return ring;
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  return first[0] === last[0] && first[1] === last[1] ? ring.slice(0, -1) : ring;
+}
 
-  coords.forEach((pt, idx) => {
+// Side lengths between consecutive bornes, in meters
+export function getSideLengths(parcel) {
+  const bornes = getParcelBornes(parcel);
+  return bornes.map((a, i) => turf.distance(turf.point(a), turf.point(bornes[(i + 1) % bornes.length]), { units: 'meters' }));
+}
+
+export function formatMeters(m) {
+  return m >= 1000
+    ? `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(m / 1000)} km`
+    : `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(m)} m`;
+}
+
+export function exportParcelToCSV(parcel) {
+  const bornes = getParcelBornes(parcel);
+  let csv = 'Borne,Latitude,Longitude,Latitude_DMS,Longitude_DMS\n';
+
+  bornes.forEach((pt, idx) => {
     const lng = pt[0];
     const lat = pt[1];
     const latDms = ddToDms(lat, true);
     const lngDms = ddToDms(lng, false);
-    csv += `${idx + 1},${lat},${lng},"${latDms}","${lngDms}"\n`;
+    csv += `B${idx + 1},${lat},${lng},"${latDms}","${lngDms}"\n`;
   });
 
   return csv;
