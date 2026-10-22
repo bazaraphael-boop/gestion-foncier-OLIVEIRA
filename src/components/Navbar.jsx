@@ -13,13 +13,20 @@ import {
   LogOut,
   Key,
   Navigation,
-  SlidersHorizontal,
   RotateCcw,
   History,
   Pencil,
-  MapPin
+  PenTool,
+  Menu
 } from 'lucide-react';
 import { exportParcelsToGeoJSON, calculateArea } from '../utils/geoUtils';
+
+// Shared button vocabulary for the navy top bar
+const GHOST_BTN =
+  'h-9 px-2.5 rounded-lg text-[13px] font-medium text-white/85 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50';
+const MENU_ITEM =
+  'w-full text-left px-2.5 py-2 rounded-md flex items-center gap-2.5 text-[13px] font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer';
+const MENU_ICON = 'w-4 h-4 text-slate-400 flex-shrink-0';
 
 export default function Navbar({
   onOpenCreateForm,
@@ -30,8 +37,6 @@ export default function Navbar({
   concessionPolygon,
   onResetConcession,
   onClearAllData,
-  isVisitorMode,
-  onToggleVisitorMode,
   onOpenSupabaseModal,
   onOpenSecurityModal,
   onOpenAuditModal,
@@ -43,7 +48,9 @@ export default function Navbar({
   locationZoneInfo,
   isArpenteur,
   onStartDrawing,
-  onStartEditConcession
+  onStartEditConcession,
+  activeView,
+  onSelectView
 }) {
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -56,11 +63,16 @@ export default function Navbar({
         setShowToolsDropdown(false);
       }
     };
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') setShowToolsDropdown(false);
+    };
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
     };
   }, [showToolsDropdown]);
 
@@ -75,228 +87,176 @@ export default function Navbar({
   };
 
   const concessionArea = concessionPolygon ? calculateArea(concessionPolygon) : { hectares: 5326.15, formattedHa: '5 326,15 ha' };
-  const totalConcessionHa = (concessionArea && concessionArea.hectares) ? concessionArea.hectares : 5326.15;
 
-  let occupiedHa = 0;
-  parcels.forEach((p) => {
-    const area = p.properties.areaHa || calculateArea(p).hectares;
-    if (p.properties.status === 'occupe') {
-      occupiedHa += area;
-    }
-  });
+  const runAndClose = (fn) => () => {
+    if (fn) fn();
+    setShowToolsDropdown(false);
+  };
 
-  const availableHa = Math.max(0, totalConcessionHa - occupiedHa);
-  const occupiedPct = totalConcessionHa > 0 ? ((occupiedHa / totalConcessionHa) * 100).toFixed(0) : '0';
-  const availablePct = totalConcessionHa > 0 ? ((availableHa / totalConcessionHa) * 100).toFixed(0) : '0';
+  const views = [
+    { id: 'global', label: 'Concession', short: 'Concession', detail: concessionArea.formattedHa },
+    { id: 'isetech', label: 'Zone ISETECH', short: 'ISETECH', detail: '1 002,61 ha' }
+  ];
 
   return (
-    <header className="bg-slate-950/95 backdrop-blur-md border-b border-slate-800/80 text-white w-full sticky top-0 z-[1100] shadow-md select-none pt-[env(safe-area-inset-top,0px)]">
-      <div className="h-13 sm:h-14 px-3 sm:px-5 flex items-center justify-between gap-3">
-        {/* Brand & Domaine Title - Respirant et lisible */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white flex-shrink-0 shadow-sm border border-emerald-400/30">
-            <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-50" />
+    <header className="bg-brand-900 text-white w-full sticky top-0 z-[1100] select-none pt-[env(safe-area-inset-top,0px)] border-b border-white/10">
+      <div className="h-14 px-3 sm:px-4 flex items-center gap-3">
+        {/* Identity */}
+        <div className="flex items-center gap-2.5 min-w-0 flex-shrink">
+          <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+            <ShieldCheck className="w-5 h-5 text-white" />
           </div>
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <h1 className="font-bold text-xs sm:text-sm text-slate-100 tracking-tight truncate">
-                <span className="sm:hidden">Concession Oliveira</span>
-                <span className="hidden sm:inline">Concession Manuel Joaquim d'Oliveira</span>
-              </h1>
-              {isArpenteur ? (
-                <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 px-1.5 py-0.2 rounded-full flex-shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                  <span>Arpenteur</span>
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded-full flex-shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                  <span>Admin</span>
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-slate-400 font-medium truncate">
-              <span className="font-mono text-slate-400">MUANDA</span>
-              <span className="text-slate-600">•</span>
-              <span className="font-mono text-emerald-400 font-semibold">{concessionArea.formattedHa}</span>
-            </div>
+          <div className="min-w-0 hidden sm:block">
+            <h1 className="font-semibold text-sm leading-tight truncate">
+              <span className="lg:hidden">Concession Oliveira</span>
+              <span className="hidden lg:inline">Concession Manuel Joaquim d&apos;Oliveira</span>
+            </h1>
+            <p className="text-[11px] leading-tight text-brand-200 truncate">
+              Cadastre numérique • {isArpenteur ? 'Arpenteur géomètre' : 'Administrateur'}
+            </p>
           </div>
         </div>
 
-        {/* Statut Concession Discret (affiché uniquement sur très grands écrans) */}
-        <div className="hidden 2xl:flex items-center gap-2.5 px-3 py-1 rounded-full bg-slate-900/70 border border-slate-800 text-[11px] text-slate-400">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-          <span>Disponible : <strong className="text-emerald-300 font-mono font-medium">{availableHa.toFixed(0)} ha ({availablePct}%)</strong></span>
-          <span className="text-slate-700">•</span>
-          <span>Occupé : <strong className="text-rose-300 font-mono font-medium">{occupiedHa.toFixed(0)} ha ({occupiedPct}%)</strong></span>
-        </div>
+        {/* View switcher: whole concession or ISETECH sub-cadastre */}
+        {onSelectView && (
+          <div role="tablist" aria-label="Zone affichée" className="flex items-center p-0.5 rounded-lg bg-white/10 sm:ml-2 flex-shrink-0">
+            {views.map((v) => {
+              const isActive = activeView === v.id;
+              return (
+                <button
+                  key={v.id}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => !isActive && onSelectView(v.id)}
+                  className={`h-8 px-3 rounded-md text-[13px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    isActive ? 'bg-white text-brand-900 shadow-sm' : 'text-white/80 hover:text-white'
+                  }`}
+                  title={`${v.label} (${v.detail})`}
+                >
+                  <span className="md:hidden">{v.short}</span>
+                  <span className="hidden md:inline">{v.label}</span>
+                  <span className={`hidden xl:inline text-[11px] ${isActive ? 'text-slate-500' : 'text-white/55'}`}>{v.detail}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-        {/* Actions Hiérarchisées & Épurées */}
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-          {/* Action Primaire : Nouvelle Parcelle (Desktop/Tablette uniquement, sur mobile disponible via barre inférieure) */}
+        <div className="flex-1" />
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={onOpenCreateForm}
-            className="hidden sm:flex px-2.5 sm:px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-lg text-xs font-semibold items-center gap-1.5 transition-all shadow-sm shadow-emerald-950/40 cursor-pointer"
+            className="hidden sm:flex h-9 px-3.5 rounded-lg bg-white text-brand-900 hover:bg-brand-50 text-[13px] font-semibold items-center gap-1.5 transition-colors cursor-pointer mr-1"
             title="Ajouter une nouvelle parcelle au cadastre"
           >
             <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Nouvelle Parcelle</span>
+            <span>Nouvelle parcelle</span>
           </button>
 
-          {/* Action Tracer : Tracé interactif sur la carte / GPS */}
           {onStartDrawing && (
-            <button
-              onClick={onStartDrawing}
-              className="hidden sm:flex px-2.5 sm:px-3 py-1.5 bg-slate-900/90 hover:bg-slate-800 active:scale-95 text-emerald-300 hover:text-emerald-200 border border-emerald-500/50 rounded-lg text-xs font-semibold items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-              title="Tracer et marquer les bornes directement sur la carte / GPS"
-            >
-              <Pencil className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden md:inline">Tracer Parcelle</span>
+            <button onClick={onStartDrawing} className={`hidden sm:flex ${GHOST_BTN}`} title="Tracer une parcelle sur la carte ou au GPS">
+              <Pencil className="w-4 h-4" />
+              <span className="hidden lg:inline">Tracer</span>
             </button>
           )}
 
-          {/* Outil Rapide : Localiser GPS (Desktop/Tablette uniquement, sur mobile dans la barre inférieure) */}
           {onToggleLocation && (
             <button
               onClick={onToggleLocation}
-              className={`hidden sm:flex p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-medium items-center gap-1.5 transition-all active:scale-95 cursor-pointer border ${
-                isLocating
-                  ? 'bg-cyan-950/80 text-cyan-300 border-cyan-500/60 shadow-xs shadow-cyan-900/30'
-                  : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border-slate-800 hover:border-slate-700'
-              }`}
+              className={`hidden sm:flex ${GHOST_BTN} ${isLocating ? 'bg-white/15 text-white' : ''}`}
+              aria-pressed={!!isLocating}
               title={isLocating ? 'Désactiver le suivi GPS' : 'Activer la géolocalisation GPS en direct'}
             >
-              <div className="relative flex items-center justify-center">
-                <Navigation className={`w-3.5 h-3.5 ${isLocating ? 'text-cyan-400 animate-pulse' : 'text-slate-400'}`} />
-                {isLocating && (
-                  <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
-                )}
-              </div>
-              <span className="hidden md:inline font-sans">
+              <Navigation className="w-4 h-4" />
+              <span className="hidden lg:inline">
                 {isLocating && locationZoneInfo ? locationZoneInfo.shortName : 'Localiser'}
               </span>
             </button>
           )}
 
-          {/* Outil Rapide : Actualiser Cloud (Bouton icône compact) */}
           {onSync && (
-            <button
-              onClick={onSync}
-              disabled={isSyncing}
-              className={`w-8 h-8 sm:w-8.5 sm:h-8.5 flex items-center justify-center bg-slate-900/80 hover:bg-slate-800 text-emerald-400 border border-slate-800 hover:border-slate-700 rounded-lg transition-all active:scale-95 cursor-pointer disabled:opacity-50`}
-              title="Synchroniser immédiatement avec la base Cloud"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-emerald-300' : 'text-emerald-400'}`} />
+            <button onClick={onSync} disabled={isSyncing} className={GHOST_BTN} title="Synchroniser avec la base Cloud" aria-label="Synchroniser">
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
             </button>
           )}
 
-          {/* Menu Outils Unifié & Structuré */}
+          {/* Tools menu */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setShowToolsDropdown(!showToolsDropdown)}
-              className={`px-2 sm:px-2.5 py-1.5 bg-slate-900/80 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-slate-700 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
-                showToolsDropdown ? 'border-slate-600 bg-slate-800 text-white' : ''
-              }`}
-              title="Outils, imports et configuration système"
+              className={`${GHOST_BTN} ${showToolsDropdown ? 'bg-white/15 text-white' : ''}`}
+              aria-expanded={showToolsDropdown}
+              aria-haspopup="menu"
+              title="Imports, exports et administration"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+              <Menu className="w-4 h-4" />
               <span className="hidden sm:inline">Outils</span>
-              <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform duration-150 ${showToolsDropdown ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${showToolsDropdown ? 'rotate-180' : ''}`} />
             </button>
 
             {showToolsDropdown && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-slate-900/95 backdrop-blur-lg border border-slate-700/80 rounded-xl shadow-2xl p-1.5 z-[1200] text-xs font-sans animate-in fade-in slide-in-from-top-2 duration-150">
-                {/* Section Données & Fichiers */}
-                <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Données &amp; Fichiers
-                </div>
-                <button
-                  onClick={() => { onOpenGeoJsonImporter(); setShowToolsDropdown(false); }}
-                  className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-cyan-300 hover:text-cyan-200 rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                >
-                  <FileCode2 className="w-4 h-4 text-cyan-400" />
-                  <span>Importer GeoJSON</span>
+              <div
+                role="menu"
+                className="absolute right-0 top-full mt-2 w-72 bg-white text-slate-800 border border-slate-200 rounded-xl shadow-[0_12px_32px_-8px_rgba(15,37,64,0.35)] p-1.5 z-[1200] animate-in fade-in slide-in-from-top-1 duration-150"
+              >
+                <div className="px-2.5 pt-1.5 pb-1 text-[11px] font-semibold text-slate-400">Données</div>
+                <button role="menuitem" onClick={runAndClose(onOpenGeoJsonImporter)} className={MENU_ITEM}>
+                  <FileCode2 className={MENU_ICON} />
+                  <span>Importer des parcelles (GeoJSON)</span>
                 </button>
-                <button
-                  onClick={() => { onOpenKmlParcelImporter(); setShowToolsDropdown(false); }}
-                  className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-emerald-300 hover:text-emerald-200 rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                >
-                  <FileCode className="w-4 h-4 text-emerald-400" />
-                  <span>Importer Parcelles KML</span>
+                <button role="menuitem" onClick={runAndClose(onOpenKmlParcelImporter)} className={MENU_ITEM}>
+                  <FileCode className={MENU_ICON} />
+                  <span>Importer des parcelles (KML)</span>
                 </button>
                 {!isArpenteur && (
-                  <button
-                    onClick={() => { onOpenKmlImporter(); setShowToolsDropdown(false); }}
-                    className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-200 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                  >
-                    <Upload className="w-4 h-4 text-slate-400" />
-                    <span>Importer Périmètre KML</span>
+                  <button role="menuitem" onClick={runAndClose(onOpenKmlImporter)} className={MENU_ITEM}>
+                    <Upload className={MENU_ICON} />
+                    <span>Importer le périmètre (KML)</span>
                   </button>
                 )}
-                <button
-                  onClick={() => { handleExportGeoJSON(); setShowToolsDropdown(false); }}
-                  className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-200 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                >
-                  <Download className="w-4 h-4 text-slate-400" />
-                  <span>Exporter le Cadastre (GeoJSON)</span>
+                <button role="menuitem" onClick={runAndClose(handleExportGeoJSON)} className={MENU_ITEM}>
+                  <Download className={MENU_ICON} />
+                  <span>Exporter le cadastre (GeoJSON)</span>
                 </button>
 
-                {/* Section Système & Sécurité (Admin uniquement) */}
                 {!isArpenteur && (
                   <>
-                    <div className="border-t border-slate-800/80 my-1 pt-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Système &amp; Sécurité
-                    </div>
-                    <button
-                      onClick={() => { onOpenAuditModal && onOpenAuditModal(); setShowToolsDropdown(false); }}
-                      className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-cyan-300 hover:text-cyan-200 rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                    >
-                      <History className="w-4 h-4 text-cyan-400" />
-                      <span>Journal d'Audit &amp; Traçabilité</span>
+                    <div className="h-px bg-slate-100 my-1.5" />
+                    <div className="px-2.5 pt-0.5 pb-1 text-[11px] font-semibold text-slate-400">Administration</div>
+                    <button role="menuitem" onClick={runAndClose(onOpenAuditModal)} className={MENU_ITEM}>
+                      <History className={MENU_ICON} />
+                      <span>Journal d&apos;audit</span>
                     </button>
-                    <button
-                      onClick={() => { onOpenSecurityModal && onOpenSecurityModal(); setShowToolsDropdown(false); }}
-                      className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-200 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                    >
-                      <Key className="w-4 h-4 text-amber-400" />
-                      <span>Sécurité &amp; Mot de passe</span>
+                    <button role="menuitem" onClick={runAndClose(onOpenSecurityModal)} className={MENU_ITEM}>
+                      <Key className={MENU_ICON} />
+                      <span>Mot de passe &amp; session</span>
                     </button>
-                    <button
-                      onClick={() => { onOpenSupabaseModal(); setShowToolsDropdown(false); }}
-                      className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-200 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                    >
-                      <Cloud className="w-4 h-4 text-teal-400" />
-                      <span>Configuration Cloud (Supabase)</span>
+                    <button role="menuitem" onClick={runAndClose(onOpenSupabaseModal)} className={MENU_ITEM}>
+                      <Cloud className={MENU_ICON} />
+                      <span>Configuration Cloud</span>
                     </button>
-                  </>
-                )}
 
-                {/* Section Maintenance Cadastrale (Admin uniquement) */}
-                {!isArpenteur && (
-                  <>
-                    <div className="border-t border-slate-800/80 my-1 pt-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Maintenance
-                    </div>
-                    <button
-                      onClick={() => { onStartEditConcession && onStartEditConcession(); setShowToolsDropdown(false); }}
-                      className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-amber-300 hover:text-amber-200 rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                    >
-                      <MapPin className="w-4 h-4 text-amber-400" />
-                      <span>Éditer les Bornes de la Concession</span>
+                    <div className="h-px bg-slate-100 my-1.5" />
+                    <div className="px-2.5 pt-0.5 pb-1 text-[11px] font-semibold text-slate-400">Périmètre de la concession</div>
+                    <button role="menuitem" onClick={runAndClose(onStartEditConcession)} className={MENU_ITEM}>
+                      <PenTool className={MENU_ICON} />
+                      <span>Éditer les bornes du périmètre</span>
                     </button>
-                    <button
-                      onClick={() => { onResetConcession && onResetConcession(); setShowToolsDropdown(false); }}
-                      className="w-full text-left px-2.5 py-2 hover:bg-slate-800/80 text-slate-300 hover:text-white rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
-                    >
-                      <RotateCcw className="w-4 h-4 text-slate-400" />
-                      <span>Réinitialiser Tracé Périmètre</span>
+                    <button role="menuitem" onClick={runAndClose(onResetConcession)} className={MENU_ITEM}>
+                      <RotateCcw className={MENU_ICON} />
+                      <span>Rétablir le tracé officiel</span>
                     </button>
+
+                    <div className="h-px bg-slate-100 my-1.5" />
                     <button
-                      onClick={() => { onClearAllData(); setShowToolsDropdown(false); }}
-                      className="w-full text-left px-2.5 py-2 hover:bg-rose-950/50 text-rose-400 hover:text-rose-300 rounded-lg flex items-center gap-2.5 font-medium transition-colors cursor-pointer"
+                      role="menuitem"
+                      onClick={runAndClose(onClearAllData)}
+                      className="w-full text-left px-2.5 py-2 rounded-md flex items-center gap-2.5 text-[13px] font-medium text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
                     >
-                      <Trash2 className="w-4 h-4 text-rose-500" />
-                      <span>Vider toutes les parcelles</span>
+                      <Trash2 className="w-4 h-4 text-rose-500 flex-shrink-0" />
+                      <span>Vider toutes les parcelles…</span>
                     </button>
                   </>
                 )}
@@ -304,22 +264,14 @@ export default function Navbar({
             )}
           </div>
 
-          {/* Séparateur discret */}
-          <div className="h-5 w-px bg-slate-800/90 hidden sm:block mx-0.5"></div>
+          <div className="h-6 w-px bg-white/15 mx-1 hidden sm:block" />
 
-          {/* Déconnexion Épurée & Discrète */}
-          <button
-            onClick={onLogout}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 text-slate-400 hover:text-rose-300 hover:bg-rose-950/40 border border-transparent hover:border-rose-900/50 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer"
-            title={isArpenteur ? "Fermer la session Arpenteur Géomètre" : "Fermer la session Administrateur"}
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Déconnexion</span>
+          <button onClick={onLogout} className={GHOST_BTN} title="Se déconnecter" aria-label="Se déconnecter">
+            <LogOut className="w-4 h-4" />
+            <span className="hidden lg:inline">Déconnexion</span>
           </button>
         </div>
       </div>
     </header>
   );
 }
-
-

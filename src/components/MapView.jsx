@@ -8,41 +8,32 @@ import BorneMoveConfirmModal from './BorneMoveConfirmModal';
 import {
   Layers,
   MapPin,
-  Eye,
   Waves,
-  Compass,
   Pencil,
   Check,
   X,
-  Camera,
   Loader2,
   Navigation,
-  Layers3,
-  ArrowLeft,
   ChevronDown,
   Globe,
   ZoomIn,
   ZoomOut,
   Route,
   PanelRightOpen,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Wrench,
-  Percent,
   Sparkles,
   Radio,
   Download,
-  ChevronUp,
-  ChevronLeft,
-  ChevronRight,
-  Maximize2,
   Palette,
   Satellite,
   Mountain,
   RotateCcw,
   Crosshair,
   Trash2,
-  Save
+  Save,
+  Map as MapIcon,
+  PenTool,
+  LocateFixed,
+  Hexagon
 } from 'lucide-react';
 import * as turf from '@turf/turf';
 
@@ -334,129 +325,210 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType, onCenterChange, on
     map.zoomOut();
   };
 
-  // Pan Navigation Movement Wheel Handlers
-  const handlePan = (dx, dy) => {
-    map.panBy([dx, dy], { animate: true, duration: 0.3 });
-  };
-
-  const handleCenterView = () => {
-    map.setView([-5.913, 12.335], currentZoom);
-  };
-
   return (
     <>
-      {/* Sleek Integrated Bottom HUD Bar */}
-      <div className="absolute bottom-16 md:bottom-2 left-2 sm:left-4 z-[1000] bg-white/95 backdrop-blur-md px-2 sm:px-3 py-1 rounded border border-slate-200 text-[10px] sm:text-[11px] font-mono text-slate-700 flex items-center justify-between shadow-xs select-none pointer-events-auto gap-2">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="flex items-center gap-1 text-slate-900 font-bold">
-            <Compass className="w-3.5 h-3.5 text-emerald-600" />
-            <span>SIG</span>
-          </div>
-
-          <div className="hidden sm:flex items-center gap-1.5 bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200 font-semibold text-[10px]">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <Radio className="w-3 h-3 text-emerald-600" />
-            <span>Flux Auto-Sync</span>
-          </div>
-
-          <div ref={coordsRef} className="hidden sm:flex items-center gap-3">
-            <span>Lat: <strong className="text-slate-900">-5.89880°</strong></span>
-            <span>Lng: <strong className="text-slate-900">12.33750°</strong></span>
-          </div>
+      {/* Bottom bar: cursor coordinates + zoom */}
+      <div className="absolute bottom-[76px] md:bottom-3 left-3 z-[1000] h-9 bg-white px-1 rounded-lg border border-slate-200 text-[12px] text-slate-600 flex items-center shadow-[0_4px_14px_-4px_rgba(15,37,64,0.3)] select-none pointer-events-auto">
+        <div ref={coordsRef} className="hidden sm:flex items-center gap-3 px-2 font-mono tabular-nums">
+          <span>Lat: <strong className="text-slate-900">-5.89880°</strong></span>
+          <span>Lng: <strong className="text-slate-900">12.33750°</strong></span>
         </div>
-
-        {/* Integrated Zoom Controller */}
-        <div className="flex items-center gap-1">
-          <button onClick={handleZoomOut} className="p-0.5 text-slate-700 hover:bg-slate-100 rounded" title="Dézoomer">
-            <ZoomOut className="w-3.5 h-3.5" />
+        <div className="hidden sm:block h-5 w-px bg-slate-200 mx-1" />
+        <div className="flex items-center gap-0.5">
+          <button onClick={handleZoomOut} className="w-7 h-7 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center justify-center cursor-pointer" aria-label="Dézoomer" title="Dézoomer">
+            <ZoomOut className="w-4 h-4" />
           </button>
           <div className="relative">
             <button
               onClick={() => setShowZoomMenu(!showZoomMenu)}
-              className="px-1.5 py-0.5 bg-slate-900 text-white font-bold rounded text-[10px] flex items-center gap-0.5 cursor-pointer"
+              aria-expanded={showZoomMenu}
+              className="h-7 px-2 rounded-md hover:bg-slate-100 text-slate-800 font-medium tabular-nums flex items-center gap-1 cursor-pointer"
             >
               <span>{zoomPct}%</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </button>
 
             {showZoomMenu && (
-              <div className="absolute bottom-full right-0 mb-1 w-48 bg-white text-slate-800 border border-slate-200 rounded shadow-xl p-1 z-[1200] space-y-0.5 text-xs font-sans">
-                <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                  Niveau de Zoom
-                </div>
+              <div className="absolute bottom-full right-0 mb-2 w-48 bg-white text-slate-800 border border-slate-200 rounded-xl shadow-[0_12px_32px_-8px_rgba(15,37,64,0.35)] p-1.5 z-[1200] text-[13px]">
+                <div className="px-2.5 pt-1 pb-1 text-[11px] font-semibold text-slate-400">Niveau de zoom</div>
                 {PRESET_PERCENTAGES.map((preset) => (
                   <button
                     key={preset.level}
                     onClick={() => handleSetZoomLevel(preset.level)}
-                    className={`w-full text-left px-2 py-1 rounded flex items-center justify-between font-medium ${
-                      currentZoom === preset.level ? 'bg-emerald-50 text-emerald-700 font-bold' : 'hover:bg-slate-100 text-slate-700'
+                    className={`w-full text-left px-2.5 py-1.5 rounded-md flex items-center justify-between cursor-pointer ${
+                      currentZoom === preset.level ? 'bg-brand-50 text-brand-800 font-semibold' : 'hover:bg-slate-50 text-slate-700'
                     }`}
                   >
                     <span>{preset.label}</span>
-                    <span className="font-mono text-[10px] text-slate-400">{preset.pct}%</span>
+                    <span className="tabular-nums text-[11px] text-slate-400">{preset.pct}%</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
-          <button onClick={handleZoomIn} className="p-0.5 text-slate-700 hover:bg-slate-100 rounded" title="Zoomer">
-            <ZoomIn className="w-3.5 h-3.5" />
+          <button onClick={handleZoomIn} className="w-7 h-7 rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center justify-center cursor-pointer" aria-label="Zoomer" title="Zoomer">
+            <ZoomIn className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Sleek Compact Pan Wheel D-Pad (Desktop Only - Hidden on Mobile touchscreens) */}
-      <div className="hidden md:flex absolute top-4 right-14 z-[1000] bg-white/95 backdrop-blur-md p-1 rounded-full border border-slate-200 shadow-md flex-col items-center justify-center select-none w-16 h-16">
-        <button
-          onClick={() => handlePan(0, -160)}
-          className="p-0.5 text-slate-700 hover:text-emerald-600 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
-          title="Nord (Haut)"
-        >
-          <ChevronUp className="w-3.5 h-3.5" />
-        </button>
-
-        <div className="flex items-center justify-between w-full px-0.5">
-          <button
-            onClick={() => handlePan(-160, 0)}
-            className="p-0.5 text-slate-700 hover:text-emerald-600 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
-            title="Ouest (Gauche)"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            onClick={handleCenterView}
-            aria-label="Recentrer la carte"
-            className="w-3.5 h-3.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center cursor-pointer shadow-xs"
-            title="Recentrer"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
-          </button>
-
-          <button
-            onClick={() => handlePan(160, 0)}
-            className="p-0.5 text-slate-700 hover:text-emerald-600 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
-            title="Est (Droite)"
-          >
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        <button
-          onClick={() => handlePan(0, 160)}
-          className="p-0.5 text-slate-700 hover:text-emerald-600 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
-          title="Sud (Bas)"
-        >
-          <ChevronDown className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* Professional North Arrow Indicator */}
-      <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-[1000] bg-white/95 backdrop-blur-md p-1 sm:p-1.5 rounded border border-slate-200 shadow-xs flex flex-col items-center gap-0.5 select-none">
-        <Navigation className="w-3.5 h-3.5 text-rose-600 transform -rotate-45" />
-        <span className="text-[8px] font-bold text-slate-700 tracking-wider">N</span>
+      {/* North arrow */}
+      <div className="absolute bottom-[76px] md:bottom-8 right-3 z-[1000] w-9 h-9 bg-white rounded-lg border border-slate-200 shadow-[0_4px_14px_-4px_rgba(15,37,64,0.3)] flex flex-col items-center justify-center select-none" aria-label="Nord en haut">
+        <Navigation className="w-3.5 h-3.5 text-slate-800 -rotate-45" />
+        <span className="text-[9px] font-bold leading-none text-slate-700">N</span>
       </div>
     </>
+  );
+}
+
+// ── Map chrome building blocks: one light surface, one icon colour, brand navy for "on" ──
+
+const BASEMAPS = [
+  { id: 'google-pure', label: 'Satellite', detail: 'Google, haute définition', icon: Satellite },
+  { id: 'google-hybrid', label: 'Satellite + noms', detail: 'Google hybride', icon: Globe },
+  { id: 'esri-clarity', label: 'Satellite Esri', detail: 'Esri World Imagery', icon: Mountain },
+  { id: 'sentinel-live', label: 'Sentinel-2', detail: 'Copernicus, image récente', icon: Radio },
+  { id: 'google-roads', label: 'Plan des routes', detail: 'Google Maps', icon: Route }
+];
+
+function ToolButton({ icon: Icon, label, onClick, active = false, disabled = false, busy = false }) {
+  return (
+    <div className="relative group">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        aria-pressed={active}
+        className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+          active ? 'bg-brand-700 text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+        }`}
+      >
+        {busy ? <Loader2 className="w-[18px] h-[18px] animate-spin" /> : <Icon className="w-[18px] h-[18px]" />}
+      </button>
+      {!active && (
+        <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2.5 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity delay-150 z-[1020]">
+          {label}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function LayerSwitch({ icon: Icon, label, detail, checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg hover:bg-slate-50 text-left cursor-pointer"
+    >
+      <Icon className="w-4 h-4 text-slate-500 flex-shrink-0" />
+      <span className="flex-1 min-w-0">
+        <span className="block text-[13px] font-medium text-slate-800">{label}</span>
+        {detail && <span className="block text-[11px] text-slate-500">{detail}</span>}
+      </span>
+      <span className={`w-9 h-5 rounded-full p-0.5 flex-shrink-0 transition-colors ${checked ? 'bg-brand-600' : 'bg-slate-300'}`}>
+        <span className={`block w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
+      </span>
+    </button>
+  );
+}
+
+function BasemapList({ value, onChange }) {
+  return (
+    <div className="space-y-0.5">
+      {BASEMAPS.map((b) => {
+        const isActive = value === b.id;
+        const Icon = b.icon;
+        return (
+          <button
+            key={b.id}
+            type="button"
+            onClick={() => onChange(b.id)}
+            aria-pressed={isActive}
+            className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-left cursor-pointer transition-colors ${
+              isActive ? 'bg-brand-50' : 'hover:bg-slate-50'
+            }`}
+          >
+            <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-brand-700' : 'text-slate-500'}`} />
+            <span className="flex-1 min-w-0">
+              <span className={`block text-[13px] font-medium ${isActive ? 'text-brand-800' : 'text-slate-800'}`}>{b.label}</span>
+              <span className="block text-[11px] text-slate-500">{b.detail}</span>
+            </span>
+            {isActive && <Check className="w-4 h-4 text-brand-700 flex-shrink-0" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function LegendSwatch({ fill, stroke, dashed = false, line = false }) {
+  if (line) {
+    return <span className="w-4 h-0 flex-shrink-0 border-t-2" style={{ borderColor: stroke, borderStyle: dashed ? 'dashed' : 'solid' }} />;
+  }
+  return <span className="w-3.5 h-3.5 rounded-[3px] flex-shrink-0 border-2" style={{ backgroundColor: fill, borderColor: stroke }} />;
+}
+
+function MapLegend() {
+  const statuses = [
+    { label: 'Disponible', fill: 'rgba(16,185,129,0.3)', stroke: '#10b981' },
+    { label: 'Occupé / attribué', fill: 'rgba(244,63,94,0.3)', stroke: '#f43f5e' },
+    { label: 'Litige / sous réserve', fill: 'rgba(245,158,11,0.3)', stroke: '#f59e0b' }
+  ];
+  const zones = [
+    { label: 'Utilité publique', detail: '0 – 100 m', fill: 'rgba(244,63,94,0.3)', stroke: '#f43f5e' },
+    { label: 'Zone A', detail: '101 – 200 m', fill: 'rgba(6,182,212,0.3)', stroke: '#22d3ee' },
+    { label: 'Zone B', detail: '201 – 400 m', fill: 'rgba(245,158,11,0.3)', stroke: '#fbbf24' },
+    { label: 'Zone C', detail: '401 – 600 m', fill: 'rgba(168,85,247,0.3)', stroke: '#c084fc' },
+    { label: 'Zone D', detail: 'au-delà de 600 m', fill: 'rgba(16,185,129,0.2)', stroke: '#10b981' }
+  ];
+  return (
+    <div className="space-y-3 px-2.5 pb-1 text-[12px] text-slate-700">
+      <div className="space-y-1.5">
+        <div className="text-[11px] font-semibold text-slate-400">Parcelles</div>
+        {statuses.map((st) => (
+          <div key={st.label} className="flex items-center gap-2">
+            <LegendSwatch fill={st.fill} stroke={st.stroke} />
+            <span>{st.label}</span>
+          </div>
+        ))}
+        <div className="flex items-center gap-2">
+          <LegendSwatch line dashed stroke="#22d3ee" />
+          <span>Limite de la zone ISETECH</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <LegendSwatch line dashed stroke="#d97706" />
+          <span>Périmètre de la concession</span>
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <div className="text-[11px] font-semibold text-slate-400">Distance à l&apos;océan</div>
+        {zones.map((z) => (
+          <div key={z.label} className="flex items-center gap-2">
+            <LegendSwatch fill={z.fill} stroke={z.stroke} />
+            <span className="flex-1">{z.label}</span>
+            <span className="text-slate-500 tabular-nums">{z.detail}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MapPanel({ title, onClose, children, className = '' }) {
+  return (
+    <div className={`bg-white text-slate-800 border border-slate-200 rounded-xl shadow-[0_12px_32px_-8px_rgba(15,37,64,0.35)] p-1.5 animate-in fade-in zoom-in-95 duration-150 ${className}`}>
+      <div className="flex items-center justify-between px-2.5 pt-1 pb-1.5">
+        <span className="text-[13px] font-semibold text-slate-900">{title}</span>
+        <button type="button" onClick={onClose} aria-label="Fermer" className="p-1 -mr-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      {children}
+    </div>
   );
 }
 
@@ -499,7 +571,8 @@ export default function MapView({
   const [mapType, setMapType] = useState('google-pure');
   const [mapZoom, setMapZoom] = useState(13);
   const [showRoadsOverlay, setShowRoadsOverlay] = useState(false);
-  const [showBasemapMenu, setShowBasemapMenu] = useState(false);
+  const [openMapPanel, setOpenMapPanel] = useState(null); // 'basemap' | 'layers' | null
+  const toolbarRef = useRef(null);
   const [showConcession, setShowConcession] = useState(true);
   const [showConcessionBornes, setShowConcessionBornes] = useState(false);
   const [isEditingConcession, setIsEditingConcession] = useState(false);
@@ -629,6 +702,23 @@ export default function MapView({
 
   // Collapsible Legend Drawer State
   const [showLegendDrawer, setShowLegendDrawer] = useState(false);
+
+  // Close the toolbar panels on outside click or Escape
+  useEffect(() => {
+    if (!openMapPanel) return;
+    const onPointer = (e) => {
+      if (toolbarRef.current && !toolbarRef.current.contains(e.target)) setOpenMapPanel(null);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpenMapPanel(null);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [openMapPanel]);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawnPoints, setDrawnPoints] = useState([]);
@@ -1203,180 +1293,81 @@ export default function MapView({
       {isSidebarCollapsed && (
         <button
           onClick={onToggleSidebar}
-          className="hidden md:flex absolute top-4 right-4 z-[1010] bg-white text-slate-900 border border-slate-200 px-3 py-2 rounded shadow-md font-semibold text-xs items-center gap-1.5 hover:bg-slate-100 transition-all cursor-pointer"
+          className="hidden md:flex absolute top-3 right-3 z-[1010] h-10 bg-white text-slate-800 border border-slate-200 px-3 rounded-xl shadow-[0_4px_14px_-4px_rgba(15,37,64,0.3)] font-medium text-[13px] items-center gap-2 hover:bg-slate-50 transition-colors cursor-pointer"
           title="Afficher le registre des parcelles"
         >
-          <PanelRightOpen className="w-4 h-4 text-emerald-600" />
-          <span>Afficher Registre</span>
+          <PanelRightOpen className="w-4 h-4 text-slate-500" />
+          <span>Registre des parcelles</span>
         </button>
       )}
 
-      {/* Mobile Floating GIS Quick Access Button */}
+      {/* Mobile: map & layers button */}
       <div className="md:hidden absolute top-3 left-3 z-[1000]">
         <button
           onClick={() => setShowMobileGisMenu(true)}
-          className="px-3 py-1.5 bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 rounded-full shadow-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+          className="h-10 px-3.5 bg-white text-slate-800 border border-slate-200 rounded-full shadow-[0_4px_14px_-4px_rgba(15,37,64,0.3)] text-[13px] font-medium flex items-center gap-2 cursor-pointer active:bg-slate-50"
         >
-          <Layers className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Calques &amp; SIG</span>
-          {showOceanZones && <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>}
+          <Layers className="w-4 h-4 text-slate-500" />
+          <span>Carte &amp; calques</span>
         </button>
       </div>
 
-      {/* Mobile GIS Controls Bottom Sheet / Modal */}
+      {/* Mobile: map & layers bottom sheet */}
       {showMobileGisMenu && (
-        <div className="md:hidden fixed inset-0 z-[1300] bg-black/60 backdrop-blur-xs flex flex-col justify-end animate-in fade-in duration-150">
-          <div className="bg-slate-900 border-t border-slate-800 rounded-t-2xl p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] text-slate-100 max-h-[85vh] overflow-y-auto space-y-4 shadow-2xl">
-            {/* Visual Drag Handle */}
-            <div className="w-12 h-1 bg-slate-700/90 rounded-full mx-auto" />
-
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-              <div className="flex items-center gap-2 font-bold text-sm text-white">
-                <Layers className="w-4 h-4 text-emerald-400" />
-                <span>Calques &amp; Outils SIG</span>
-              </div>
+        <div className="md:hidden fixed inset-0 z-[1300] bg-slate-900/50 flex flex-col justify-end animate-in fade-in duration-150" onClick={() => setShowMobileGisMenu(false)}>
+          <div
+            role="dialog"
+            aria-label="Carte et calques"
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-t-2xl px-3 pt-2 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] text-slate-800 max-h-[85vh] overflow-y-auto shadow-2xl animate-in slide-in-from-bottom duration-200"
+          >
+            <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-2" />
+            <div className="flex items-center justify-between px-2.5 pb-2">
+              <span className="text-[15px] font-semibold text-slate-900">Carte &amp; calques</span>
               <button
                 onClick={() => setShowMobileGisMenu(false)}
-                aria-label="Fermer le menu des calques"
-                className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+                aria-label="Fermer"
+                className="p-1.5 -mr-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Fond de Carte Switcher */}
-            <div className="space-y-1.5">
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                Fond de carte satellite
-              </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {[
-                  { id: 'google-pure', label: 'Google Satellite Pur', icon: <Satellite className="w-4 h-4 text-emerald-400" /> },
-                  { id: 'google-hybrid', label: 'Google Hybride', icon: <Globe className="w-4 h-4 text-cyan-400" /> },
-                  { id: 'sentinel-live', label: 'Copernicus Live', icon: <Radio className="w-4 h-4 text-amber-400" /> },
-                  { id: 'esri-clarity', label: 'Esri World HD', icon: <Mountain className="w-4 h-4 text-purple-400" /> }
-                ].map((b) => (
-                  <button
-                    key={b.id}
-                    onClick={() => { setMapType(b.id); }}
-                    className={`p-2.5 rounded-lg border text-left text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
-                      mapType === b.id
-                        ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300'
-                        : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-800'
-                    }`}
-                  >
-                    <span>{b.icon}</span>
-                    <span className="truncate">{b.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <div className="px-2.5 pt-1 pb-1 text-[11px] font-semibold text-slate-400">Fond de carte</div>
+            <BasemapList value={mapType} onChange={setMapType} />
 
-            {/* Toggles List */}
-            <div className="space-y-1.5 pt-1">
-              <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                Affichage des Calques
-              </div>
-              
-              {/* Ocean Zones Toggle */}
-              <div
-                onClick={() => setShowOceanZones(!showOceanZones)}
-                className="flex items-center justify-between p-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg cursor-pointer active:bg-slate-800"
-              >
-                <div className="flex items-center gap-2 text-xs font-medium">
-                  <Waves className="w-4 h-4 text-cyan-400" />
-                  <span>Zonage Littoral &amp; Utilité Publique (100m)</span>
-                </div>
-                <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${showOceanZones ? 'bg-cyan-500' : 'bg-slate-700'}`}>
-                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showOceanZones ? 'translate-x-4' : 'translate-x-0'}`} />
-                </div>
-              </div>
+            <div className="h-px bg-slate-100 my-2" />
+            <div className="px-2.5 pt-1 pb-1 text-[11px] font-semibold text-slate-400">Calques</div>
+            <LayerSwitch icon={Waves} label="Zonage littoral" detail="Bandes de distance à l'océan" checked={showOceanZones} onChange={setShowOceanZones} />
+            <LayerSwitch icon={Hexagon} label="Périmètre de la concession" detail="5 326 ha" checked={showConcession} onChange={setShowConcession} />
+            {canViewAndInspectBornes && (
+              <LayerSwitch icon={MapPin} label="Bornes du périmètre" detail="P1 à P32, avec altitude" checked={showConcessionBornes} onChange={setShowConcessionBornes} />
+            )}
+            <LayerSwitch icon={Route} label="Routes" checked={showRoadsOverlay} onChange={setShowRoadsOverlay} />
+            <LayerSwitch icon={Sparkles} label="Netteté renforcée" detail="Contraste de l'imagerie" checked={sharpnessHD} onChange={setSharpnessHD} />
 
-              {/* Perimeter Boundary Toggle */}
-              <div
-                onClick={() => setShowConcession(!showConcession)}
-                className="flex items-center justify-between p-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg cursor-pointer active:bg-slate-800"
-              >
-                <div className="flex items-center gap-2 text-xs font-medium">
-                  <Eye className="w-4 h-4 text-emerald-400" />
-                  <span>Tracé Périmètre Concession (5 326 ha)</span>
-                </div>
-                <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${showConcession ? 'bg-emerald-500' : 'bg-slate-700'}`}>
-                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showConcession ? 'translate-x-4' : 'translate-x-0'}`} />
-                </div>
-              </div>
-
-              {/* Concession Bornes Toggle (Réservé Admin & Arpenteur) */}
-              {canViewAndInspectBornes && (
-                <div
-                  onClick={() => setShowConcessionBornes(!showConcessionBornes)}
-                  className="flex items-center justify-between p-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg cursor-pointer active:bg-slate-800"
-                >
-                  <div className="flex items-center gap-2 text-xs font-medium">
-                    <MapPin className="w-4 h-4 text-amber-400" />
-                    <span>Bornes Périmètre P1..P32 (Altitudes)</span>
-                  </div>
-                  <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${showConcessionBornes ? 'bg-amber-500' : 'bg-slate-700'}`}>
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showConcessionBornes ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </div>
-                </div>
-              )}
-
-              {/* Road Overlay Toggle */}
-              <div
-                onClick={() => setShowRoadsOverlay(!showRoadsOverlay)}
-                className="flex items-center justify-between p-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg cursor-pointer active:bg-slate-800"
-              >
-                <div className="flex items-center gap-2 text-xs font-medium">
-                  <Route className="w-4 h-4 text-amber-400" />
-                  <span>Tracé Réseau Routier</span>
-                </div>
-                <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${showRoadsOverlay ? 'bg-amber-500' : 'bg-slate-700'}`}>
-                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${showRoadsOverlay ? 'translate-x-4' : 'translate-x-0'}`} />
-                </div>
-              </div>
-
-              {/* Sharpness HD Toggle */}
-              <div
-                onClick={() => setSharpnessHD(!sharpnessHD)}
-                className="flex items-center justify-between p-2.5 bg-slate-800/60 border border-slate-700/80 rounded-lg cursor-pointer active:bg-slate-800"
-              >
-                <div className="flex items-center gap-2 text-xs font-medium">
-                  <Sparkles className="w-4 h-4 text-purple-400" />
-                  <span>Super-Netteté HD Satellite</span>
-                </div>
-                <div className={`w-9 h-5 rounded-full p-0.5 transition-colors ${sharpnessHD ? 'bg-purple-500' : 'bg-slate-700'}`}>
-                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${sharpnessHD ? 'translate-x-4' : 'translate-x-0'}`} />
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+            <div className="grid grid-cols-2 gap-2 pt-3 px-1">
               <button
                 onClick={() => { setShowLegendDrawer(true); setShowMobileGisMenu(false); }}
-                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
+                className="h-10 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-lg text-[13px] font-medium flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Palette className="w-4 h-4 text-amber-400" />
-                <span>Voir Légende</span>
+                <Palette className="w-4 h-4 text-slate-500" />
+                <span>Légende</span>
               </button>
-
               <button
                 onClick={() => { handleLocateMe(); setShowMobileGisMenu(false); }}
-                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
+                className="h-10 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-lg text-[13px] font-medium flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Compass className="w-4 h-4 text-cyan-400" />
-                <span>Position GPS</span>
+                <LocateFixed className="w-4 h-4 text-slate-500" />
+                <span>Ma position</span>
               </button>
-
               <button
                 onClick={() => { handleExportMapHD(); setShowMobileGisMenu(false); }}
                 disabled={isExporting}
-                className="col-span-2 p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="col-span-2 h-10 bg-brand-700 hover:bg-brand-800 text-white rounded-lg text-[13px] font-semibold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                <span>Télécharger Carte HD</span>
+                <span>Exporter la carte (image HD)</span>
               </button>
             </div>
           </div>
@@ -1411,359 +1402,266 @@ export default function MapView({
         </div>
       )}
 
-      {/* High-Precision GPS Field Tracing Floating Toolbar */}
+      {/* GPS / on-map parcel tracing bar */}
       {isDrawing && canDrawAndManageParcels && (
-        <div className="absolute top-2 sm:top-3 left-1/2 -translate-x-1/2 z-[1150] w-[96%] sm:w-auto sm:min-w-[500px] max-w-xl bg-slate-950/95 backdrop-blur-xl border border-emerald-500/60 rounded-2xl shadow-2xl p-2.5 sm:p-3 text-white animate-in slide-in-from-top-4 duration-200 select-none">
-          <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2 mb-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-              <span className="font-bold text-xs sm:text-sm text-emerald-300">
-                Traçage Cadastral en Direct
-              </span>
-              <span className="text-[11px] font-mono bg-emerald-950/80 text-emerald-300 font-bold px-2.5 py-0.5 rounded-full border border-emerald-700/60">
-                {drawnPoints.length} borne{drawnPoints.length > 1 ? 's' : ''} posée{drawnPoints.length > 1 ? 's' : ''}
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1150] w-[calc(100%-24px)] sm:w-auto sm:min-w-[520px] max-w-2xl bg-white text-slate-800 border border-slate-200 rounded-xl shadow-[0_12px_32px_-8px_rgba(15,37,64,0.35)] p-3 animate-in fade-in slide-in-from-top-2 duration-200 select-none" role="region" aria-label="Tracé d'une parcelle">
+          <div className="flex items-center justify-between gap-3 pb-2.5 mb-2.5 border-b border-slate-100">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
+              <span className="font-semibold text-[14px] text-slate-900 truncate">Tracé d&apos;une parcelle</span>
+              <span className="text-[12px] text-slate-500 tabular-nums flex-shrink-0">
+                {drawnPoints.length} borne{drawnPoints.length > 1 ? 's' : ''}
               </span>
             </div>
-
-            {drawnMetrics && (
-              <div className="flex items-center gap-2 font-mono text-[11px]">
-                {drawnPoints.length >= 3 && (
-                  <span className="text-emerald-300 font-bold bg-emerald-950/90 border border-emerald-600 px-2 py-0.5 rounded shadow-sm">
-                    {drawnMetrics.areaHa} ha ({Math.round(drawnMetrics.areaM2)} m²)
-                  </span>
-                )}
-                <span className="text-slate-400 hidden sm:inline">
-                  Périmètre: {Math.round(drawnMetrics.perimeterM)} m
-                </span>
+            {drawnMetrics && drawnPoints.length >= 3 && (
+              <div className="flex items-center gap-3 text-[12px] tabular-nums flex-shrink-0">
+                <span className="font-semibold text-slate-900">{drawnMetrics.areaHa} ha</span>
+                <span className="text-slate-500 hidden sm:inline">Périmètre {Math.round(drawnMetrics.perimeterM)} m</span>
               </div>
             )}
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-1.5 sm:gap-2">
-            {/* Add GPS point */}
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
             <button
               onClick={handleAddCurrentGpsPoint}
               disabled={isGpsAcquiring}
-              className="flex-1 py-2 px-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md shadow-cyan-950/40 cursor-pointer"
-              title="Enregistrer votre position GPS actuelle sur le terrain comme borne"
+              className="h-9 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex-1"
+              title="Poser une borne à votre position GPS actuelle"
             >
-              {isGpsAcquiring ? (
-                <Loader2 className="w-3.5 h-3.5 text-cyan-200 animate-spin" />
-              ) : (
-                <Navigation className="w-3.5 h-3.5 text-cyan-200 flex-shrink-0" />
-              )}
+              {isGpsAcquiring ? <Loader2 className="w-4 h-4 animate-spin text-slate-500" /> : <LocateFixed className="w-4 h-4 text-slate-500" />}
               <span className="truncate">
-                {isGpsAcquiring
-                  ? 'Recherche GPS...'
-                  : effectiveUserLocation
-                  ? `📍 Borne ${drawnPoints.length + 1} (GPS)`
-                  : `📍 Activer GPS & Borne ${drawnPoints.length + 1}`}
+                {isGpsAcquiring ? 'Recherche GPS…' : effectiveUserLocation ? `Borne ${drawnPoints.length + 1} au GPS` : 'Activer le GPS'}
               </span>
             </button>
 
-            {/* Mark Center / Crosshair point */}
             <button
               onClick={handleAddCenterPoint}
-              className="flex-1 py-2 px-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md shadow-emerald-950/40 cursor-pointer border border-emerald-500/40"
-              title="Poser la borne à l'endroit pointé par le viseur central"
+              className="h-9 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex-1"
+              title="Poser une borne au centre du viseur"
             >
-              <Crosshair className="w-3.5 h-3.5 text-emerald-200 flex-shrink-0" />
-              <span className="truncate">🎯 Borne {drawnPoints.length + 1} (Viseur)</span>
+              <Crosshair className="w-4 h-4 text-slate-500" />
+              <span className="truncate">Borne {drawnPoints.length + 1} au viseur</span>
             </button>
 
-            {/* Undo last point */}
             <button
               onClick={handleUndoDrawnPoint}
               disabled={drawnPoints.length === 0}
-              className="py-2 px-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 rounded-xl font-semibold text-xs flex items-center gap-1 transition-all active:scale-95 cursor-pointer border border-slate-700"
-              title="Annuler la dernière borne posée"
+              className="h-9 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Retirer la dernière borne posée"
+              aria-label="Retirer la dernière borne"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Annuler</span>
+              <RotateCcw className="w-4 h-4 text-slate-500" />
             </button>
 
-            {/* Finish & validate */}
+            <button
+              onClick={handleCancelDrawing}
+              className="h-9 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Quitter le tracé sans enregistrer"
+            >
+              Annuler
+            </button>
+
             <button
               onClick={handleFinishDrawing}
               disabled={drawnPoints.length < 3}
-              className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-emerald-950/40 cursor-pointer"
-              title="Terminer le tracé et enregistrer la parcelle"
+              className="h-9 px-3.5 bg-brand-700 hover:bg-brand-800 text-white rounded-lg text-[13px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+              title="Terminer le tracé et créer la parcelle"
             >
-              <Check className="w-3.5 h-3.5 text-emerald-100" />
-              <span>Valider ({drawnPoints.length})</span>
-            </button>
-
-            {/* Cancel all */}
-            <button
-              onClick={handleCancelDrawing}
-              className="p-2 bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-400 rounded-xl transition-all cursor-pointer border border-slate-700"
-              title="Quitter le mode tracé"
-            >
-              <X className="w-4 h-4" />
+              <Check className="w-4 h-4" />
+              <span>Valider</span>
             </button>
           </div>
 
-          <div className="mt-1.5 text-[10px] text-slate-400 flex items-center justify-between px-1">
+          <div className="mt-2 text-[12px] text-slate-500 flex items-center justify-between gap-2">
             <span className="truncate">
-              {lastMarkedInfo || "Positionnez-vous avec le GPS, le viseur ou touchez l'écran pour marquer chaque borne."}
+              {lastMarkedInfo || 'Posez les bornes au GPS, au viseur, ou en touchant la carte.'}
             </span>
             {locationAccuracy && (
-              <span className="font-mono text-cyan-400 flex-shrink-0 ml-2">GPS: ±{Math.round(locationAccuracy)}m</span>
+              <span className="tabular-nums text-slate-600 flex-shrink-0">GPS ±{Math.round(locationAccuracy)} m</span>
             )}
           </div>
         </div>
       )}
 
-      {/* Concession Perimeter Calibration Toolbar (Admin Only) */}
+      {/* Concession perimeter editing bar (Admin only) */}
       {isEditingConcession && isAdmin && (
-        <div className="absolute top-2 sm:top-3 left-1/2 -translate-x-1/2 z-[1150] w-[96%] sm:w-auto sm:min-w-[540px] max-w-2xl bg-slate-950/95 backdrop-blur-xl border border-amber-500/70 rounded-2xl shadow-2xl p-2.5 sm:p-3 text-white animate-in slide-in-from-top-4 duration-200 select-none">
-          <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2 mb-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
-              <span className="font-bold text-xs sm:text-sm text-amber-300">
-                Édition des Bornes Périmétriques
-              </span>
-              <span className="text-[11px] font-mono bg-amber-950/80 text-amber-300 font-bold px-2.5 py-0.5 rounded-full border border-amber-700/60">
-                {activeConcessionRing.length} bornes
-              </span>
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1150] w-[calc(100%-24px)] sm:w-auto sm:min-w-[520px] max-w-2xl bg-white text-slate-800 border border-slate-200 rounded-xl shadow-[0_12px_32px_-8px_rgba(15,37,64,0.35)] p-3 animate-in fade-in slide-in-from-top-2 duration-200 select-none" role="region" aria-label="Édition du périmètre de la concession">
+          <div className="flex items-center justify-between gap-3 pb-2.5 mb-2.5 border-b border-slate-100">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
+              <span className="font-semibold text-[14px] text-slate-900 truncate">Édition du périmètre</span>
+              <span className="text-[12px] text-slate-500 tabular-nums flex-shrink-0">{activeConcessionRing.length} bornes</span>
             </div>
-
             {editingConcessionMetrics && (
-              <div className="flex items-center gap-2 font-mono text-[11px]">
-                <span className="text-amber-300 font-bold bg-amber-950/90 border border-amber-600 px-2 py-0.5 rounded shadow-sm">
-                  {editingConcessionMetrics.areaHa} ha
-                </span>
-                <span className="text-slate-400 hidden sm:inline">
-                  Périmètre: {editingConcessionMetrics.perimeterKm} km
-                </span>
+              <div className="flex items-center gap-3 text-[12px] tabular-nums flex-shrink-0">
+                <span className="font-semibold text-slate-900">{editingConcessionMetrics.areaHa} ha</span>
+                <span className="text-slate-500 hidden sm:inline">Périmètre {editingConcessionMetrics.perimeterKm} km</span>
               </div>
             )}
           </div>
 
-          <div className="text-[11px] text-slate-300 mb-2.5 flex items-center gap-1.5">
-            <Crosshair className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-            <span>Faites glisser les bornes orange (P1...P{activeConcessionRing.length}) sur la carte pour les calibrer, ou touchez une borne pour inspecter son altitude.</span>
-          </div>
+          <p className="text-[12px] text-slate-600 mb-3">
+            Faites glisser les bornes orange P1 à P{activeConcessionRing.length} pour les ajuster, ou touchez une borne pour voir son altitude.
+          </p>
 
-          <div className="flex items-center justify-between gap-2">
-            <button
-              onClick={handleCancelConcessionEditing}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5 text-rose-400" />
-              <span>Annuler</span>
+          <div className="flex items-center justify-end gap-2">
+            <button onClick={handleCancelConcessionEditing} className="h-9 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+              Annuler
             </button>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleSaveConcessionEditing}
-                className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-950/50 transition-all cursor-pointer"
-              >
-                <Save className="w-3.5 h-3.5" />
-                <span>Enregistrer le Périmètre</span>
-              </button>
-            </div>
+            <button onClick={handleSaveConcessionEditing} className="h-9 px-3.5 bg-brand-700 hover:bg-brand-800 text-white rounded-lg text-[13px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed">
+              <Save className="w-4 h-4" />
+              <span>Enregistrer le périmètre</span>
+            </button>
           </div>
         </div>
       )}
 
-      {/* Geodesic Borne Inspection Modal (Altitude, Longitude, Latitude) - Admin & Arpenteur Only */}
+      {/* Perimeter borne details: altitude, coordinates, admin calibration */}
       {inspectedBorne && canViewAndInspectBornes && (
-        <div className="fixed inset-0 z-[1200] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-slate-100 animate-in zoom-in-95 duration-200">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-slate-900 via-amber-950/40 to-slate-900 p-4 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center font-bold font-mono text-sm shadow-inner">
+        <div
+          className="fixed inset-0 z-[1200] bg-slate-900/50 flex items-center justify-center p-4 animate-in fade-in duration-150"
+          onClick={() => setInspectedBorne(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="borne-inspect-title"
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white text-slate-800 w-full max-w-md rounded-xl border border-slate-200 shadow-[0_20px_48px_-12px_rgba(15,37,64,0.45)] overflow-hidden animate-in zoom-in-95 duration-200"
+          >
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="w-9 h-9 rounded-full bg-orange-600 text-white flex items-center justify-center font-bold text-[13px] tabular-nums">
                   P{inspectedBorne.number}
-                </div>
+                </span>
                 <div>
-                  <h3 className="font-bold text-sm sm:text-base text-white flex items-center gap-2">
-                    Borne Périmétrique P{inspectedBorne.number}
-                  </h3>
-                  <p className="text-[11px] text-amber-300/80 font-medium">
-                    Concession Manuel Joaquim d'Oliveira
-                  </p>
+                  <h3 id="borne-inspect-title" className="font-semibold text-[15px] text-slate-900">Borne du périmètre P{inspectedBorne.number}</h3>
+                  <p className="text-[12px] text-slate-500">Concession Manuel Joaquim d&apos;Oliveira</p>
                 </div>
               </div>
               <button
                 onClick={() => setInspectedBorne(null)}
-                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                title="Fermer"
+                className="p-1.5 -mr-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                aria-label="Fermer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Content */}
-            <div className="p-4 space-y-3.5">
-              {/* Altitude Box (Open-Meteo DEM SRTM) */}
-              <div className="bg-gradient-to-br from-slate-800/80 to-slate-850 p-3.5 rounded-xl border border-slate-700/70 shadow-inner">
-                <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
-                  <span className="flex items-center gap-1.5 font-medium text-slate-300">
-                    <Mountain className="w-4 h-4 text-emerald-400" />
-                    Altitude Topographique
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <div className="flex items-center justify-between text-[12px] text-slate-500 mb-1">
+                  <span className="flex items-center gap-1.5">
+                    <Mountain className="w-4 h-4 text-slate-400" />
+                    Altitude
                   </span>
-                  <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded border border-slate-700 text-slate-400 font-mono">
-                    DEM SRTM 90m
-                  </span>
+                  <span>Modèle SRTM 90 m</span>
                 </div>
-                <div className="flex items-baseline gap-2">
-                  {inspectedBorne.isLoadingAltitude ? (
-                    <div className="flex items-center gap-2 py-1 text-emerald-400 text-xs font-mono">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Mesure altimétrique en cours...</span>
-                    </div>
-                  ) : inspectedBorne.altitude !== null ? (
-                    <>
-                      <span className="text-3xl font-black font-mono text-emerald-400 tracking-tight">
-                        {inspectedBorne.altitude} m
-                      </span>
-                      <span className="text-xs text-slate-400 font-medium">
-                        au-dessus du niveau moyen de la mer (MSL)
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-xs text-slate-400 italic">
-                      Altitude non mesurable pour ce point
-                    </span>
-                  )}
-                </div>
+                {inspectedBorne.isLoadingAltitude ? (
+                  <div className="flex items-center gap-2 py-1 text-slate-500 text-[13px]">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Mesure en cours…</span>
+                  </div>
+                ) : inspectedBorne.altitude !== null ? (
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-semibold text-slate-900 tabular-nums">{inspectedBorne.altitude} m</span>
+                    <span className="text-[12px] text-slate-500">au-dessus du niveau de la mer</span>
+                  </div>
+                ) : (
+                  <span className="text-[13px] text-slate-500">Altitude indisponible pour ce point.</span>
+                )}
               </div>
 
-              {/* Coordinates Grid (Longitude & Latitude) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {/* Longitude */}
-                <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
-                  <div className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1 flex items-center justify-between">
-                    <span>Longitude (X)</span>
-                    <span className="text-[10px] text-slate-400">Est</span>
-                  </div>
-                  <div className="font-mono text-sm font-bold text-white">
-                    {inspectedBorne.lng.toFixed(7)}°
-                  </div>
-                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                    {ddToDms(inspectedBorne.lng, false)}
-                  </div>
+              <dl className="grid grid-cols-2 gap-px bg-slate-200 rounded-lg overflow-hidden border border-slate-200 text-[12px]">
+                <div className="bg-white p-3">
+                  <dt className="text-slate-500 mb-0.5">Latitude</dt>
+                  <dd className="font-mono tabular-nums font-semibold text-slate-900">{inspectedBorne.lat.toFixed(7)}°</dd>
+                  <dd className="font-mono text-[11px] text-slate-500 mt-0.5">{ddToDms(inspectedBorne.lat, true)}</dd>
                 </div>
-
-                {/* Latitude */}
-                <div className="bg-slate-800/60 p-3 rounded-xl border border-slate-700/60">
-                  <div className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1 flex items-center justify-between">
-                    <span>Latitude (Y)</span>
-                    <span className="text-[10px] text-slate-400">Sud</span>
-                  </div>
-                  <div className="font-mono text-sm font-bold text-white">
-                    {inspectedBorne.lat.toFixed(7)}°
-                  </div>
-                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                    {ddToDms(inspectedBorne.lat, true)}
-                  </div>
+                <div className="bg-white p-3">
+                  <dt className="text-slate-500 mb-0.5">Longitude</dt>
+                  <dd className="font-mono tabular-nums font-semibold text-slate-900">{inspectedBorne.lng.toFixed(7)}°</dd>
+                  <dd className="font-mono text-[11px] text-slate-500 mt-0.5">{ddToDms(inspectedBorne.lng, false)}</dd>
                 </div>
-              </div>
+              </dl>
 
-              {/* Admin Calibration Controls */}
-              {isAdmin && (
-                <div className="bg-slate-950/60 border border-amber-500/30 rounded-xl p-3 space-y-2.5">
+              {isAdmin ? (
+                <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                      <Crosshair className="w-3.5 h-3.5 text-amber-400" />
-                      Calibrage Géodésique (Admin)
-                    </span>
-                    {!inspectedBorne.isEditingManual ? (
-                      <button
-                        onClick={() => setInspectedBorne((prev) => ({ ...prev, isEditingManual: true }))}
-                        className="text-[11px] text-amber-400 hover:text-amber-300 font-medium underline cursor-pointer"
-                      >
-                        Saisie manuelle
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setInspectedBorne((prev) => ({ ...prev, isEditingManual: false }))}
-                        className="text-[11px] text-slate-400 hover:text-slate-300 cursor-pointer"
-                      >
-                        Annuler saisie
-                      </button>
-                    )}
+                    <span className="text-[13px] font-semibold text-slate-900">Repositionner la borne</span>
+                    <button
+                      onClick={() => setInspectedBorne((prev) => ({ ...prev, isEditingManual: !prev.isEditingManual }))}
+                      className="text-[12px] font-medium text-brand-600 hover:text-brand-800 cursor-pointer"
+                    >
+                      {inspectedBorne.isEditingManual ? 'Annuler la saisie' : 'Saisir les coordonnées'}
+                    </button>
                   </div>
 
                   {inspectedBorne.isEditingManual ? (
-                    <div className="space-y-2 pt-1 border-t border-slate-800">
+                    <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] text-slate-400 block mb-0.5">Latitude (° décimaux)</label>
+                        <label className="block">
+                          <span className="block text-[11px] text-slate-500 mb-1">Latitude (degrés décimaux)</span>
                           <input
                             type="text"
+                            inputMode="decimal"
                             value={inspectedBorne.manualLat}
                             onChange={(e) => setInspectedBorne((prev) => ({ ...prev, manualLat: e.target.value }))}
-                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
+                            className="w-full h-9 bg-white border border-slate-300 rounded-lg px-2.5 text-[13px] font-mono text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                             placeholder="-5.8988"
                           />
-                        </div>
-                        <div>
-                          <label className="text-[10px] text-slate-400 block mb-0.5">Longitude (° décimaux)</label>
+                        </label>
+                        <label className="block">
+                          <span className="block text-[11px] text-slate-500 mb-1">Longitude (degrés décimaux)</span>
                           <input
                             type="text"
+                            inputMode="decimal"
                             value={inspectedBorne.manualLng}
                             onChange={(e) => setInspectedBorne((prev) => ({ ...prev, manualLng: e.target.value }))}
-                            className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-white focus:outline-none focus:border-amber-400"
+                            className="w-full h-9 bg-white border border-slate-300 rounded-lg px-2.5 text-[13px] font-mono text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                             placeholder="12.3375"
                           />
-                        </div>
+                        </label>
                       </div>
                       <button
                         onClick={() => handleSaveManualCoordinates(inspectedBorne.manualLat, inspectedBorne.manualLng)}
-                        className="w-full py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                        className="w-full h-9 bg-brand-700 hover:bg-brand-800 text-white font-semibold text-[13px] rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                       >
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Repositionner la Borne</span>
+                        <Check className="w-4 h-4" />
+                        <span>Repositionner la borne</span>
                       </button>
                     </div>
+                  ) : isEditingConcession ? (
+                    <p className="text-[12px] text-slate-600">Le mode édition est actif : faites glisser la borne sur la carte.</p>
                   ) : (
-                    <div className="text-[11px] text-slate-400 flex items-center justify-between">
-                      <span>{isEditingConcession ? "Cette borne est glissable sur la carte." : "Pour déplacer cette borne :"}</span>
-                      {!isEditingConcession ? (
-                        <button
-                          onClick={() => {
-                            handleStartConcessionEditing();
-                          }}
-                          className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded text-[11px] font-semibold transition-colors cursor-pointer"
-                        >
-                          Activer Mode Déplacement
-                        </button>
-                      ) : (
-                        <span className="text-emerald-400 font-bold text-[10px]">Glisser-déposer actif</span>
-                      )}
-                    </div>
+                    <button
+                      onClick={handleStartConcessionEditing}
+                      className="w-full h-9 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-lg text-[13px] font-medium flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <PenTool className="w-4 h-4 text-slate-500" />
+                      <span>Déplacer sur la carte</span>
+                    </button>
                   )}
 
                   {isEditingConcession && activeConcessionRing.length > 3 && (
-                    <div className="pt-2 border-t border-slate-800 flex justify-end">
-                      <button
-                        onClick={() => handleDeleteConcessionBorne(inspectedBorne.index)}
-                        className="text-rose-400 hover:text-rose-300 text-[11px] flex items-center gap-1 hover:underline cursor-pointer"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        <span>Supprimer cette borne du tracé</span>
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => handleDeleteConcessionBorne(inspectedBorne.index)}
+                      className="text-rose-700 hover:text-rose-800 text-[12px] font-medium flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Retirer cette borne du tracé</span>
+                    </button>
                   )}
                 </div>
-              )}
-
-              {!isAdmin && (
-                <div className="text-[11px] text-slate-400 bg-slate-800/40 p-2.5 rounded-xl border border-slate-800 text-center">
-                  Consultation géodésique officielle. La modification des bornes périmétriques est réservée à l'Administrateur.
-                </div>
+              ) : (
+                <p className="text-[12px] text-slate-500">Seul l&apos;administrateur peut déplacer les bornes du périmètre.</p>
               )}
             </div>
 
-            {/* Footer */}
-            <div className="bg-slate-950 p-3 border-t border-slate-800 flex justify-end">
+            <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex justify-end">
               <button
                 onClick={() => setInspectedBorne(null)}
-                className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                className="h-9 px-4 bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 rounded-lg text-[13px] font-medium cursor-pointer"
               >
                 Fermer
               </button>
@@ -1772,303 +1670,87 @@ export default function MapView({
         </div>
       )}
 
-      {/* Sleek Minimal Icon-Only Floating GIS Toolbar (Desktop Only) */}
-      <div className="hidden md:flex absolute top-4 left-4 z-[1000] flex-col gap-1 select-none">
+      {/* Desktop map toolbar: Carte / Édition / Outils */}
+      <div ref={toolbarRef} className="hidden md:block absolute top-3 left-3 z-[1000] select-none">
+        <div className="flex flex-col gap-0.5 p-1 bg-white rounded-xl border border-slate-200 shadow-[0_4px_14px_-4px_rgba(15,37,64,0.3)]">
+          <ToolButton
+            icon={MapIcon}
+            label="Fond de carte"
+            active={openMapPanel === 'basemap'}
+            onClick={() => setOpenMapPanel(openMapPanel === 'basemap' ? null : 'basemap')}
+          />
+          <ToolButton
+            icon={Layers}
+            label="Calques & légende"
+            active={openMapPanel === 'layers'}
+            onClick={() => setOpenMapPanel(openMapPanel === 'layers' ? null : 'layers')}
+          />
 
-        {/* Basemap Switcher Icon Popover */}
-        <div className="relative">
-          <button
-            onClick={() => setShowBasemapMenu(!showBasemapMenu)}
-            className="p-2 bg-white text-slate-800 border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition-all cursor-pointer"
-            title="Changer le fond de carte"
-          >
-            <Globe className="w-4 h-4 text-emerald-600" />
-          </button>
-
-          {showBasemapMenu && (
-            <div className="absolute top-0 left-12 w-64 bg-slate-950/95 backdrop-blur-xl border border-slate-700/80 rounded-xl shadow-2xl p-1.5 space-y-1 z-[1010] text-xs font-sans animate-in fade-in zoom-in-95 duration-150">
-              <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono border-b border-slate-800">
-                Fond de carte
-              </div>
-              <button
-                onClick={() => { setMapType('google-pure'); setShowBasemapMenu(false); }}
-                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 font-medium transition-all cursor-pointer ${
-                  mapType === 'google-pure' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40' : 'text-slate-300 hover:bg-slate-800/80'
-                }`}
-              >
-                <Satellite className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                <span>Google Satellite Pur (HD)</span>
-              </button>
-              <button
-                onClick={() => { setMapType('google-hybrid'); setShowBasemapMenu(false); }}
-                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 font-medium transition-all cursor-pointer ${
-                  mapType === 'google-hybrid' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40' : 'text-slate-300 hover:bg-slate-800/80'
-                }`}
-              >
-                <Globe className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                <span>Google Hybride (Toponymes)</span>
-              </button>
-              <button
-                onClick={() => { setMapType('sentinel-live'); setShowBasemapMenu(false); }}
-                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 font-medium transition-all cursor-pointer ${
-                  mapType === 'sentinel-live' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40' : 'text-slate-300 hover:bg-slate-800/80'
-                }`}
-              >
-                <Radio className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                <span>Copernicus Sentinel-2 Live</span>
-              </button>
-              <button
-                onClick={() => { setMapType('esri-clarity'); setShowBasemapMenu(false); }}
-                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 font-medium transition-all cursor-pointer ${
-                  mapType === 'esri-clarity' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40' : 'text-slate-300 hover:bg-slate-800/80'
-                }`}
-              >
-                <Mountain className="w-4 h-4 text-purple-400 flex-shrink-0" />
-                <span>Esri World Imagery HD</span>
-              </button>
-              <button
-                onClick={() => { setMapType('google-roads'); setShowBasemapMenu(false); }}
-                className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center gap-2.5 font-medium transition-all cursor-pointer ${
-                  mapType === 'google-roads' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40' : 'text-slate-300 hover:bg-slate-800/80'
-                }`}
-              >
-                <Route className="w-4 h-4 text-rose-400 flex-shrink-0" />
-                <span>Google Plan des Routes</span>
-              </button>
-            </div>
+          {canDrawAndManageParcels && (
+            <>
+              <div className="h-px bg-slate-200 mx-1.5 my-1" />
+              {!isDrawing ? (
+                <ToolButton icon={Pencil} label="Tracer une parcelle" onClick={handleStartDrawing} />
+              ) : (
+                <>
+                  <ToolButton icon={Check} label="Valider le tracé" onClick={handleFinishDrawing} disabled={drawnPoints.length < 3} active={drawnPoints.length >= 3} />
+                  <ToolButton icon={X} label="Annuler le tracé" onClick={handleCancelDrawing} />
+                </>
+              )}
+              {isAdmin && (
+                <ToolButton
+                  icon={PenTool}
+                  label={isEditingConcession ? 'Quitter l’édition du périmètre' : 'Éditer le périmètre'}
+                  active={isEditingConcession}
+                  onClick={() => (isEditingConcession ? handleCancelConcessionEditing() : handleStartConcessionEditing())}
+                />
+              )}
+            </>
           )}
+
+          <div className="h-px bg-slate-200 mx-1.5 my-1" />
+          <ToolButton icon={LocateFixed} label="Ma position GPS" onClick={handleLocateMe} />
+          <ToolButton icon={Download} label="Exporter la carte (image HD)" onClick={handleExportMapHD} disabled={isExporting} busy={isExporting} />
         </div>
 
-        {/* Road Overlay Toggle */}
-        <button
-          onClick={() => setShowRoadsOverlay(!showRoadsOverlay)}
-          className={`p-2 rounded-lg border border-slate-200 shadow-sm transition-all cursor-pointer ${
-            showRoadsOverlay ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-white text-slate-700 hover:bg-slate-50'
-          }`}
-          title="Calque des routes"
-        >
-          <Route className="w-4 h-4" />
-        </button>
-
-        {/* High Sharpness HD Filter */}
-        <button
-          onClick={() => setSharpnessHD(!sharpnessHD)}
-          className={`p-2 rounded-lg border border-slate-200 shadow-sm transition-all cursor-pointer ${
-            sharpnessHD ? 'bg-cyan-50 text-cyan-700 border-cyan-300' : 'bg-white text-slate-700 hover:bg-slate-50'
-          }`}
-          title="Mode Super-Netteté HD"
-        >
-          <Sparkles className="w-4 h-4" />
-        </button>
-
-        {/* Drawing Tool (Strictement réservé Admin & Arpenteur) */}
-        {canDrawAndManageParcels && (
-          !isDrawing ? (
-            <button
-              onClick={handleStartDrawing}
-              className="p-2 bg-white text-slate-700 border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition-all cursor-pointer"
-              title="Dessiner une parcelle"
-            >
-              <Pencil className="w-4 h-4 text-emerald-600" />
-            </button>
-          ) : (
-            <div className="flex flex-col gap-1 p-1 bg-amber-50 rounded-lg border border-amber-200 shadow-md">
-              <button
-                onClick={handleFinishDrawing}
-                disabled={drawnPoints.length < 3}
-                className="p-1.5 bg-emerald-600 text-white rounded font-bold text-xs flex items-center justify-center cursor-pointer"
-                title="Valider le polygone"
-              >
-                <Check className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={handleCancelDrawing}
-                className="p-1.5 bg-slate-200 text-slate-700 rounded hover:bg-slate-300 cursor-pointer"
-                title="Annuler"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )
+        {openMapPanel === 'basemap' && (
+          <MapPanel title="Fond de carte" onClose={() => setOpenMapPanel(null)} className="absolute top-0 left-full ml-2 w-64">
+            <BasemapList value={mapType} onChange={(id) => { setMapType(id); setOpenMapPanel(null); }} />
+          </MapPanel>
         )}
 
-        {/* Concession Perimeter Boundary Toggle */}
-        <button
-          onClick={() => setShowConcession(!showConcession)}
-          className={`p-2 rounded-lg border border-slate-200 shadow-sm transition-all cursor-pointer ${
-            showConcession ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-white text-slate-700 hover:bg-slate-50'
-          }`}
-          title="Afficher/Masquer le périmètre"
-        >
-          <Eye className="w-4 h-4" />
-        </button>
-
-        {/* Concession Bornes Toggle */}
-        {canViewAndInspectBornes && (
-          <button
-            onClick={() => setShowConcessionBornes(!showConcessionBornes)}
-            className={`p-2 rounded-lg border shadow-sm transition-all cursor-pointer ${
-              showConcessionBornes
-                ? 'bg-amber-500 text-white border-amber-600 shadow-xs ring-2 ring-amber-400/30'
-                : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 border-slate-200'
-            }`}
-            title={showConcessionBornes ? "Masquer les bornes de la concession" : "Afficher les bornes de la concession (P1...P32)"}
-          >
-            <MapPin className="w-4 h-4" />
-          </button>
+        {openMapPanel === 'layers' && (
+          <MapPanel title="Calques & légende" onClose={() => setOpenMapPanel(null)} className="absolute top-0 left-full ml-2 w-72 max-h-[calc(100vh-160px)] overflow-y-auto">
+            <LayerSwitch icon={Waves} label="Zonage littoral" detail="Bandes de distance à l'océan" checked={showOceanZones} onChange={setShowOceanZones} />
+            <LayerSwitch icon={Hexagon} label="Périmètre de la concession" detail="5 326 ha" checked={showConcession} onChange={setShowConcession} />
+            {canViewAndInspectBornes && (
+              <LayerSwitch icon={MapPin} label="Bornes du périmètre" detail="P1 à P32, avec altitude" checked={showConcessionBornes} onChange={setShowConcessionBornes} />
+            )}
+            <LayerSwitch icon={Route} label="Routes" checked={showRoadsOverlay} onChange={setShowRoadsOverlay} />
+            <LayerSwitch icon={Sparkles} label="Netteté renforcée" detail="Contraste de l'imagerie" checked={sharpnessHD} onChange={setSharpnessHD} />
+            <div className="h-px bg-slate-100 my-2" />
+            <MapLegend />
+          </MapPanel>
         )}
-
-        {/* Concession Edit Mode Quick Toggle (Admin Only) */}
-        {isAdmin && (
-          <button
-            onClick={() => {
-              if (isEditingConcession) {
-                handleCancelConcessionEditing();
-              } else {
-                handleStartConcessionEditing();
-              }
-            }}
-            className={`p-2 rounded-lg border shadow-sm transition-all cursor-pointer ${
-              isEditingConcession
-                ? 'bg-amber-600 text-white border-amber-700 animate-pulse'
-                : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
-            }`}
-            title={isEditingConcession ? "Annuler le mode édition des bornes" : "Éditer et calibrer les bornes de la concession"}
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* Coastal Zoning / Separation Lines Toggle */}
-        <button
-          onClick={() => setShowOceanZones(!showOceanZones)}
-          className={`p-2 rounded-lg border border-slate-200 shadow-sm transition-all cursor-pointer ${
-            showOceanZones ? 'bg-cyan-50 text-cyan-700 border-cyan-300 shadow-inner' : 'bg-white text-slate-700 hover:bg-slate-50'
-          }`}
-          title="Afficher/Masquer le zonage littoral & les lignes de séparation océan (Zones A, B, C, D)"
-        >
-          <Waves className={`w-4 h-4 ${showOceanZones ? 'text-cyan-700' : 'text-cyan-600'}`} />
-        </button>
-
-        {/* GPS Live Position */}
-        <button
-          onClick={handleLocateMe}
-          className="p-2 bg-white text-slate-700 border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 transition-all cursor-pointer"
-          title="Position GPS Live"
-        >
-          <Compass className="w-4 h-4 text-indigo-600" />
-        </button>
-
-        {/* 4K HD Map Export */}
-        <button
-          onClick={handleExportMapHD}
-          disabled={isExporting}
-          className="p-2 bg-emerald-600 text-white rounded-lg shadow-md hover:bg-emerald-500 transition-all cursor-pointer"
-          title="Exporter la carte en 4K HD"
-        >
-          {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-        </button>
-
-        {/* Discrete Collapsible Legend Drawer Toggle Button */}
-        <button
-          onClick={() => setShowLegendDrawer(!showLegendDrawer)}
-          aria-label="Afficher la légende cartographique"
-          className={`p-2 rounded-xl border shadow-md transition-all duration-150 active:scale-95 cursor-pointer mt-2 ${
-            showLegendDrawer ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-amber-900/30' : 'bg-slate-900/90 text-slate-300 border-slate-700/80 hover:bg-slate-800'
-          }`}
-          title="Afficher la légende"
-        >
-          <Palette className="w-4 h-4 text-amber-400" />
-        </button>
       </div>
 
-      {/* Discrete Collapsible Legend Card */}
+      {/* Mobile legend card (opened from the bottom sheet) */}
       {showLegendDrawer && (
-        <div className="absolute top-3 sm:top-4 left-3 sm:left-16 right-3 sm:right-auto z-[1010] bg-slate-950/95 backdrop-blur-xl p-4 rounded-2xl border border-slate-700/80 shadow-2xl text-xs space-y-2.5 max-w-sm text-slate-200 select-none animate-in fade-in zoom-in-95 duration-150 max-h-[78vh] overflow-y-auto">
-          <div className="font-bold text-white border-b border-slate-800 pb-2 flex items-center justify-between gap-4">
-            <span className="flex items-center gap-2">
-              <Palette className="w-3.5 h-3.5 text-amber-400" />
-              <span>Légende Cadastrale</span>
-            </span>
-            <button onClick={() => setShowLegendDrawer(false)} aria-label="Fermer la légende" className="text-slate-400 hover:text-white p-0.5 rounded cursor-pointer">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Parcels Status */}
-          <div className="space-y-1.5">
-            <div className="text-[10px] uppercase font-bold tracking-wider text-slate-400 font-mono">Statut des Parcelles</div>
-            <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded bg-emerald-500/30 border-2 border-emerald-500"></div>
-              <span className="text-slate-300">Disponible / Libre</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded bg-rose-500/30 border-2 border-rose-500"></div>
-              <span className="text-slate-300">Occupé / Attribué</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded bg-amber-500/30 border-2 border-amber-500"></div>
-              <span className="text-slate-300">Litige / Sous réserve</span>
-            </div>
-            <div className="flex items-center gap-2 pt-1 border-t border-slate-800">
-              <div className="w-4 h-0 border-2 border-dashed border-cyan-400"></div>
-              <span className="text-cyan-300 font-medium text-[11px]">Limite Zone ISETECH (1 002 ha)</span>
-            </div>
-          </div>
-
-          {/* Coastal Zoning Legend Section */}
-          <div className="border-t border-slate-800 pt-2 space-y-1.5">
-            <div className="font-bold text-slate-200 text-[11px] flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-cyan-400 font-mono">Zonage Littoral &amp; Océan</span>
-              <span className="text-[10px] text-slate-400 font-mono">0 à &gt;600 m</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded bg-rose-500/30 border-2 border-rose-500"></div>
-              <span className="text-slate-300 text-[11px]"><strong className="text-rose-400">Utilité Publique</strong> : 0 à 100 m (78,65 ha - Domaine État)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded bg-cyan-500/30 border-2 border-cyan-400"></div>
-              <span className="text-slate-300 text-[11px]"><strong className="text-cyan-400">Zone A</strong> : 101 à 200 m (78,83 ha)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded bg-amber-500/30 border-2 border-amber-400"></div>
-              <span className="text-slate-300 text-[11px]"><strong className="text-amber-400">Zone B</strong> : 201 à 400 m (158,19 ha)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded bg-purple-500/30 border-2 border-purple-400"></div>
-              <span className="text-slate-300 text-[11px]"><strong className="text-purple-400">Zone C</strong> : 401 à 600 m (158,47 ha)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3.5 h-3.5 rounded bg-emerald-500/20 border-2 border-emerald-500"></div>
-              <span className="text-slate-300 text-[11px]"><strong className="text-emerald-400">Zone D</strong> : 601 m et + (Zone continentale intérieure)</span>
-            </div>
-            <div className="flex items-center gap-2 pt-1 border-t border-slate-800 text-[10px] text-slate-400">
-              <div className="w-4 h-0 border-2 border-dashed border-red-500"></div>
-              <span>Ligne 100m (Recul Concession) &bull; Lignes 200/400/600m</span>
-            </div>
-          </div>
+        <div className="md:hidden absolute top-3 inset-x-3 z-[1010]">
+          <MapPanel title="Légende" onClose={() => setShowLegendDrawer(false)} className="max-h-[70vh] overflow-y-auto">
+            <MapLegend />
+          </MapPanel>
         </div>
       )}
 
-      {/* Floating Tile Loading Indicator */}
+      {/* Imagery loading indicator */}
       {isTilesLoading && (
-        <>
-          {/* Desktop/Tablet Centered Pill */}
-          <div className="hidden sm:block absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none animate-in fade-in duration-200">
-            <div className="glass-pill px-3 py-1.5 rounded-full text-[11px] font-sans font-semibold text-emerald-300 flex items-center gap-2 shadow-2xl border border-emerald-500/40">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-              <span>Chargement des tuiles satellites HD...</span>
-            </div>
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none animate-in fade-in duration-200 hidden sm:block">
+          <div className="glass-pill h-8 px-3 rounded-full text-xs font-medium text-slate-600 flex items-center gap-2 shadow-[0_4px_14px_-4px_rgba(15,37,64,0.3)]">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+            <span>Chargement de l&apos;imagerie…</span>
           </div>
-
-          {/* Mobile Discrete Indicator (Top Right - Non overlapping) */}
-          <div className="sm:hidden absolute top-3 right-3 z-[1000] pointer-events-none animate-in fade-in duration-200">
-            <div className="glass-pill px-2.5 py-1.5 rounded-full text-[10px] font-sans font-semibold text-emerald-300 flex items-center gap-1.5 shadow-lg border border-emerald-500/30">
-              <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />
-              <span>Tuiles HD...</span>
-            </div>
-          </div>
-        </>
+        </div>
       )}
 
       {/* Main Leaflet Map Container */}
@@ -2194,7 +1876,7 @@ export default function MapView({
             }}
           >
             {!isDrawing && !isEditingConcession && (
-              <Tooltip direction="top" className="bg-slate-900 text-white font-semibold text-[11px] px-2 py-0.5 rounded shadow-sm border border-slate-700">
+              <Tooltip direction="top" className="text-[11px] font-medium">
                 Concession Manuel Joaquim d'Oliveira (5 326,15 ha)
               </Tooltip>
             )}
@@ -2265,22 +1947,29 @@ export default function MapView({
               weight: 1.5,
               dashArray: '4, 4',
               fillColor: zone.color,
-              fillOpacity: zone.fillOpacity
+              // Background context: kept light so parcels stay the subject
+              fillOpacity: zone.fillOpacity * 0.45
             }}
           >
             {!isDrawing && (
               <>
-                <Tooltip direction="center" className="bg-slate-950/95 text-white font-semibold text-[11px] px-2.5 py-1 rounded-lg shadow-md border border-slate-700 font-mono">
+                <Tooltip direction="center" className="text-[11px] font-medium">
                   {zone.shortName} • {zone.formattedArea}
                 </Tooltip>
                 <Popup>
-                  <div className="p-1 space-y-1.5 text-xs font-sans text-slate-100">
-                    <div className="font-bold text-sm" style={{ color: zone.strokeColor }}>{zone.name}</div>
-                    <div className="text-slate-300 text-[11px] leading-relaxed">{zone.description}</div>
-                    <div className="font-semibold text-slate-200">Superficie : <span className="text-emerald-400 font-bold font-mono">{zone.formattedArea}</span></div>
-                    <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-800 flex items-center justify-between">
-                      <span>Distance du rivage</span>
-                      <strong className="font-mono text-cyan-300">{zone.range}</strong>
+                  <div className="space-y-1.5 text-[12px] font-sans text-slate-700 min-w-[200px]">
+                    <div className="flex items-center gap-2 font-semibold text-[13px] text-slate-900">
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: zone.strokeColor }} />
+                      {zone.name}
+                    </div>
+                    <div className="text-slate-600 leading-relaxed">{zone.description}</div>
+                    <div className="flex items-center justify-between pt-1.5 border-t border-slate-100">
+                      <span className="text-slate-500">Superficie</span>
+                      <strong className="tabular-nums text-slate-900">{zone.formattedArea}</strong>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Distance du rivage</span>
+                      <strong className="tabular-nums text-slate-900">{zone.range}</strong>
                     </div>
                   </div>
                 </Popup>
@@ -2302,7 +1991,7 @@ export default function MapView({
               }}
             >
               {!isDrawing && (
-                <Tooltip direction="top" className="bg-slate-950/95 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg shadow-md border border-slate-700">
+                <Tooltip direction="top" className="text-[11px] font-medium">
                   {line.label}
                 </Tooltip>
               )}
@@ -2361,6 +2050,7 @@ export default function MapView({
             >
               {!isDrawing && (
                 <>
+                  {isIsetechMain && activeView === 'global' && (
                   <Popup>
                     <div className="text-xs p-1 space-y-2 font-sans text-slate-800">
                       <div className="font-bold text-sm text-slate-900">{parcel.properties?.lotNumber || 'Lot'}</div>
@@ -2404,6 +2094,7 @@ export default function MapView({
                       )}
                     </div>
                   </Popup>
+                  )}
 
                   <Tooltip direction="center" opacity={0.9} sticky>
                     <div className="text-xs p-1 font-sans text-center">

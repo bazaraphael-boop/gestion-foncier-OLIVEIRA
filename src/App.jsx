@@ -25,7 +25,7 @@ const AuditLogModal = lazy(() => import('./components/AuditLogModal'));
 import { DEFAULT_KML_DATA } from './data/defaultConcession';
 import { parseKMLToGeoJSON, extractMainConcessionPolygon, extractSubZones } from './utils/kmlParser';
 import { calculateArea, exportParcelsToGeoJSON } from './utils/geoUtils';
-import { Layers3, ArrowLeft, Globe, MapPin, Pencil, Navigation, Crosshair } from 'lucide-react';
+import { Layers3, Globe, MapPin, Pencil, Navigation, Crosshair } from 'lucide-react';
 
 import {
   fetchParcelsFromSupabase,
@@ -847,7 +847,7 @@ export default function App() {
 
   // --- AUTHENTICATED APP WORKSPACE ---
   return (
-    <div className="min-h-screen h-screen h-[100dvh] w-full bg-slate-900 font-sans flex flex-col antialiased text-slate-800 overflow-hidden select-none">
+    <div className="min-h-screen h-screen h-[100dvh] w-full bg-slate-100 font-sans flex flex-col antialiased text-slate-800 overflow-hidden select-none">
       {/* Top Header Navbar depending on role */}
       {isClientRole ? (
         <ClientNavbar
@@ -868,7 +868,6 @@ export default function App() {
           concessionPolygon={concessionPolygon}
           onResetConcession={handleResetConcession}
           onClearAllData={handleClearAllData}
-          isVisitorMode={false}
           onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
           onOpenSecurityModal={() => setIsAdminSecurityOpen(true)}
           onOpenAuditModal={() => setIsAuditLogOpen(true)}
@@ -881,6 +880,8 @@ export default function App() {
           isArpenteur={isArpenteur}
           onStartDrawing={() => setDrawTrigger((prev) => prev + 1)}
           onStartEditConcession={() => setEditConcessionTrigger((prev) => prev + 1)}
+          activeView={activeView}
+          onSelectView={(view) => (view === 'isetech' ? handleExploreSubZone('isetech') : handleReturnToGlobal())}
         />
       )}
 
@@ -898,51 +899,6 @@ export default function App() {
           onSimulate={handleSimulateLocation}
           onClose={stopLocation}
         />
-      )}
-
-      {/* Sub-cadastre Breadcrumb Bar / View Mode Switcher */}
-      {activeView === 'isetech' ? (
-        <div className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800/90 px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-2 text-slate-200 text-xs shadow-sm">
-          <div className="flex items-center gap-2 font-medium min-w-0">
-            <span className="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center flex-shrink-0">
-              <Layers3 className="w-3.5 h-3.5" />
-            </span>
-            <span className="truncate">
-              <span className="sm:hidden font-bold text-cyan-300">Zone ISETECH (1 002 ha)</span>
-              <span className="hidden sm:inline">Sous-cadastre spécialisé : <strong className="text-white uppercase font-semibold">ZONE ISETECH (1 002,61 ha)</strong></span>
-            </span>
-          </div>
-          <button
-            onClick={handleReturnToGlobal}
-            className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-[11px] sm:text-xs font-semibold rounded-lg flex items-center gap-1.5 border border-slate-700 transition-all duration-150 active:scale-95 cursor-pointer flex-shrink-0 shadow-xs"
-            title="Afficher la vue d'ensemble de la concession"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-slate-400" />
-            <span className="sm:hidden">Vue Globale</span>
-            <span className="hidden sm:inline">Retour Vue Globale (5 326 ha)</span>
-          </button>
-        </div>
-      ) : (
-        <div className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800/90 px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-2 text-slate-200 text-xs shadow-sm">
-          <div className="flex items-center gap-2 font-medium min-w-0">
-            <span className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
-              <Globe className="w-3.5 h-3.5" />
-            </span>
-            <span className="truncate">
-              <span className="sm:hidden font-bold text-emerald-300">Concession Globale (5 326 ha)</span>
-              <span className="hidden sm:inline">Périmètre Concession Globale : <strong className="text-white uppercase font-semibold">Manuel Joaquim d'Oliveira (5 326,15 ha)</strong></span>
-            </span>
-          </div>
-          <button
-            onClick={() => handleExploreSubZone('isetech')}
-            className="px-2.5 sm:px-3 py-1 sm:py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] sm:text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm shadow-cyan-950/40 transition-all duration-150 active:scale-95 cursor-pointer flex-shrink-0 border border-cyan-500/50"
-            title="Zoomer dans le cadastre spécialisé Zone ISETECH"
-          >
-            <Layers3 className="w-3.5 h-3.5 text-cyan-200" />
-            <span className="sm:hidden">Zone ISETECH</span>
-            <span className="hidden sm:inline">Zoomer sur Zone ISETECH (1 002 ha)</span>
-          </button>
-        </div>
       )}
 
       {/* Dashboard Analytics */}
@@ -1056,58 +1012,58 @@ export default function App() {
 
       {/* Mobile Bottom Navigation Dock Bar */}
       {!isClientRole && (
-        <div className="md:hidden fixed bottom-0 inset-x-0 z-[1000] bg-slate-950/95 backdrop-blur-md border-t border-slate-800/90 px-4 py-1.5 flex items-center justify-around shadow-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-          <button
-            onClick={() => setIsSidebarCollapsed(true)}
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all cursor-pointer ${
-              isSidebarCollapsed ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Globe className="w-5 h-5" />
-            <span className="text-[10px]">Carte</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setIsSidebarCollapsed(true);
-              setDrawTrigger((prev) => prev + 1);
-            }}
-            className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer"
-          >
-            <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-md shadow-emerald-950/50 active:scale-90 transition-transform">
-              <Pencil className="w-3.5 h-3.5" />
-            </div>
-            <span className="text-[10px]">Tracer</span>
-          </button>
-
-          <button
-            onClick={handleToggleLocation}
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all cursor-pointer ${
-              isLocating ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <div className={`relative flex items-center justify-center ${isLocating ? 'text-cyan-400' : ''}`}>
-              <Navigation className={`w-5 h-5 ${isLocating ? 'animate-pulse' : ''}`} />
-              {isLocating && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>}
-            </div>
-            <span className="text-[10px]">{isLocating ? 'GPS Actif' : 'GPS'}</span>
-          </button>
-
-          <button
-            onClick={() => setIsSidebarCollapsed(false)}
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all cursor-pointer ${
-              !isSidebarCollapsed ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <div className="relative">
-              <Layers3 className="w-5 h-5" />
-              <span className="absolute -top-1 -right-2.5 text-[9px] font-mono bg-emerald-500 text-slate-950 font-extrabold px-1.5 py-0.2 rounded-full">
-                {currentParcels.length}
+        <nav
+          aria-label="Navigation principale"
+          className="md:hidden fixed bottom-0 inset-x-0 z-[1000] bg-white border-t border-slate-200 px-2 pt-1.5 grid grid-cols-4 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+        >
+          {[
+            {
+              key: 'map',
+              label: 'Carte',
+              icon: <Globe className="w-5 h-5" />,
+              active: isSidebarCollapsed,
+              onClick: () => setIsSidebarCollapsed(true)
+            },
+            {
+              key: 'draw',
+              label: 'Tracer',
+              icon: <Pencil className="w-5 h-5" />,
+              active: false,
+              onClick: () => {
+                setIsSidebarCollapsed(true);
+                setDrawTrigger((prev) => prev + 1);
+              }
+            },
+            {
+              key: 'gps',
+              label: isLocating ? 'GPS actif' : 'GPS',
+              icon: <Navigation className="w-5 h-5" />,
+              active: isLocating,
+              onClick: handleToggleLocation
+            },
+            {
+              key: 'list',
+              label: `Registre (${currentParcels.length})`,
+              icon: <Layers3 className="w-5 h-5" />,
+              active: !isSidebarCollapsed,
+              onClick: () => setIsSidebarCollapsed(false)
+            }
+          ].map((item) => (
+            <button
+              key={item.key}
+              onClick={item.onClick}
+              aria-pressed={item.active}
+              className={`flex flex-col items-center gap-0.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer ${
+                item.active ? 'text-brand-700' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span className={`w-12 h-7 rounded-full flex items-center justify-center transition-colors ${item.active ? 'bg-brand-50' : ''}`}>
+                {item.icon}
               </span>
-            </div>
-            <span className="text-[10px]">Registre</span>
-          </button>
-        </div>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
       )}
 
       {/* Lazy Loaded Admin Modals & Detail Views */}

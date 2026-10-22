@@ -85,7 +85,7 @@ export default function ParcelList({
             {!isVisitorMode && (
               <button
                 onClick={onOpenCreateForm}
-                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold flex items-center gap-1 transition-all shadow-xs cursor-pointer"
+                className="px-2.5 py-1 bg-brand-700 hover:bg-brand-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition-all shadow-xs cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Ajouter</span>
@@ -206,9 +206,9 @@ export default function ParcelList({
 
         {/* Floating Bulk Action Bar when 1+ parcels are checked */}
         {!isVisitorMode && selectedParcelIds.length > 0 && (
-          <div className="bg-slate-900 text-white p-2.5 px-3 border-b border-slate-800 shadow-md flex items-center justify-between gap-2 text-xs animate-in slide-in-from-top duration-200 sticky top-0 z-10">
+          <div className="bg-brand-900 text-white p-2.5 px-3 border-b border-white/10 flex items-center justify-between gap-2 text-xs animate-in slide-in-from-top duration-200 sticky top-0 z-10">
             <div className="flex items-center gap-2 font-bold text-slate-100">
-              <span className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-[10px]">
+              <span className="w-5 h-5 rounded-full bg-white text-brand-900 font-bold flex items-center justify-center text-[10px]">
                 {selectedParcelIds.length}
               </span>
               <span>Actions Groupées</span>
@@ -218,7 +218,7 @@ export default function ParcelList({
               <div className="relative">
                 <button
                   onClick={() => setShowStatusMenu(!showStatusMenu)}
-                  className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                  className="px-2 py-1 bg-white/10 hover:bg-white/20 text-white rounded-md text-[11px] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
                   title="Changer le statut en masse"
                 >
                   <Tag className="w-3 h-3 text-emerald-400" />
@@ -263,7 +263,7 @@ export default function ParcelList({
 
               <button
                 onClick={() => onBulkExportGeoJSON(selectedParcelIds)}
-                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded text-[11px] font-semibold flex items-center gap-1"
+                className="px-2 py-1 bg-white/10 hover:bg-white/20 text-white rounded-md text-[11px] font-semibold flex items-center gap-1"
                 title="Exporter les parcelles sélectionnées en GeoJSON"
               >
                 <Download className="w-3 h-3 text-cyan-400" />
@@ -273,7 +273,7 @@ export default function ParcelList({
               {!isArpenteur && (
                 <button
                   onClick={() => setShowBulkDeleteConfirm(true)}
-                  className="px-2 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                  className="px-2 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-md text-[11px] font-bold flex items-center gap-1 cursor-pointer"
                   title="Supprimer les parcelles sélectionnées (Admin uniquement)"
                 >
                   <Trash2 className="w-3 h-3" />
@@ -283,7 +283,7 @@ export default function ParcelList({
 
               <button
                 onClick={onClearSelection}
-                className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800"
+                className="p-1 text-slate-400 hover:text-white rounded hover:bg-white/10"
                 title="Annuler la sélection"
               >
                 <X className="w-3.5 h-3.5" />

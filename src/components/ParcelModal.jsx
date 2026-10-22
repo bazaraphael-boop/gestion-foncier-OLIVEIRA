@@ -10,22 +10,16 @@ import { SituationPlan, BornagePlan } from './ParcelPlans';
 import {
   X,
   User,
-  Tag,
-  Maximize,
   Copy,
   Download,
   Trash2,
   Edit3,
-  CheckCircle2,
-  FileText,
   MapPin,
-  Save,
   Check,
   Printer,
   ShieldCheck,
   Plus,
   Waves,
-  QrCode
 } from 'lucide-react';
 
 export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteParcel, isVisitorMode, isArpenteur, allParcels = [], concessionPolygon }) {
@@ -460,154 +454,122 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
       )}
 
       {/* Main Sidebar Modal */}
-      <div className="fixed inset-y-0 right-0 z-[2000] w-full max-w-md bg-white border-l border-slate-200 shadow-xl flex flex-col text-slate-800 select-none animate-in slide-in-from-right duration-200">
+      <aside
+        aria-label={`Lot ${parcel.properties.lotNumber || ''}`}
+        className="fixed right-0 bottom-0 top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-[1050] w-full max-w-md bg-white border-l border-slate-200 shadow-[-12px_0_32px_-16px_rgba(15,37,64,0.3)] flex flex-col text-slate-800 select-none animate-in slide-in-from-right duration-200"
+      >
         {/* Header */}
-        <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-          <div className="flex items-center gap-2">
-            <div
-              className="w-3.5 h-3.5 rounded-full border border-slate-300"
-              style={{ backgroundColor: colorConfig.hex }}
-            ></div>
-            <h2 className="font-bold text-base text-slate-900">
-              Détail Lot : {parcel.properties.lotNumber || 'Lot Sans Nom'}
+        <div className="px-5 h-14 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+          <div className="min-w-0">
+            <div className="text-[11px] text-slate-500 leading-tight">Lot</div>
+            <h2 className="font-semibold text-[16px] text-slate-900 leading-tight truncate">
+              {parcel.properties.lotNumber || 'Lot sans numéro'}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all"
+            aria-label="Fermer la fiche"
+            className="p-1.5 -mr-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 font-sans">
-          {/* Status & Surface Banner */}
-          <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-2.5">
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-slate-500 font-medium">Statut d'Occupation</span>
-              <span
-                className="px-2.5 py-0.5 text-xs font-semibold rounded border"
-                style={{
-                  backgroundColor: `${colorConfig.hex}15`,
-                  color: colorConfig.hex,
-                  borderColor: `${colorConfig.hex}40`
-                }}
-              >
-                {colorConfig.label}
-              </span>
+        <div className="flex-1 overflow-y-auto font-sans">
+          {/* Summary */}
+          <section className="px-5 py-4 space-y-3 border-b border-slate-100">
+            <span
+              className="inline-flex items-center gap-1.5 h-6 px-2.5 text-[12px] font-semibold rounded-full"
+              style={{ backgroundColor: `${colorConfig.hex}1a`, color: colorConfig.hex }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colorConfig.hex }} />
+              {colorConfig.label}
+            </span>
+            <div className="flex items-baseline gap-3">
+              <span className="text-[26px] font-semibold text-slate-900 tabular-nums leading-none">{areaInfo.formattedHa}</span>
+              <span className="text-[13px] text-slate-500 tabular-nums">{areaInfo.formattedSqM}</span>
             </div>
-
-            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
-              <div>
-                <div className="text-[11px] text-slate-500 font-medium">Superficie (Hectares)</div>
-                <div className="text-base font-black text-slate-900 mt-0.5">{areaInfo.formattedHa}</div>
-              </div>
-              <div>
-                <div className="text-[11px] text-slate-500 font-medium">Superficie (m²)</div>
-                <div className="text-base font-bold text-slate-700 mt-0.5">{areaInfo.formattedSqM}</div>
-              </div>
-            </div>
-
-            {/* Coastal Proximity & Zone Information */}
             {oceanInfo && (
-              <div className="pt-2.5 border-t border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
-                  <Waves className="w-3.5 h-3.5 text-cyan-600 flex-shrink-0" />
-                  <span>Situation Littorale :</span>
-                </div>
-                <span
-                  className="px-2.5 py-0.5 text-xs font-bold rounded-full border flex items-center gap-1.5"
-                  style={{
-                    backgroundColor: `${oceanInfo.color}15`,
-                    color: oceanInfo.color,
-                    borderColor: `${oceanInfo.color}50`
-                  }}
-                >
-                  <span>{oceanInfo.shortName}</span>
-                  <span className="text-slate-400 font-normal">•</span>
-                  <span className="font-mono">{oceanInfo.distanceFormatted}</span>
+              <div className="flex items-center gap-2 text-[13px] text-slate-600">
+                <Waves className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                <span>
+                  {oceanInfo.shortName} <span className="text-slate-400">•</span>{' '}
+                  <span className="tabular-nums">{oceanInfo.distanceFormatted}</span> de l&apos;océan
                 </span>
               </div>
             )}
-          </div>
+          </section>
 
           {!isEditing ? (
-            <div className="space-y-4">
-              <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-1">
-                <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
-                  <User className="w-3.5 h-3.5 text-slate-400" /> Affectataire / Occupant
-                </div>
-                <div className="text-sm font-semibold text-slate-900">
-                  {parcel.properties.occupantName || (
-                    <span className="italic text-slate-400 font-normal">Aucun occupant (Zone disponible)</span>
-                  )}
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShowReleve(true)}
-                className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded text-xs flex items-center justify-center gap-2 shadow-2xs transition-all cursor-pointer"
-              >
-                <Printer className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Imprimer Relevé Parcellaire (PDF &amp; QR Code)</span>
-              </button>
-
-              {parcel.properties.notes && (
-                <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-1">
-                  <div className="text-[11px] text-slate-500 font-medium">Observations</div>
-                  <p className="text-xs text-slate-700 whitespace-pre-wrap">{parcel.properties.notes}</p>
-                </div>
-              )}
-
-              {/* GPS Vertices Table */}
-              <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-2.5">
-                <div className="flex justify-between items-center">
-                  <div className="text-xs text-slate-900 font-bold flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-emerald-600" /> Bornes GPS ({bornes.length})
+            <>
+              <section className="px-5 py-4 border-b border-slate-100 space-y-3">
+                <div>
+                  <div className="text-[12px] text-slate-500 flex items-center gap-1.5 mb-0.5">
+                    <User className="w-3.5 h-3.5 text-slate-400" /> Affectataire / occupant
                   </div>
+                  <div className="text-[14px] font-medium text-slate-900">
+                    {parcel.properties.occupantName || <span className="text-slate-400 font-normal">Aucun occupant</span>}
+                  </div>
+                </div>
+                {parcel.properties.notes && (
+                  <div>
+                    <div className="text-[12px] text-slate-500 mb-0.5">Observations</div>
+                    <p className="text-[13px] text-slate-700 whitespace-pre-wrap">{parcel.properties.notes}</p>
+                  </div>
+                )}
+              </section>
+
+              {/* Bornes */}
+              <section className="px-5 py-4 space-y-2.5">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-[13px] font-semibold text-slate-900 flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4 text-orange-600" /> Bornes GPS ({bornes.length})
+                  </h3>
                   <div className="flex gap-1">
                     <button
                       onClick={handleCopyCSV}
-                      className="px-2 py-0.5 text-[11px] bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded flex items-center gap-1 font-medium"
+                      className="h-7 px-2 text-[12px] text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-md flex items-center gap-1 font-medium cursor-pointer"
+                      title="Copier les coordonnées au format CSV"
                     >
-                      {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      <span>CSV</span>
+                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copied ? 'Copié' : 'CSV'}</span>
                     </button>
                     <button
                       onClick={handleDownloadGeoJSON}
-                      className="px-2 py-0.5 text-[11px] bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded flex items-center gap-1 font-medium"
+                      className="h-7 px-2 text-[12px] text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-md flex items-center gap-1 font-medium cursor-pointer"
+                      title="Télécharger la parcelle au format GeoJSON"
                     >
-                      <Download className="w-3 h-3" /> GeoJSON
+                      <Download className="w-3.5 h-3.5" /> GeoJSON
                     </button>
                   </div>
                 </div>
 
-                <div className="max-h-44 overflow-y-auto border border-slate-200 rounded text-xs bg-white">
-                  <table className="w-full text-left font-mono">
-                    <thead className="bg-slate-100 text-slate-700 sticky top-0">
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-left text-[12px]">
+                    <thead className="bg-slate-50 text-slate-500">
                       <tr>
-                        <th className="p-1.5 border-b border-slate-200">#</th>
-                        <th className="p-1.5 border-b border-slate-200">Lat (DD)</th>
-                        <th className="p-1.5 border-b border-slate-200">Lng (DD)</th>
+                        <th className="px-3 py-2 font-medium">Borne</th>
+                        <th className="px-3 py-2 font-medium">Latitude</th>
+                        <th className="px-3 py-2 font-medium">Longitude</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-800">
+                    <tbody className="divide-y divide-slate-100 text-slate-800 font-mono tabular-nums">
                       {bornes.map((pt, i) => (
-                        <tr key={i} className="hover:bg-slate-50">
-                          <td className="p-1.5 font-bold text-slate-500">B{i + 1}</td>
-                          <td className="p-1.5">{pt[1].toFixed(6)}</td>
-                          <td className="p-1.5">{pt[0].toFixed(6)}</td>
+                        <tr key={i}>
+                          <td className="px-3 py-1.5 font-sans font-semibold text-orange-700">B{i + 1}</td>
+                          <td className="px-3 py-1.5">{pt[1].toFixed(6)}</td>
+                          <td className="px-3 py-1.5">{pt[0].toFixed(6)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </div>
-            </div>
+              </section>
+            </>
           ) : (
             /* Edit Form */
-            <form onSubmit={handleSave} className="space-y-3.5 text-xs">
+            <form onSubmit={handleSave} className="px-5 py-4 space-y-3.5 text-[13px]">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
                   Numéro du Lot / Identifiant
@@ -617,7 +579,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                   required
                   value={formData.lotNumber}
                   onChange={(e) => setFormData({ ...formData, lotNumber: e.target.value })}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-900 focus:outline-none focus:border-slate-400 font-medium"
+                  className="w-full h-9 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                 />
               </div>
 
@@ -628,7 +590,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-900 focus:outline-none focus:border-slate-400 font-medium"
+                  className="w-full h-9 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                 >
                   <option value="disponible">Disponible / Libre (Vert)</option>
                   <option value="occupe">Occupé / Attribué (Rouge)</option>
@@ -645,7 +607,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                   value={formData.occupantName}
                   placeholder="Ex: Nom de l'exploitant"
                   onChange={(e) => setFormData({ ...formData, occupantName: e.target.value })}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-900 focus:outline-none focus:border-slate-400 font-medium"
+                  className="w-full h-9 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                 />
               </div>
 
@@ -657,7 +619,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                   rows={2}
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-900 focus:outline-none focus:border-slate-400 font-medium"
+                  className="w-full h-9 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
                 ></textarea>
               </div>
 
@@ -716,17 +678,17 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
 
               <div className="flex gap-2 pt-2">
                 <button
-                  type="submit"
-                  className="flex-1 py-1.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs"
-                >
-                  Enregistrer les Modifs
-                </button>
-                <button
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="py-1.5 px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-xs font-semibold"
+                  className="h-9 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-[13px] font-medium cursor-pointer"
                 >
                   Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 h-9 px-4 bg-brand-700 hover:bg-brand-800 text-white font-semibold rounded-lg text-[13px] cursor-pointer"
+                >
+                  Enregistrer
                 </button>
               </div>
             </form>
@@ -735,25 +697,33 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
 
         {/* Footer Actions (Hidden in Visitor Read-Only Mode and restricted for Arpenteur) */}
         {!isVisitorMode && !isEditing && (
-          <div className="p-3 border-t border-slate-200 bg-slate-50 flex gap-2">
+          <div className="px-5 py-3 border-t border-slate-200 flex gap-2 flex-shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <button
               onClick={() => setIsEditing(true)}
-              className="flex-1 py-2 px-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded text-xs flex items-center justify-center gap-1.5 transition-all shadow-2xs"
+              className="flex-1 h-10 px-4 bg-brand-700 hover:bg-brand-800 text-white font-semibold rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Edit3 className="w-3.5 h-3.5" /> {isArpenteur ? 'Éditer la Fiche de la Parcelle' : 'Éditer la Parcelle & Sommets'}
+              <Edit3 className="w-4 h-4" /> Modifier
+            </button>
+            <button
+              onClick={() => setShowReleve(true)}
+              className="h-10 px-3.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-medium rounded-lg text-[13px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              title="Relevé parcellaire officiel (PDF, QR code, plans)"
+            >
+              <Printer className="w-4 h-4 text-slate-500" /> Relevé PDF
             </button>
             {!isArpenteur && (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded text-xs font-bold transition-all cursor-pointer"
-                title="Supprimer la parcelle (Action Admin)"
+                aria-label="Supprimer la parcelle"
+                className="h-10 w-10 flex items-center justify-center text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                title="Supprimer la parcelle"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
           </div>
         )}
-      </div>
+      </aside>
     </>
   );
 }

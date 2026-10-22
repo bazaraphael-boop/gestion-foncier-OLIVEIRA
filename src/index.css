@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* Brand palette: navy from the official letterhead. Colour carries meaning only:
+   brand = actions & chrome, emerald/rose/amber = parcel status, orange = bornes. */
+@theme {
+  --color-brand-50: #eef3f9;
+  --color-brand-100: #d9e4f0;
+  --color-brand-200: #b3c8de;
+  --color-brand-500: #3d6a99;
+  --color-brand-600: #24507d;
+  --color-brand-700: #1a3a5c;
+  --color-brand-800: #13304f;
+  --color-brand-900: #0f2540;
+}
+
 @layer base {
   :root {
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -33,14 +46,24 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: rgba(15, 23, 42, 0.6);
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #334155;
+    background: #cbd5e1;
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #475569;
+    background: #94a3b8;
+  }
+
+  ::selection {
+    background: #b3c8de;
+    color: #0f2540;
+  }
+
+  :focus-visible {
+    outline: 2px solid #3d6a99;
+    outline-offset: 2px;
   }
 }
 
@@ -54,10 +77,8 @@
 }
 
 .glass-pill {
-  background: rgba(15, 23, 42, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
 }
 
 /* Leaflet Map Custom Styling */
@@ -86,15 +107,13 @@
   filter: contrast(1.06) brightness(1.02) saturate(1.04);
 }
 
-/* Modern Leaflet Popup Dark Glass Styling */
+/* Leaflet popups: same light surface as the app panels */
 .leaflet-popup-content-wrapper {
-  background: rgba(15, 23, 42, 0.96) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  color: #f8fafc !important;
-  border: 1px solid #334155 !important;
-  border-radius: 12px !important;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4) !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 20px -6px rgba(15, 23, 42, 0.25) !important;
   padding: 0 !important;
 }
 
@@ -104,8 +123,8 @@
 }
 
 .leaflet-popup-tip {
-  background: #0f172a !important;
-  border: 1px solid #334155 !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
 }
 
 .leaflet-popup-close-button {
@@ -115,15 +134,14 @@
   right: 4px !important;
 }
 .leaflet-popup-close-button:hover {
-  color: #ffffff !important;
+  color: #0f172a !important;
 }
 
 /* Custom Cartographic Tooltip Styling */
 .custom-concession-tooltip {
-  background-color: rgba(15, 23, 42, 0.95) !important;
-  backdrop-filter: blur(8px) !important;
-  border: 1px solid #334155 !important;
-  color: #f8fafc !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
   border-radius: 6px !important;
   padding: 5px 9px !important;
   font-size: 11px !important;
@@ -133,17 +151,21 @@
 
 /* Hide Leaflet Attribution Links clutter on small screens if needed */
 .leaflet-control-attribution {
-  background: rgba(15, 23, 42, 0.85) !important;
-  backdrop-filter: blur(6px);
+  background: rgba(255, 255, 255, 0.85) !important;
   font-size: 9px !important;
-  color: #94a3b8 !important;
+  color: #64748b !important;
   border-top-left-radius: 6px;
-  border-left: 1px solid #334155;
-  border-top: 1px solid #334155;
   padding: 2px 8px !important;
 }
 .leaflet-control-attribution a {
-  color: #38bdf8 !important;
+  color: #24507d !important;
+}
+
+/* Leaflet tooltips: light, quiet, legible over imagery */
+.leaflet-tooltip {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.25);
 }
 
 /* Relevé Parcellaire: print only the official sheet (A4), with its colours and plans */
