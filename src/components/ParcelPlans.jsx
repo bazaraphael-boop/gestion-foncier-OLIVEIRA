@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import * as turf from '@turf/turf';
 import { STATUS_COLORS, getParcelBornes, formatMeters } from '../utils/geoUtils';
+import { renderSatelliteSnapshot } from '../utils/satelliteSnapshot';
 
 // Vector plans printed on the Relevé Parcellaire:
 // - SituationPlan: where the parcel lies inside the concession (north up)
@@ -316,5 +317,44 @@ export function BornagePlan({ parcel, parcels = [], pointPrefix = 'B', color: co
       <NorthArrow width={BORNAGE_W} rotationDeg={northDeg} />
       <ScaleBar pxPerM={pxPerM} width={BORNAGE_W} height={height} />
     </Frame>
+  );
+}
+
+// Satellite view of the zone with its outline and points (image generated on the fly)
+export function SatelliteFigure({ points, neighbours = [], color, pointPrefix = 'B', pointColor = '#EA580C', title = 'Vue satellite' }) {
+  const [state, setState] = useState({ status: 'loading', dataUrl: null });
+  const key = JSON.stringify(points);
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ status: 'loading', dataUrl: null });
+    renderSatelliteSnapshot({ points, neighbours, color, pointPrefix, pointColor })
+      .then(({ dataUrl, missingTiles }) => {
+        if (!cancelled) setState({ status: missingTiles > 0 ? 'partial' : 'ready', dataUrl });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ status: 'error', dataUrl: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+    // points are compared by value through `key`
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, color, pointPrefix, pointColor]);
+
+  return (
+    <figure data-pdf-block className="border border-slate-300 rounded overflow-hidden bg-white">
+      <figcaption className="px-2.5 py-1.5 bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wider text-slate-800 flex justify-between">
+        <span>{title}</span>
+        {state.status === 'partial' && <span className="normal-case font-medium text-amber-700">Imagerie incomplète</span>}
+      </figcaption>
+      {state.dataUrl ? (
+        <img src={state.dataUrl} alt={title} className="w-full h-auto block" />
+      ) : (
+        <div className="aspect-[9/5] flex items-center justify-center text-[11px] text-slate-500 bg-slate-50">
+          {state.status === 'error' ? 'Imagerie satellite indisponible (connexion Internet requise).' : 'Chargement de l’imagerie satellite…'}
+        </div>
+      )}
+    </figure>
   );
 }

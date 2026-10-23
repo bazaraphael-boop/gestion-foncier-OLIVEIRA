@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import QRCode from 'qrcode';
 import { logActivity } from '../services/auditService';
@@ -6,7 +6,8 @@ import { STATUS_COLORS, ddToDms, exportParcelToCSV, calculateArea, getParcelBorn
 import { getOceanZoneInfo } from '../utils/coastalZones';
 import OfficialHeaderBanner from './OfficialHeaderBanner';
 import DeleteConfirmModal from './DeleteConfirmModal';
-import { SituationPlan, BornagePlan } from './ParcelPlans';
+import { SituationPlan, BornagePlan, SatelliteFigure } from './ParcelPlans';
+import { downloadSheetAsPdf } from '../utils/pdfExport';
 import {
   X,
   User,
@@ -17,6 +18,8 @@ import {
   MapPin,
   Check,
   Printer,
+  FileDown,
+  Loader2,
   ShieldCheck,
   Plus,
   Waves,
@@ -28,6 +31,8 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const releveRef = useRef(null);
 
   const [formData, setFormData] = useState({
     lotNumber: '',
@@ -237,6 +242,29 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
     window.print();
   };
 
+  const handleDownloadReleve = async () => {
+    if (!releveRef.current) return;
+    const lotRef = parcel.properties.lotNumber || parcel.id;
+    setIsDownloadingPdf(true);
+    try {
+      await downloadSheetAsPdf(releveRef.current, `Releve_${String(lotRef).replace(/[^\w-]+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+      logActivity({
+        role: isArpenteur ? 'arpenteur' : 'admin',
+        actor: isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur',
+        action: 'PARCEL_PDF_DOWNLOAD',
+        actionLabel: `Téléchargement du relevé PDF du lot ${lotRef}`,
+        target: lotRef,
+        details: 'Relevé parcellaire avec plans et vue satellite',
+        severity: 'info'
+      });
+    } catch (err) {
+      console.error('Erreur génération PDF:', err);
+      alert('Le PDF n’a pas pu être généré. Vérifiez la connexion Internet puis réessayez, ou utilisez « Imprimer ».');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   const handleConfirmDelete = () => {
     onDeleteParcel(parcel.id);
     onClose();
@@ -254,32 +282,42 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
       {/* Official Printable Land Relevé Parcellaire Overlay (rendered at body level so it prints alone) */}
       {showReleve && createPortal(
         <div className="releve-print-overlay fixed inset-0 z-[3000] bg-slate-900/60 backdrop-blur-xs flex justify-center p-4 overflow-y-auto font-sans">
-          <div className="bg-white text-slate-900 w-full max-w-3xl rounded-lg shadow-xl my-auto print:m-0 print:p-0 print:shadow-none print:w-full print:max-w-none overflow-hidden border border-slate-200">
-            <div className="flex justify-between items-center px-6 py-3 border-b border-slate-200 bg-slate-50 print:hidden">
+          <div ref={releveRef} className="bg-white text-slate-900 w-full max-w-3xl rounded-lg shadow-xl my-auto print:m-0 print:p-0 print:shadow-none print:w-full print:max-w-none overflow-hidden border border-slate-200">
+            <div data-pdf-ignore className="flex justify-between items-center px-6 py-3 border-b border-slate-200 bg-slate-50 print:hidden">
               <div className="flex items-center gap-2 font-bold text-slate-800 text-xs">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 <span>Fiche Officielle de Relevé Parcellaire Cadastral</span>
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={handlePrintReleve}
-                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  onClick={handleDownloadReleve}
+                  disabled={isDownloadingPdf}
+                  className="h-9 px-3.5 bg-brand-700 hover:bg-brand-800 text-white text-[13px] font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
                 >
-                  <Printer className="w-3.5 h-3.5" /> Imprimer / PDF
+                  {isDownloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                  {isDownloadingPdf ? 'Préparation…' : 'Télécharger PDF'}
+                </button>
+                <button
+                  onClick={handlePrintReleve}
+                  className="h-9 px-3 bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 text-[13px] font-medium rounded-lg flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Printer className="w-4 h-4 text-slate-500" /> Imprimer
                 </button>
                 <button
                   onClick={() => setShowReleve(false)}
-                  className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded"
+                  className="h-9 px-3 bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 text-[13px] font-medium rounded-lg cursor-pointer"
                 >
                   Fermer
                 </button>
               </div>
             </div>
 
-            <OfficialHeaderBanner />
+            <div data-pdf-block>
+              <OfficialHeaderBanner />
+            </div>
 
             <div className="p-6 space-y-4 text-xs font-sans">
-              <div className="text-center my-2 space-y-1">
+              <div data-pdf-block className="text-center my-2 space-y-1">
                 <h1 className="text-base font-black uppercase text-slate-900 tracking-tight">
                   RELEVÉ PARCELLAIRE &amp; FICHE D&apos;OCCUPATION DU SOL
                 </h1>
@@ -288,7 +326,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded border border-slate-200">
+              <div data-pdf-block className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded border border-slate-200">
                 <div>
                   <span className="text-[10px] font-semibold text-slate-500 block uppercase">IDENTIFIANT DU LOT</span>
                   <span className="text-sm font-bold text-slate-900">{parcel.properties.lotNumber}</span>
@@ -326,7 +364,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
               </div>
 
               {/* Plans: situation in the concession + bornage / morcellement */}
-              <div className="releve-plans grid grid-cols-[1fr_2fr] items-start gap-3">
+              <div data-pdf-block className="releve-plans grid grid-cols-[1fr_2fr] items-start gap-3">
                 <figure className="border border-slate-300 rounded overflow-hidden bg-white">
                   <figcaption className="px-2.5 py-1.5 bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wider text-slate-800">
                     Plan de situation
@@ -351,8 +389,18 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 </figure>
               </div>
 
+              {/* Satellite view of the lot and its neighbours */}
+              <SatelliteFigure
+                title="Vue satellite du lot"
+                points={bornes}
+                neighbours={allParcels
+                  .filter((p) => p && p.id !== parcel.id && p.geometry?.type === 'Polygon')
+                  .map((p) => p.geometry.coordinates[0])}
+                color={colorConfig.hex}
+              />
+
               {/* Dispositif Anti-Fraude avec QR Code Scannable */}
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-300 flex items-center justify-between gap-4">
+              <div data-pdf-block className="p-3 bg-slate-50 rounded-lg border border-slate-300 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
                   {qrCodeDataUrl ? (
                     <img
@@ -386,7 +434,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 </div>
               </div>
 
-              <div>
+              <div data-pdf-block>
                 <h3 className="font-bold text-slate-900 text-[11px] uppercase tracking-wider mb-1.5">
                   Coordonnées Géodésiques des Bornes (WGS84)
                 </h3>
@@ -425,13 +473,13 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
               </div>
 
               {parcel.properties.notes && (
-                <div className="text-[11px] italic bg-slate-50 p-2.5 rounded border border-slate-200">
+                <div data-pdf-block className="text-[11px] italic bg-slate-50 p-2.5 rounded border border-slate-200">
                   <span className="font-bold not-italic">Observations Concession : </span>
                   {parcel.properties.notes}
                 </div>
               )}
 
-              <div className="pt-6 border-t border-slate-300 mt-6">
+              <div data-pdf-block className="pt-6 border-t border-slate-300 mt-6">
                 <div className="grid grid-cols-2 gap-8 pt-4">
                   <div className="text-center space-y-12">
                     <span className="text-[11px] font-bold text-slate-800 uppercase block">

@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Marker, Polygon, Polyline, Tooltip, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { Ruler, X, Undo2, Trash2, Printer, Plus, Info } from 'lucide-react';
+import { Ruler, X, Undo2, Trash2, Printer, Plus, Info, FileDown, Loader2 } from 'lucide-react';
 import { measurePoints, formatArea, formatMeters, ddToDms } from '../utils/geoUtils';
 import { useMeasureResults } from '../hooks/useMeasure';
 import { logActivity } from '../services/auditService';
 import OfficialHeaderBanner from './OfficialHeaderBanner';
-import { SituationPlan, BornagePlan } from './ParcelPlans';
+import { SituationPlan, BornagePlan, SatelliteFigure } from './ParcelPlans';
+import { downloadSheetAsPdf } from '../utils/pdfExport';
 
 // "Latte" measuring tool: the surveyor taps points on the map, gets side lengths, perimeter
 // and area, then a lot quota (lotissement) and a price estimate, printable as a PDF sheet.
@@ -303,17 +304,36 @@ export function MeasureSheet({ points, settings, parcels, concessionPolygon, aut
     geometry: { type: 'Polygon', coordinates: [[...ring, ring[0]]] }
   };
   const today = new Date().toLocaleDateString('fr-FR');
+  const sheetRef = useRef(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  const handlePrint = () => {
+  const logSheet = (action, actionLabel) =>
     logActivity({
       role: authorLabel === 'Administrateur' ? 'admin' : 'arpenteur',
       actor: authorLabel,
-      action: 'MEASURE_SHEET',
-      actionLabel: 'Impression d\'une fiche de mesure & quota',
+      action,
+      actionLabel,
       target: area.ha,
       details: `${points.length} points, ${area.m2}, ${quota.lots} lot(s) de ${nf(Number(settings.lotWidthM) || 0)} × ${nf(Number(settings.lotLengthM) || 0)} m`,
       severity: 'info'
     });
+
+  const handleDownload = async () => {
+    if (!sheetRef.current) return;
+    setIsDownloading(true);
+    try {
+      await downloadSheetAsPdf(sheetRef.current, `Fiche_mesure_${new Date().toISOString().split('T')[0]}.pdf`);
+      logSheet('MEASURE_SHEET_DOWNLOAD', 'Téléchargement d\'une fiche de mesure & quota (PDF)');
+    } catch (err) {
+      console.error('Erreur génération PDF:', err);
+      alert('Le PDF n’a pas pu être généré. Vérifiez la connexion Internet puis réessayez, ou utilisez « Imprimer ».');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handlePrint = () => {
+    logSheet('MEASURE_SHEET', 'Impression d\'une fiche de mesure & quota');
     window.print();
   };
 
@@ -337,12 +357,20 @@ export function MeasureSheet({ points, settings, parcels, concessionPolygon, aut
 
   return createPortal(
     <div className="releve-print-overlay fixed inset-0 z-[3000] bg-slate-900/60 flex justify-center p-4 overflow-y-auto font-sans">
-      <div className="bg-white text-slate-900 w-full max-w-3xl rounded-lg shadow-xl my-auto overflow-hidden border border-slate-200 print:shadow-none print:border-0 print:rounded-none">
-        <div className="flex justify-between items-center px-6 py-3 border-b border-slate-200 bg-slate-50 print:hidden">
+      <div ref={sheetRef} className="bg-white text-slate-900 w-full max-w-3xl rounded-lg shadow-xl my-auto overflow-hidden border border-slate-200 print:shadow-none print:border-0 print:rounded-none">
+        <div data-pdf-ignore className="flex justify-between items-center px-6 py-3 border-b border-slate-200 bg-slate-50 print:hidden">
           <span className="font-semibold text-slate-800 text-[13px]">Fiche de mesure &amp; quota</span>
           <div className="flex gap-2">
-            <button onClick={handlePrint} className="h-9 px-3.5 bg-brand-700 hover:bg-brand-800 text-white text-[13px] font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer">
-              <Printer className="w-4 h-4" /> Imprimer / PDF
+            <button
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="h-9 px-3.5 bg-brand-700 hover:bg-brand-800 text-white text-[13px] font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+            >
+              {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+              {isDownloading ? 'Préparation…' : 'Télécharger PDF'}
+            </button>
+            <button onClick={handlePrint} className="h-9 px-3 bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 text-[13px] font-medium rounded-lg flex items-center gap-1.5 cursor-pointer">
+              <Printer className="w-4 h-4 text-slate-500" /> Imprimer
             </button>
             <button onClick={onClose} className="h-9 px-3.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-800 text-[13px] font-medium rounded-lg cursor-pointer">
               Fermer
@@ -350,15 +378,17 @@ export function MeasureSheet({ points, settings, parcels, concessionPolygon, aut
           </div>
         </div>
 
-        <OfficialHeaderBanner />
+        <div data-pdf-block>
+          <OfficialHeaderBanner />
+        </div>
 
         <div className="p-6 space-y-4 text-xs">
-          <div className="text-center space-y-1">
+          <div data-pdf-block className="text-center space-y-1">
             <h1 className="text-base font-black uppercase tracking-tight">Fiche de mesure &amp; quota de lotissement</h1>
             <div className="text-[11px] text-slate-600">Établie le {today}{authorLabel ? ` • ${authorLabel}` : ''}</div>
           </div>
 
-          <div className="releve-plans grid grid-cols-[1fr_2fr] items-start gap-3">
+          <div data-pdf-block className="releve-plans grid grid-cols-[1fr_2fr] items-start gap-3">
             <figure className="border border-slate-300 rounded overflow-hidden bg-white">
               <figcaption className="px-2.5 py-1.5 bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wider text-slate-800">Plan de situation</figcaption>
               <SituationPlan parcel={zone} parcels={parcels} concessionPolygon={concessionPolygon} />
@@ -369,7 +399,16 @@ export function MeasureSheet({ points, settings, parcels, concessionPolygon, aut
             </figure>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 items-start">
+          <SatelliteFigure
+            title="Vue satellite de la zone mesurée"
+            points={ring}
+            neighbours={parcels.filter((p) => p?.geometry?.type === 'Polygon').map((p) => p.geometry.coordinates[0])}
+            color="#ffffff"
+            pointPrefix="M"
+            pointColor={MEASURE_COLOR}
+          />
+
+          <div data-pdf-block className="grid grid-cols-2 gap-4 items-start">
             <div>
               <h2 className="font-bold text-[11px] uppercase tracking-wider mb-1.5">Résultats</h2>
               <table className="w-full text-left text-[11px] border border-slate-300">
@@ -409,12 +448,12 @@ export function MeasureSheet({ points, settings, parcels, concessionPolygon, aut
             </div>
           </div>
 
-          <p className="text-[10px] text-slate-500 italic">
+          <p data-pdf-block className="text-[10px] text-slate-500 italic">
             Estimation indicative calculée sur la superficie : la forme du terrain, les servitudes et le tracé définitif des voies
             peuvent modifier le nombre réel de lots. Ce document ne vaut pas titre foncier.
           </p>
 
-          <div className="pt-6 border-t border-slate-300 grid grid-cols-2 gap-8">
+          <div data-pdf-block className="pt-6 border-t border-slate-300 grid grid-cols-2 gap-8">
             <div className="text-center space-y-12">
               <span className="text-[11px] font-bold uppercase block">Le Géomètre-Arpenteur</span>
               <div className="text-[10px] text-slate-400 italic">Signature &amp; visa</div>
