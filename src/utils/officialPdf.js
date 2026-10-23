@@ -2,9 +2,8 @@ import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 
 // Official A4 documents (relevé parcellaire, fiche de mesure) drawn directly as vector PDF:
-// sharp text, exact margins, and print security features that a retouch or an AI-generated
-// copy reproduces badly: guilloche border, rosette, watermark, micro-text, digital fingerprint
-// repeated in a QR code on every page.
+// sharp text and exact margins, with anti-fraud features that a retouch or an AI-generated copy
+// reproduces badly: micro-text lines and a digital fingerprint repeated in the QR code of every page.
 
 const PAGE = { w: 210, h: 297 };
 const M = 14; // content margin (mm)
@@ -88,93 +87,6 @@ export async function computeFingerprint(payload) {
 
 /* ─────────────── Security layer ─────────────── */
 
-function polyline(doc, points) {
-  const deltas = [];
-  for (let i = 1; i < points.length; i++) deltas.push([points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]]);
-  doc.lines(deltas, points[0][0], points[0][1], [1, 1], 'S', false);
-}
-
-function withOpacity(doc, opacity, draw) {
-  doc.saveGraphicsState();
-  doc.setGState(new doc.GState({ opacity, 'stroke-opacity': opacity }));
-  draw();
-  doc.restoreGraphicsState();
-}
-
-// Interlaced sine waves running around the page between two thin rules
-function drawGuillocheFrame(doc) {
-  const outer = 6;
-  const inner = 10.5;
-  const mid = (outer + inner) / 2;
-  const amp = (inner - outer) / 2 - 0.25;
-  const x0 = mid;
-  const y0 = mid;
-  const x1 = PAGE.w - mid;
-  const y1 = PAGE.h - mid;
-  const perimeter = 2 * (x1 - x0 + y1 - y0);
-  const wavelength = 4.2;
-
-  const pointAt = (s) => {
-    const top = x1 - x0;
-    const right = y1 - y0;
-    if (s < top) return { x: x0 + s, y: y0, nx: 0, ny: 1 };
-    s -= top;
-    if (s < right) return { x: x1, y: y0 + s, nx: -1, ny: 0 };
-    s -= right;
-    if (s < top) return { x: x1 - s, y: y1, nx: 0, ny: -1 };
-    s -= top;
-    return { x: x0, y: y1 - s, nx: 1, ny: 0 };
-  };
-
-  const wave = (phase, color, width) => {
-    const pts = [];
-    for (let s = 0; s <= perimeter; s += 0.35) {
-      const p = pointAt(s);
-      const d = amp * Math.sin((2 * Math.PI * s) / wavelength + phase);
-      pts.push([p.x + p.nx * d, p.y + p.ny * d]);
-    }
-    doc.setDrawColor(...color);
-    doc.setLineWidth(width);
-    polyline(doc, pts);
-  };
-
-  wave(0, BRAND, 0.12);
-  wave(Math.PI, GREEN, 0.12);
-  wave(Math.PI / 2, [148, 163, 184], 0.08);
-  wave((3 * Math.PI) / 2, [148, 163, 184], 0.08);
-
-  doc.setDrawColor(...NAVY);
-  doc.setLineWidth(0.35);
-  doc.rect(outer, outer, PAGE.w - 2 * outer, PAGE.h - 2 * outer);
-  doc.setLineWidth(0.2);
-  doc.rect(inner, inner, PAGE.w - 2 * inner, PAGE.h - 2 * inner);
-}
-
-// Spirograph-like rosette and diagonal "ORIGINAL" watermark behind the content
-function drawBackgroundSecurity(doc, watermark) {
-  withOpacity(doc, 0.1, () => {
-    const cx = PAGE.w / 2;
-    const cy = PAGE.h / 2 + 8;
-    doc.setLineWidth(0.1);
-    for (let k = 0; k < 12; k++) {
-      const phase = (k * Math.PI) / 6;
-      const pts = [];
-      for (let t = 0; t <= Math.PI * 2 + 0.01; t += 0.012) {
-        const r = 46 + 9 * Math.sin(9 * t + phase) + 3 * Math.cos(23 * t - phase);
-        pts.push([cx + r * Math.cos(t), cy + r * Math.sin(t)]);
-      }
-      doc.setDrawColor(...(k % 2 ? GREEN : BRAND));
-      polyline(doc, pts);
-    }
-  });
-  withOpacity(doc, 0.05, () => {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(64);
-    doc.setTextColor(...NAVY);
-    doc.text(pdfText(watermark), 38, 225, { angle: 38 });
-  });
-}
-
 // Line of micro-text (about 1 mm high): readable with a magnifier, lost in a photocopy or an AI redraw
 function drawMicroText(doc, text, y, width = CONTENT_W, x = M) {
   doc.setFont('helvetica', 'normal');
@@ -203,7 +115,7 @@ function sectionTitle(doc, number, title, y) {
 }
 
 // Grid of label / value cells
-function keyValueGrid(doc, items, y, { columns = 2, cellH = 12 } = {}) {
+function keyValueGrid(doc, items, y, { columns = 2, cellH = 11 } = {}) {
   const colW = CONTENT_W / columns;
   items.forEach((item, i) => {
     const col = i % columns;
@@ -222,7 +134,7 @@ function keyValueGrid(doc, items, y, { columns = 2, cellH = 12 } = {}) {
     doc.setFontSize(item.size || 10);
     doc.setTextColor(...(item.color || INK));
     const value = doc.splitTextToSize(pdfText(item.value), colW - 5);
-    doc.text(value[0], x + 2.5, top + 9.3);
+    doc.text(value[0], x + 2.5, top + cellH - 2.4);
   });
   return y + Math.ceil(items.length / columns) * cellH;
 }
@@ -293,44 +205,51 @@ function table(doc, { columns, rows, y, rowH = 6.4, mono = [] }) {
 }
 
 function header(doc, { banner, qr, docTitle, subject, reference, issuedOn, fingerprint, compact }) {
-  const top = 13;
-  const bannerH = compact ? 20 : 31;
-  const bannerW = banner ? bannerH * (banner.width / banner.height) : 0;
-  if (banner) doc.addImage(banner.dataUrl, 'JPEG', M, top, bannerW, bannerH, undefined, 'FAST');
+  const top = 10;
+  const bannerH = compact ? 26 : 46;
+  const qrSize = compact ? 24 : 38;
+  const bannerW = banner ? Math.min(bannerH * (banner.width / banner.height), CONTENT_W - qrSize - 8) : 0;
+  if (banner) doc.addImage(banner.dataUrl, 'JPEG', M, top, bannerW, bannerW / (banner.width / banner.height), undefined, 'FAST');
 
-  // QR code, top right
-  const qrSize = compact ? 20 : 31;
+  // QR code, top right, aligned with the bottom of the letterhead
+  const qrY = top + bannerH - qrSize;
   doc.setDrawColor(...NAVY);
   doc.setLineWidth(0.3);
-  doc.rect(PAGE.w - M - qrSize - 1, top - 1, qrSize + 2, qrSize + 2);
-  doc.addImage(qr, 'PNG', PAGE.w - M - qrSize, top, qrSize, qrSize);
-
-  // Document identification between the letterhead and the QR code
-  const infoRight = PAGE.w - M - qrSize - 5;
+  doc.rect(PAGE.w - M - qrSize - 1, qrY - 1, qrSize + 2, qrSize + 2);
+  doc.addImage(qr, 'PNG', PAGE.w - M - qrSize, qrY, qrSize, qrSize);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(compact ? 6.5 : 7);
+  doc.setFontSize(5.5);
   doc.setTextColor(...MUTED);
-  const lines = [
-    ['N° DE RÉFÉRENCE', reference],
-    ['ÉMIS LE', issuedOn],
-    ['EMPREINTE NUMÉRIQUE', fingerprint]
+  if (!compact) doc.text(pdfText('SCANNER POUR VÉRIFIER'), PAGE.w - M - qrSize / 2, qrY - 2.5, { align: 'center' });
+
+  // Identification line: reference · date · fingerprint
+  const infoY = top + bannerH + 3;
+  doc.setDrawColor(...RULE);
+  doc.setLineWidth(0.2);
+  doc.line(M, infoY, M + CONTENT_W, infoY);
+  const items = [
+    ['N° de référence', reference],
+    ['Émis le', issuedOn],
+    ['Empreinte numérique', fingerprint]
   ];
-  lines.forEach(([label, value], i) => {
-    const ly = top + (compact ? 4 : 6) + i * (compact ? 6 : 8.5);
+  const colW = CONTENT_W / items.length;
+  items.forEach(([label, value], i) => {
+    const x = M + i * colW;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(compact ? 5.5 : 6);
+    doc.setFontSize(6.5);
     doc.setTextColor(...MUTED);
-    doc.text(pdfText(label), infoRight, ly, { align: 'right' });
+    doc.text(pdfText(label.toUpperCase()), x, infoY + 4);
     doc.setFont('courier', 'bold');
-    doc.setFontSize(compact ? 7 : 8);
+    doc.setFontSize(8.5);
     doc.setTextColor(...INK);
-    doc.text(pdfText(value), infoRight, ly + (compact ? 2.8 : 3.4), { align: 'right' });
+    doc.text(pdfText(value), x, infoY + 8.2);
   });
-  const bandY = top + bannerH + 3;
-  drawMicroText(doc, `CONCESSION MANUEL JOAQUIM D'OLIVEIRA · ${docTitle} · ${reference} · ${fingerprint}`, bandY);
+
+  const microY = infoY + 11.5;
+  drawMicroText(doc, `CONCESSION MANUEL JOAQUIM D'OLIVEIRA · ${docTitle} · ${reference} · ${fingerprint}`, microY);
 
   // Title band
-  const bandTop = bandY + 1.8;
+  const bandTop = microY + 1.8;
   const bandH = compact ? 9 : 12;
   doc.setFillColor(...NAVY);
   doc.rect(M, bandTop, CONTENT_W, bandH, 'F');
@@ -401,7 +320,7 @@ function authenticationBlock(doc, { y, qr, reference, fingerprint, issuedOn, che
   doc.setFontSize(6.4);
   doc.setTextColor(...MUTED);
   const note = doc.splitTextToSize(
-    pdfText('Sécurités : cadre guilloché, rosace et filigrane de fond, micro-texte, empreinte numérique reprise dans le QR code de chaque page.'),
+    pdfText('Sécurités : référence unique, empreinte numérique reprise dans le QR code de chaque page, lignes de micro-texte (visibles à la loupe).'),
     CONTENT_W - h - 6
   );
   doc.text(note, tx, y + h - 3 - (note.length - 1) * 2.6);
@@ -484,8 +403,6 @@ export async function buildRelevePdf(data) {
   const pages = 2;
 
   // Page 1: identification, plans, satellite view
-  drawBackgroundSecurity(doc, 'ORIGINAL');
-  drawGuillocheFrame(doc);
   let y = header(doc, common);
   y = sectionTitle(doc, 1, 'Identification du lot', y);
   y = keyValueGrid(doc, [
@@ -498,7 +415,7 @@ export async function buildRelevePdf(data) {
   ], y);
 
   y = sectionTitle(doc, 2, 'Plans', y + 6);
-  const planH = 58;
+  const planH = 52;
   figure(doc, { title: 'Plan de situation', image: data.situationPlan, x: M, y, w: 60, h: planH });
   figure(doc, { title: 'Plan de bornage', image: data.bornagePlan, x: M + 64, y, w: CONTENT_W - 64, h: planH });
   y += planH + 6 + 6;
@@ -510,8 +427,6 @@ export async function buildRelevePdf(data) {
 
   // Page 2: coordinates, authentication, visas
   doc.addPage();
-  drawBackgroundSecurity(doc, 'ORIGINAL');
-  drawGuillocheFrame(doc);
   y = header(doc, { ...common, compact: true });
   y = sectionTitle(doc, 4, 'Coordonnées géodésiques des bornes (WGS84)', y);
   y = table(doc, {
@@ -556,8 +471,6 @@ export async function buildMeasurePdf(data) {
   const common = { banner, qr, docTitle, subject, reference: data.reference, issuedOn: data.issuedOn, fingerprint: data.fingerprint };
   const pages = 2;
 
-  drawBackgroundSecurity(doc, 'ORIGINAL');
-  drawGuillocheFrame(doc);
   let y = header(doc, common);
   y = sectionTitle(doc, 1, 'Synthèse de la mesure', y);
   y = keyValueGrid(doc, [
@@ -570,7 +483,7 @@ export async function buildMeasurePdf(data) {
   ], y);
 
   y = sectionTitle(doc, 2, 'Plans', y + 6);
-  const planH = 58;
+  const planH = 52;
   figure(doc, { title: 'Plan de situation', image: data.situationPlan, x: M, y, w: 60, h: planH });
   figure(doc, { title: 'Plan de la zone mesurée', image: data.zonePlan, x: M + 64, y, w: CONTENT_W - 64, h: planH });
   y += planH + 6 + 6;
@@ -581,8 +494,6 @@ export async function buildMeasurePdf(data) {
   footer(doc, { page: 1, pages, reference: data.reference, fingerprint: data.fingerprint });
 
   doc.addPage();
-  drawBackgroundSecurity(doc, 'ORIGINAL');
-  drawGuillocheFrame(doc);
   y = header(doc, { ...common, compact: true });
   y = sectionTitle(doc, 4, 'Quota de lotissement & estimation', y);
   y = table(doc, {
@@ -592,7 +503,7 @@ export async function buildMeasurePdf(data) {
     ],
     rows: data.results,
     y,
-    rowH: 5.6
+    rowH: 5
   });
 
   y = sectionTitle(doc, 5, 'Points mesurés (WGS84)', y + 7);
@@ -608,7 +519,7 @@ export async function buildMeasurePdf(data) {
     rows: data.points.map((p) => [p.name, p.lat, p.lng, p.latDms, p.lngDms, p.side]),
     y,
     mono: [1, 2, 3, 4, 5],
-    rowH: 6
+    rowH: 5.4
   });
 
   y = sectionTitle(doc, 6, 'Authentification', y + 7);
