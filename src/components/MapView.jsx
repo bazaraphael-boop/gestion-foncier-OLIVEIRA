@@ -2315,7 +2315,6 @@ export default function MapView({
         <MeasureSheet
           points={measurePoints}
           settings={measureSettings}
-          parcels={parcels}
           concessionPolygon={concessionPolygon}
           authorLabel={isAdmin ? 'Administrateur' : 'Arpenteur Géomètre'}
           onClose={() => setShowMeasureSheet(false)}

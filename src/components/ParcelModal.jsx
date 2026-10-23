@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import QRCode from 'qrcode';
 import { logActivity } from '../services/auditService';
-import { STATUS_COLORS, ddToDms, exportParcelToCSV, calculateArea, getParcelBornes, getSideLengths, formatMeters } from '../utils/geoUtils';
+import { STATUS_COLORS, ddToDms, exportParcelToCSV, calculateArea, getParcelBornes, getSideLengths, formatMeters, buildVerificationText, getReleveReference } from '../utils/geoUtils';
 import { getOceanZoneInfo } from '../utils/coastalZones';
 import OfficialHeaderBanner from './OfficialHeaderBanner';
 import DeleteConfirmModal from './DeleteConfirmModal';
@@ -25,7 +25,7 @@ import {
   Waves,
 } from 'lucide-react';
 
-export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteParcel, isVisitorMode, isArpenteur, allParcels = [], concessionPolygon }) {
+export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteParcel, isVisitorMode, isArpenteur, concessionPolygon }) {
   const [isEditing, setIsEditing] = useState(false);
   const [showReleve, setShowReleve] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -62,11 +62,9 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         }))
       );
 
-      // Generate verifiable Anti-Fraud QR Code
-      const lotRef = parcel.properties.lotNumber || parcel.id;
-      const verifyUrl = `https://gestionmuandafoncier.netlify.app/?lot=${encodeURIComponent(lotRef)}&ref=${parcel.id}&auth=cadastre_rmb`;
-      QRCode.toDataURL(verifyUrl, {
-        width: 180,
+      // Anti-fraud QR code holding the lot's key facts (see buildVerificationText)
+      QRCode.toDataURL(buildVerificationText(parcel, new Date().toLocaleDateString('fr-FR')), {
+        width: 420,
         margin: 1,
         color: {
           dark: '#0f172a',
@@ -312,8 +310,18 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
               </div>
             </div>
 
-            <div data-pdf-block>
-              <OfficialHeaderBanner />
+            <div data-pdf-block className="flex items-start bg-white border-b border-slate-200">
+              <div className="flex-1 min-w-0">
+                <OfficialHeaderBanner className="rounded-none shadow-none border-b-0" />
+              </div>
+              <div className="flex-shrink-0 m-3 ml-2 bg-white rounded-md border border-slate-300 p-1.5 flex flex-col items-center">
+                {qrCodeDataUrl ? (
+                  <img src={qrCodeDataUrl} alt={`QR code de vérification du lot ${parcel.properties.lotNumber || ''}`} className="w-[124px] h-[124px] block" />
+                ) : (
+                  <div className="w-[124px] h-[124px] bg-slate-100 flex items-center justify-center text-[10px] text-slate-400">QR code…</div>
+                )}
+                <span className="mt-1 text-[8.5px] font-bold uppercase tracking-wide text-slate-700">Scanner pour vérifier</span>
+              </div>
             </div>
 
             <div className="p-6 space-y-4 text-xs font-sans">
@@ -323,6 +331,9 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 </h1>
                 <div className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
                   IDENTIFIANT CADASTRAL OFFICIEL : {parcel.properties.lotNumber || parcel.id}
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono">
+                  Établi le {new Date().toLocaleDateString('fr-FR')} • Réf. {getReleveReference(parcel)}
                 </div>
               </div>
 
@@ -369,70 +380,26 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                   <figcaption className="px-2.5 py-1.5 bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wider text-slate-800">
                     Plan de situation
                   </figcaption>
-                  <SituationPlan parcel={parcel} parcels={allParcels} concessionPolygon={concessionPolygon} />
+                  <SituationPlan parcel={parcel} concessionPolygon={concessionPolygon} />
                   <div className="px-2.5 py-1.5 border-t border-slate-200 text-[9.5px] text-slate-600 flex flex-wrap gap-x-3 gap-y-0.5">
                     <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 bg-red-600" /> Lot {parcel.properties.lotNumber}</span>
-                    <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 bg-slate-300 border border-slate-400" /> Autres lots</span>
                     <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 bg-amber-100 border border-dashed border-amber-600" /> Concession</span>
                   </div>
                 </figure>
                 <figure className="border border-slate-300 rounded overflow-hidden bg-white">
                   <figcaption className="px-2.5 py-1.5 bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wider text-slate-800">
-                    Plan de bornage &amp; morcellement
+                    Plan de bornage
                   </figcaption>
-                  <BornagePlan parcel={parcel} parcels={allParcels} />
+                  <BornagePlan parcel={parcel} />
                   <div className="px-2.5 py-1.5 border-t border-slate-200 text-[9.5px] text-slate-600 flex flex-wrap gap-x-3 gap-y-0.5">
                     <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-full bg-orange-600" /> Bornes B1–B{bornes.length}</span>
-                    <span className="flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 bg-slate-200 border border-slate-400" /> Lots voisins</span>
                     <span>Périmètre : <strong className="text-slate-800">{formatMeters(perimeter)}</strong></span>
                   </div>
                 </figure>
               </div>
 
-              {/* Satellite view of the lot and its neighbours */}
-              <SatelliteFigure
-                title="Vue satellite du lot"
-                points={bornes}
-                neighbours={allParcels
-                  .filter((p) => p && p.id !== parcel.id && p.geometry?.type === 'Polygon')
-                  .map((p) => p.geometry.coordinates[0])}
-                color={colorConfig.hex}
-              />
-
-              {/* Dispositif Anti-Fraude avec QR Code Scannable */}
-              <div data-pdf-block className="p-3 bg-slate-50 rounded-lg border border-slate-300 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3.5">
-                  {qrCodeDataUrl ? (
-                    <img
-                      src={qrCodeDataUrl}
-                      alt={`QR Code Relevé ${parcel.properties.lotNumber}`}
-                      className="w-20 h-20 bg-white p-1 border border-slate-300 rounded shadow-xs flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 bg-slate-200 rounded border border-slate-300 flex items-center justify-center text-[10px] text-slate-400">
-                      QR Code...
-                    </div>
-                  )}
-                  <div className="space-y-1">
-                    <div className="text-[11px] font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                      <span>Contrôle Anti-Fraude &amp; Authentification Cadastrale</span>
-                    </div>
-                    <p className="text-[10px] text-slate-600 leading-tight">
-                      Scannez ce QR Code avec tout smartphone pour vérifier l&apos;authenticité de ce relevé auprès du registre officiel du cadastre RMB Muanda.
-                    </p>
-                    <div className="text-[9px] font-mono text-slate-500">
-                      CLÉ DE SÉCURITÉ : <strong className="text-slate-800 font-bold">RMB-AUTH-{parcel.id?.toString().slice(0, 10).toUpperCase()}</strong>
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right flex-shrink-0 border-l border-slate-200 pl-3">
-                  <span className="text-[9px] font-semibold text-slate-400 block uppercase">Établi le</span>
-                  <span className="text-[11px] font-mono font-bold text-slate-800">
-                    {new Date().toLocaleDateString('fr-FR')}
-                  </span>
-                </div>
-              </div>
+              {/* Satellite view of the lot */}
+              <SatelliteFigure title="Vue satellite du lot" points={bornes} color={colorConfig.hex} />
 
               <div data-pdf-block>
                 <h3 className="font-bold text-slate-900 text-[11px] uppercase tracking-wider mb-1.5">

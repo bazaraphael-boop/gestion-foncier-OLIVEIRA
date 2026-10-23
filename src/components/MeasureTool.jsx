@@ -293,7 +293,7 @@ export function MeasurePanel({ points, settings, onSettingsChange, onUndo, onCle
 
 /* ─────────────── Printable sheet ─────────────── */
 
-export function MeasureSheet({ points, settings, parcels, concessionPolygon, authorLabel, onClose }) {
+export function MeasureSheet({ points, settings, concessionPolygon, authorLabel, onClose }) {
   const { measure, quota, pricing } = useMeasureResults(points, settings);
   const area = formatArea(measure.areaM2);
   const ring = points.map(([lat, lng]) => [lng, lat]);
@@ -391,18 +391,17 @@ export function MeasureSheet({ points, settings, parcels, concessionPolygon, aut
           <div data-pdf-block className="releve-plans grid grid-cols-[1fr_2fr] items-start gap-3">
             <figure className="border border-slate-300 rounded overflow-hidden bg-white">
               <figcaption className="px-2.5 py-1.5 bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wider text-slate-800">Plan de situation</figcaption>
-              <SituationPlan parcel={zone} parcels={parcels} concessionPolygon={concessionPolygon} />
+              <SituationPlan parcel={zone} concessionPolygon={concessionPolygon} />
             </figure>
             <figure className="border border-slate-300 rounded overflow-hidden bg-white">
               <figcaption className="px-2.5 py-1.5 bg-slate-100 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wider text-slate-800">Plan de la zone mesurée</figcaption>
-              <BornagePlan parcel={zone} parcels={parcels} pointPrefix="M" color={MEASURE_COLOR} />
+              <BornagePlan parcel={zone} pointPrefix="M" color={MEASURE_COLOR} />
             </figure>
           </div>
 
           <SatelliteFigure
             title="Vue satellite de la zone mesurée"
             points={ring}
-            neighbours={parcels.filter((p) => p?.geometry?.type === 'Polygon').map((p) => p.geometry.coordinates[0])}
             color="#ffffff"
             pointPrefix="M"
             pointColor={MEASURE_COLOR}

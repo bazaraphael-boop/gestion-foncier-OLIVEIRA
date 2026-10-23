@@ -330,3 +330,27 @@ export function formatArea(m2) {
   const nf2 = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return { m2: `${nf0.format(m2)} m²`, ha: `${nf2.format(m2 / 10000)} ha` };
 }
+
+// Text stored in the relevé QR code: readable by any phone camera, even offline. It repeats the
+// key facts printed on the document so that an altered copy (retouched or AI-generated) is exposed
+// as soon as the code is scanned. Kept short so the code stays scannable once printed (~30 mm).
+export function buildVerificationText(parcel, issuedOn) {
+  const props = parcel.properties || {};
+  const area = calculateArea(parcel);
+  const sides = getSideLengths(parcel)
+    .map((m) => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(m))
+    .join(' × ');
+  return [
+    "CADASTRE OFFICIEL – CONCESSION M.J. D'OLIVEIRA, MUANDA",
+    `Lot : ${props.lotNumber || parcel.id}`,
+    `Propriétaire : ${props.occupantName || 'Aucun (domaine libre)'}`,
+    `Superficie : ${area.formattedHa} (${area.formattedSqM})`,
+    `Côtés : ${sides} m`,
+    `Émis le ${issuedOn} – Réf. ${getReleveReference(parcel)}`,
+    'ANTI-FRAUDE / ANTI-IA : si le nom, la superficie ou les côtés imprimés diffèrent de ce message, le document a été modifié (retouche ou IA) et est NUL.'
+  ].join('\n');
+}
+
+export function getReleveReference(parcel) {
+  return `RMB-AUTH-${String(parcel.id || '').slice(0, 10).toUpperCase()}`;
+}
