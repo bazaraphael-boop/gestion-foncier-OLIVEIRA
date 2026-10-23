@@ -42,16 +42,16 @@ function loadImage(src) {
   });
 }
 
-async function imageToDataUrl(src, type = 'image/jpeg') {
+async function imageToDataUrl(src, type = 'image/jpeg', keepTop = 1) {
   const img = await loadImage(src);
   const canvas = document.createElement('canvas');
   canvas.width = img.naturalWidth;
-  canvas.height = img.naturalHeight;
+  canvas.height = Math.round(img.naturalHeight * keepTop);
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(img, 0, 0);
-  return { dataUrl: canvas.toDataURL(type, 0.92), width: img.naturalWidth, height: img.naturalHeight };
+  return { dataUrl: canvas.toDataURL(type, 0.92), width: canvas.width, height: canvas.height };
 }
 
 // On-screen SVG plan -> high resolution PNG
@@ -204,26 +204,41 @@ function table(doc, { columns, rows, y, rowH = 6.4, mono = [] }) {
   return bottom;
 }
 
-function header(doc, { banner, qr, docTitle, subject, reference, issuedOn, fingerprint, compact }) {
-  const top = 10;
-  const bannerH = compact ? 26 : 46;
-  const qrSize = compact ? 24 : 38;
-  const bannerW = banner ? Math.min(bannerH * (banner.width / banner.height), CONTENT_W - qrSize - 8) : 0;
-  if (banner) doc.addImage(banner.dataUrl, 'JPEG', M, top, bannerW, bannerW / (banner.width / banner.height), undefined, 'FAST');
+function qrCard(doc, qr, x, y, size) {
+  const pad = 1.6;
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(x - pad, y - pad, size + 2 * pad, size + 2 * pad, 2.2, 2.2, 'FD');
+  doc.addImage(qr, 'PNG', x, y, size, size);
+}
 
-  // QR code, top right, aligned with the bottom of the letterhead
-  const qrY = top + bannerH - qrSize;
-  doc.setDrawColor(...NAVY);
-  doc.setLineWidth(0.3);
-  doc.rect(PAGE.w - M - qrSize - 1, qrY - 1, qrSize + 2, qrSize + 2);
-  doc.addImage(qr, 'PNG', PAGE.w - M - qrSize, qrY, qrSize, qrSize);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(5.5);
-  doc.setTextColor(...MUTED);
-  if (!compact) doc.text(pdfText('SCANNER POUR VÉRIFIER'), PAGE.w - M - qrSize / 2, qrY - 2.5, { align: 'center' });
+function header(doc, { banner, qr, docTitle, subject, reference, issuedOn, fingerprint, compact }) {
+  let bottom;
+  if (compact) {
+    // Continuation pages: smaller letterhead, QR card on the right
+    const w = 112;
+    const h = banner ? w * (banner.height / banner.width) : 24;
+    if (banner) doc.addImage(banner.dataUrl, 'JPEG', M, 8, w, h, undefined, 'FAST');
+    qrCard(doc, qr, PAGE.w - M - 22, 9, 22);
+    bottom = Math.max(8 + h, 33);
+  } else {
+    // First page: letterhead across the full page width, QR card over the green band, top right
+    const h = banner ? PAGE.w * (banner.height / banner.width) : 30;
+    if (banner) doc.addImage(banner.dataUrl, 'JPEG', 0, 0, PAGE.w, h, undefined, 'FAST');
+    qrCard(doc, qr, PAGE.w - 9 - 27, 6, 27);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.6);
+    doc.setTextColor(...INK);
+    doc.text(pdfText(CONTACT_LINES[0]), PAGE.w / 2, h + 3.5, { align: 'center' });
+    doc.setFontSize(7);
+    doc.setTextColor(...MUTED);
+    doc.text(pdfText(CONTACT_LINES[1]), PAGE.w / 2, h + 7.3, { align: 'center' });
+    bottom = h + 8;
+  }
 
   // Identification line: reference · date · fingerprint
-  const infoY = top + bannerH + 3;
+  const infoY = bottom + 2.5;
   doc.setDrawColor(...RULE);
   doc.setLineWidth(0.2);
   doc.line(M, infoY, M + CONTENT_W, infoY);
@@ -378,9 +393,17 @@ async function makeQr(text) {
   return QRCode.toDataURL(text, { errorCorrectionLevel: 'M', margin: 1, width: 600, color: { dark: '#0f2540', light: '#ffffff' } });
 }
 
+// Top of the official letterhead (green band + "Concession Manuel Joaquim d'Olivera"); the address
+// and contact lines printed lower in the image are written as text under it instead
+const BANNER_KEEP_TOP = 0.555;
+const CONTACT_LINES = [
+  'Avenue Makakidi N°1, Quartier Océan · Ville de Muanda / Kongo Central / RDC',
+  'Tél. 089 11 00 000 · 089 619 55 55 · 081 910 25 60 · 099 99 04 302 · E-mail : Bamakakidi@gmail.com'
+];
+
 async function loadBanner() {
   try {
-    return await imageToDataUrl('/header_banner.jpg');
+    return await imageToDataUrl('/header_banner.jpg', 'image/jpeg', BANNER_KEEP_TOP);
   } catch {
     return null;
   }

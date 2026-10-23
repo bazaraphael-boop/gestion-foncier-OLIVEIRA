@@ -359,17 +359,16 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
               </div>
             </div>
 
-            <div data-pdf-block className="flex items-start bg-white border-b border-slate-200">
-              <div className="flex-1 min-w-0">
-                <OfficialHeaderBanner className="rounded-none shadow-none border-b-0" />
-              </div>
-              <div className="flex-shrink-0 m-3 ml-2 bg-white rounded-md border border-slate-300 p-1.5 flex flex-col items-center">
+            {/* Letterhead across the full width, QR card over the green band at the top right
+                (sized as a share of the banner so it never covers the name) */}
+            <div data-pdf-block className="relative bg-white">
+              <OfficialHeaderBanner className="rounded-none shadow-none" />
+              <div className="absolute top-[3%] right-[1.5%] w-[13%] bg-white rounded-lg border border-slate-200 p-[0.8%] shadow-sm">
                 {qrCodeDataUrl ? (
-                  <img src={qrCodeDataUrl} alt={`QR code de vérification du lot ${parcel.properties.lotNumber || ''}`} className="w-[124px] h-[124px] block" />
+                  <img src={qrCodeDataUrl} alt={`QR code de vérification du lot ${parcel.properties.lotNumber || ''}`} className="w-full h-auto block" />
                 ) : (
-                  <div className="w-[124px] h-[124px] bg-slate-100 flex items-center justify-center text-[10px] text-slate-400">QR code…</div>
+                  <div className="w-full aspect-square bg-slate-100" />
                 )}
-                <span className="mt-1 text-[8.5px] font-bold uppercase tracking-wide text-slate-700">Scanner pour vérifier</span>
               </div>
             </div>
 
