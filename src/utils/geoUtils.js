@@ -334,7 +334,7 @@ export function formatArea(m2) {
 // Text stored in the relevé QR code: readable by any phone camera, even offline. It repeats the
 // key facts printed on the document so that an altered copy (retouched or AI-generated) is exposed
 // as soon as the code is scanned. Kept short so the code stays scannable once printed (~30 mm).
-export function buildVerificationText(parcel, issuedOn) {
+export function buildVerificationText(parcel, issuedOn, fingerprint) {
   const props = parcel.properties || {};
   const area = calculateArea(parcel);
   const sides = getSideLengths(parcel)
@@ -347,6 +347,7 @@ export function buildVerificationText(parcel, issuedOn) {
     `Superficie : ${area.formattedHa} (${area.formattedSqM})`,
     `Côtés : ${sides} m`,
     `Émis le ${issuedOn} – Réf. ${getReleveReference(parcel)}`,
+    ...(fingerprint ? [`Empreinte : ${fingerprint}`] : []),
     'ANTI-FRAUDE / ANTI-IA : si le nom, la superficie ou les côtés imprimés diffèrent de ce message, le document a été modifié (retouche ou IA) et est NUL.'
   ].join('\n');
 }

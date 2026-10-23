@@ -8,7 +8,7 @@ import { useMeasureResults } from '../hooks/useMeasure';
 import { logActivity } from '../services/auditService';
 import OfficialHeaderBanner from './OfficialHeaderBanner';
 import { SituationPlan, BornagePlan, SatelliteFigure } from './ParcelPlans';
-import { downloadSheetAsPdf } from '../utils/pdfExport';
+import { buildMeasurePdf, computeFingerprint, svgToPng } from '../utils/officialPdf';
 
 // "Latte" measuring tool: the surveyor taps points on the map, gets side lengths, perimeter
 // and area, then a lot quota (lotissement) and a price estimate, printable as a PDF sheet.
@@ -322,7 +322,58 @@ export function MeasureSheet({ points, settings, concessionPolygon, authorLabel,
     if (!sheetRef.current) return;
     setIsDownloading(true);
     try {
-      await downloadSheetAsPdf(sheetRef.current, `Fiche_mesure_${new Date().toISOString().split('T')[0]}.pdf`);
+      const issuedOn = new Date().toLocaleDateString('fr-FR');
+      const fingerprint = await computeFingerprint({
+        type: 'mesure',
+        areaM2: Math.round(measure.areaM2),
+        points: points.map(([lat, lng]) => [lat.toFixed(6), lng.toFixed(6)]),
+        lots: quota.lots,
+        settings,
+        issuedOn
+      });
+      const reference = `RMB-MES-${fingerprint.slice(0, 4)}${fingerprint.slice(5, 9)}`;
+      const svgs = sheetRef.current.querySelectorAll('.releve-plans svg');
+      const satelliteImg = sheetRef.current.querySelector('figure img');
+      const [situationPlan, zonePlan] = await Promise.all([svgToPng(svgs[0]), svgToPng(svgs[1])]);
+      const satellite = satelliteImg && satelliteImg.complete && satelliteImg.naturalWidth
+        ? { dataUrl: satelliteImg.src, width: satelliteImg.naturalWidth, height: satelliteImg.naturalHeight }
+        : null;
+      const qrText = [
+        "FICHE DE MESURE – CONCESSION M.J. D'OLIVEIRA, MUANDA",
+        `Superficie : ${area.ha} (${area.m2})`,
+        `Périmètre : ${formatMeters(measure.perimeterM)}`,
+        `Lots possibles : ${nf(quota.lots)} (${nf(Number(settings.lotWidthM) || 0)} × ${nf(Number(settings.lotLengthM) || 0)} m)`,
+        `Émis le ${issuedOn} – Réf. ${reference}`,
+        `Empreinte : ${fingerprint}`,
+        'ANTI-FRAUDE / ANTI-IA : si les valeurs imprimées diffèrent de ce message, le document a été modifié et est NUL.'
+      ].join('\n');
+
+      const doc = await buildMeasurePdf({
+        areaHa: area.ha,
+        areaM2: area.m2,
+        perimeter: formatMeters(measure.perimeterM),
+        pointsCount: points.length,
+        lots: nf(quota.lots),
+        usable: formatArea(quota.usableM2).m2,
+        author: authorLabel,
+        results: rows,
+        points: points.map(([lat, lng], i) => ({
+          name: `M${i + 1}`,
+          lat: lat.toFixed(6),
+          lng: lng.toFixed(6),
+          latDms: ddToDms(lat, true),
+          lngDms: ddToDms(lng, false),
+          side: `M${i + 1}-M${(i + 1) % points.length + 1} : ${formatMeters(measure.sides[i] || 0)}`
+        })),
+        qrText,
+        reference,
+        issuedOn,
+        fingerprint,
+        situationPlan,
+        zonePlan,
+        satellite
+      });
+      doc.save(`Fiche_mesure_${new Date().toISOString().split('T')[0]}.pdf`);
       logSheet('MEASURE_SHEET_DOWNLOAD', 'Téléchargement d\'une fiche de mesure & quota (PDF)');
     } catch (err) {
       console.error('Erreur génération PDF:', err);

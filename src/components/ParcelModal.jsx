@@ -7,7 +7,7 @@ import { getOceanZoneInfo } from '../utils/coastalZones';
 import OfficialHeaderBanner from './OfficialHeaderBanner';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import { SituationPlan, BornagePlan, SatelliteFigure } from './ParcelPlans';
-import { downloadSheetAsPdf } from '../utils/pdfExport';
+import { buildRelevePdf, computeFingerprint, svgToPng } from '../utils/officialPdf';
 import {
   X,
   User,
@@ -245,7 +245,56 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
     const lotRef = parcel.properties.lotNumber || parcel.id;
     setIsDownloadingPdf(true);
     try {
-      await downloadSheetAsPdf(releveRef.current, `Releve_${String(lotRef).replace(/[^\w-]+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+      const issuedOn = new Date().toLocaleDateString('fr-FR');
+      const reference = getReleveReference(parcel);
+      const owner = parcel.properties.occupantName || 'Aucun (domaine libre)';
+      const fingerprint = await computeFingerprint({
+        type: 'releve',
+        reference,
+        lot: lotRef,
+        owner,
+        areaM2: Math.round(areaInfo.sqMeters),
+        sides: sideLengths.map((m) => Math.round(m * 10) / 10),
+        bornes: bornes.map(([lng, lat]) => [lat.toFixed(6), lng.toFixed(6)]),
+        issuedOn
+      });
+
+      // Plans (on-screen SVG) and satellite view (already rendered image) of the sheet
+      const svgs = releveRef.current.querySelectorAll('.releve-plans svg');
+      const satelliteImg = releveRef.current.querySelector('figure img');
+      const [situationPlan, bornagePlan] = await Promise.all([svgToPng(svgs[0]), svgToPng(svgs[1])]);
+      const satellite = satelliteImg && satelliteImg.complete && satelliteImg.naturalWidth
+        ? { dataUrl: satelliteImg.src, width: satelliteImg.naturalWidth, height: satelliteImg.naturalHeight }
+        : null;
+
+      const hex = colorConfig.hex.replace('#', '');
+      const doc = await buildRelevePdf({
+        lotRef,
+        owner,
+        statusLabel: colorConfig.label,
+        statusColor: [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)),
+        areaHa: areaInfo.formattedHa,
+        areaM2: areaInfo.formattedSqM,
+        perimeter: formatMeters(perimeter),
+        coastal: oceanInfo ? `${oceanInfo.shortName} - ${oceanInfo.distanceFormatted} de l'océan` : 'Non déterminé',
+        bornes: bornes.map(([lng, lat], i) => ({
+          name: `B${i + 1}`,
+          lat: lat.toFixed(6),
+          lng: lng.toFixed(6),
+          latDms: ddToDms(lat, true),
+          lngDms: ddToDms(lng, false),
+          side: `B${i + 1}-B${(i + 1) % bornes.length + 1} : ${formatMeters(sideLengths[i])}`
+        })),
+        qrText: buildVerificationText(parcel, issuedOn, fingerprint),
+        reference,
+        issuedOn,
+        fingerprint,
+        situationPlan,
+        bornagePlan,
+        satellite,
+        notes: parcel.properties.notes || ''
+      });
+      doc.save(`Releve_${String(lotRef).replace(/[^\w-]+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
       logActivity({
         role: isArpenteur ? 'arpenteur' : 'admin',
         actor: isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur',
