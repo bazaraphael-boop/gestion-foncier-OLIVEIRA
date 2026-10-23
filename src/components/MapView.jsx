@@ -5,6 +5,8 @@ import 'leaflet/dist/leaflet.css';
 import { STATUS_COLORS, ddToDms, fetchElevation, calculateArea } from '../utils/geoUtils';
 import { COASTAL_ZONES, SEPARATION_LINES, getOceanZoneInfo } from '../utils/coastalZones';
 import BorneMoveConfirmModal from './BorneMoveConfirmModal';
+import { MeasureLayer, MeasurePanel, MeasureSheet } from './MeasureTool';
+import { useMeasureSettings } from '../hooks/useMeasure';
 import {
   Layers,
   MapPin,
@@ -33,7 +35,8 @@ import {
   Map as MapIcon,
   PenTool,
   LocateFixed,
-  Hexagon
+  Hexagon,
+  Ruler
 } from 'lucide-react';
 import * as turf from '@turf/turf';
 
@@ -572,6 +575,12 @@ export default function MapView({
   const [mapZoom, setMapZoom] = useState(13);
   const [showRoadsOverlay, setShowRoadsOverlay] = useState(false);
   const [openMapPanel, setOpenMapPanel] = useState(null); // 'basemap' | 'layers' | null
+
+  // "Latte" measuring tool (Admin & Arpenteur)
+  const [isMeasuring, setIsMeasuring] = useState(false);
+  const [measurePoints, setMeasurePoints] = useState([]);
+  const [showMeasureSheet, setShowMeasureSheet] = useState(false);
+  const [measureSettings, setMeasureSettings] = useMeasureSettings();
   const toolbarRef = useRef(null);
   const [showConcession, setShowConcession] = useState(true);
   const [showConcessionBornes, setShowConcessionBornes] = useState(false);
@@ -1022,6 +1031,8 @@ export default function MapView({
 
   const handleStartDrawing = () => {
     if (!canDrawAndManageParcels) return;
+    setIsMeasuring(false);
+    setMeasurePoints([]);
     setIsDrawing(true);
     setDrawnPoints([]);
     setLastMarkedInfo(null);
@@ -1125,6 +1136,28 @@ export default function MapView({
       return null;
     }
   }, [drawnPoints]);
+
+  const handleToggleMeasuring = () => {
+    if (isMeasuring) {
+      setIsMeasuring(false);
+      setMeasurePoints([]);
+      return;
+    }
+    setIsDrawing(false);
+    setDrawnPoints([]);
+    setOpenMapPanel(null);
+    if (onSelectParcel) onSelectParcel(null);
+    setMeasurePoints([]);
+    setIsMeasuring(true);
+  };
+
+  const handleMeasureToParcel = () => {
+    if (measurePoints.length < 3 || !onOpenCreateFormWithPoints) return;
+    const pointsList = measurePoints.map(([lat, lng]) => ({ latStr: lat.toFixed(6), lngStr: lng.toFixed(6) }));
+    setIsMeasuring(false);
+    setMeasurePoints([]);
+    onOpenCreateFormWithPoints(pointsList);
+  };
 
   const handleFinishDrawing = () => {
     if (drawnPoints.length < 3) {
@@ -1347,6 +1380,15 @@ export default function MapView({
             <LayerSwitch icon={Sparkles} label="Netteté renforcée" detail="Contraste de l'imagerie" checked={sharpnessHD} onChange={setSharpnessHD} />
 
             <div className="grid grid-cols-2 gap-2 pt-3 px-1">
+              {canDrawAndManageParcels && (
+                <button
+                  onClick={() => { handleToggleMeasuring(); setShowMobileGisMenu(false); }}
+                  className="col-span-2 h-10 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-lg text-[13px] font-medium flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Ruler className="w-4 h-4 text-slate-500" />
+                  <span>{isMeasuring ? 'Quitter la mesure' : 'Mesurer une zone (latte)'}</span>
+                </button>
+              )}
               <button
                 onClick={() => { setShowLegendDrawer(true); setShowMobileGisMenu(false); }}
                 className="h-10 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-lg text-[13px] font-medium flex items-center justify-center gap-2 cursor-pointer"
@@ -1697,6 +1739,7 @@ export default function MapView({
                   <ToolButton icon={X} label="Annuler le tracé" onClick={handleCancelDrawing} />
                 </>
               )}
+              <ToolButton icon={Ruler} label={isMeasuring ? 'Quitter la mesure' : 'Mesurer une zone (latte)'} active={isMeasuring} onClick={handleToggleMeasuring} />
               {isAdmin && (
                 <ToolButton
                   icon={PenTool}
@@ -1866,7 +1909,7 @@ export default function MapView({
         {showConcession && concessionCoords.length > 0 && (
           <Polygon
             positions={concessionCoords}
-            interactive={!isDrawing && !isEditingConcession}
+            interactive={!isDrawing && !isEditingConcession && !isMeasuring}
             pathOptions={{
               color: isEditingConcession ? '#EA580C' : '#D97706',
               weight: isEditingConcession ? 3.5 : 2.5,
@@ -1912,7 +1955,7 @@ export default function MapView({
         {showSubZones && (
           <Polygon
             positions={ISETECH_OUTER_BOUNDARY_COORDS}
-            interactive={!isDrawing}
+            interactive={!isDrawing && !isMeasuring}
             pathOptions={{
               color: '#0284C7',
               weight: activeView === 'isetech' ? 3.5 : 2.5,
@@ -1941,7 +1984,7 @@ export default function MapView({
           <Polygon
             key={zone.id}
             positions={zone.coordinates}
-            interactive={!isDrawing}
+            interactive={!isDrawing && !isMeasuring}
             pathOptions={{
               color: zone.strokeColor,
               weight: 1.5,
@@ -1983,7 +2026,7 @@ export default function MapView({
           <React.Fragment key={line.id}>
             <Polyline
               positions={line.coordinates}
-              interactive={!isDrawing}
+              interactive={!isDrawing && !isMeasuring}
               pathOptions={{
                 color: line.color,
                 weight: line.weight,
@@ -2029,7 +2072,7 @@ export default function MapView({
             <Polygon
               key={parcel.id}
               positions={coords}
-              interactive={!isDrawing}
+              interactive={!isDrawing && !isMeasuring}
               pathOptions={{
                 color: isMultiSelected ? '#0284C7' : colorConfig.hex,
                 weight: isMultiSelected ? 4.5 : isSingleSelected ? 4 : 2,
@@ -2108,8 +2151,10 @@ export default function MapView({
           );
         })}
 
+        {isMeasuring && <MeasureLayer points={measurePoints} onChange={setMeasurePoints} />}
+
         {/* Bornes of the selected parcel (draggable by Admin only) */}
-        {!isDrawing && !isEditingConcession && displayedParcelBornes.map((pt, i) => (
+        {!isDrawing && !isEditingConcession && !isMeasuring && displayedParcelBornes.map((pt, i) => (
           <Marker
             key={`parcel-borne-${selectedParcel.id}-${i}`}
             position={pt}
@@ -2251,6 +2296,31 @@ export default function MapView({
           </>
         )}
       </MapContainer>
+
+      {isMeasuring && (
+        <MeasurePanel
+          points={measurePoints}
+          settings={measureSettings}
+          onSettingsChange={setMeasureSettings}
+          onUndo={() => setMeasurePoints((prev) => prev.slice(0, -1))}
+          onClear={() => setMeasurePoints([])}
+          onClose={handleToggleMeasuring}
+          onPrint={() => setShowMeasureSheet(true)}
+          onCreateParcel={handleMeasureToParcel}
+          canCreateParcel={!!onOpenCreateFormWithPoints}
+        />
+      )}
+
+      {showMeasureSheet && measurePoints.length >= 3 && (
+        <MeasureSheet
+          points={measurePoints}
+          settings={measureSettings}
+          parcels={parcels}
+          concessionPolygon={concessionPolygon}
+          authorLabel={isAdmin ? 'Administrateur' : 'Arpenteur Géomètre'}
+          onClose={() => setShowMeasureSheet(false)}
+        />
+      )}
 
       <BorneMoveConfirmModal
         move={pendingBorneMove}

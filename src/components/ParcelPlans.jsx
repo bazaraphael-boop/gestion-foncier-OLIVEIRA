@@ -161,7 +161,7 @@ export function SituationPlan({ parcel, parcels = [], concessionPolygon }) {
 
 const BORNAGE_W = 600;
 
-export function BornagePlan({ parcel, parcels = [] }) {
+export function BornagePlan({ parcel, parcels = [], pointPrefix = 'B', color: colorOverride }) {
   const plan = useMemo(() => {
     const bornes = getParcelBornes(parcel);
     if (bornes.length < 3) return null;
@@ -188,7 +188,8 @@ export function BornagePlan({ parcel, parcels = [] }) {
     // Frame: parcel plus a margin wide enough to show the adjoining lots
     const [minX, minY, maxX, maxY] = bboxOfPoints(target.map(local));
     const marginX = (maxX - minX) * 0.08 + 25;
-    const marginY = Math.max((maxY - minY) * 1.5, 20);
+    // Long strips get room for the neighbouring lots above and below; compact shapes stay large
+    const marginY = Math.max(Math.min((maxY - minY) * 1.5, (maxX - minX) * 0.25), 20);
     const view = [minX - marginX, minY - marginY, maxX + marginX, maxY + marginY];
     // Frame height follows the parcel shape (long strips get a shorter frame, less empty space)
     const height = Math.round(Math.min(340, Math.max(170, (BORNAGE_W * (view[3] - view[1])) / (view[2] - view[0]))));
@@ -257,7 +258,9 @@ export function BornagePlan({ parcel, parcels = [] }) {
 
   if (!plan) return null;
   const { target, neighbours, pts, badges, sides, cx, cy, pxPerM, height, northDeg } = plan;
-  const color = (STATUS_COLORS[parcel.properties?.status] || STATUS_COLORS.disponible).hex;
+  const color = colorOverride || (STATUS_COLORS[parcel.properties?.status] || STATUS_COLORS.disponible).hex;
+  // Parcel bornes are orange everywhere in the app; other plans (measurements) use their own colour
+  const pointColor = colorOverride || '#EA580C';
   const lotRef = parcel.properties?.lotNumber || parcel.id;
 
   return (
@@ -301,11 +304,11 @@ export function BornagePlan({ parcel, parcels = [] }) {
         const [bx, by] = badges[i];
         return (
           <g key={i}>
-            <line x1={x} y1={y} x2={bx} y2={by} stroke="#EA580C" strokeWidth="1" />
-            <circle cx={x} cy={y} r="2.5" fill="#EA580C" stroke="#ffffff" strokeWidth="1" />
-            <circle cx={bx} cy={by} r="8" fill="#EA580C" stroke="#ffffff" strokeWidth="1.5" />
+            <line x1={x} y1={y} x2={bx} y2={by} stroke={pointColor} strokeWidth="1" />
+            <circle cx={x} cy={y} r="2.5" fill={pointColor} stroke="#ffffff" strokeWidth="1" />
+            <circle cx={bx} cy={by} r="8" fill={pointColor} stroke="#ffffff" strokeWidth="1.5" />
             <text x={bx} y={by + 0.5} textAnchor="middle" dominantBaseline="middle" fontSize="7" fontWeight="800" fill="#ffffff" fontFamily="ui-monospace, monospace">
-              B{i + 1}
+              {pointPrefix}{i + 1}
             </text>
           </g>
         );

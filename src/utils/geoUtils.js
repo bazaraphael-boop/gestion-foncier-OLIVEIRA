@@ -301,3 +301,32 @@ export async function fetchElevation(lat, lng) {
   }
   return null;
 }
+
+// Measurement of an open polyline (2 points) or closed polygon (3+ points), points as [lat, lng]
+export function measurePoints(points) {
+  const coords = points.map(([lat, lng]) => [lng, lat]);
+  const sides = coords.length < 2 ? [] : coords
+    .slice(0, coords.length >= 3 ? coords.length : coords.length - 1)
+    .map((a, i) => turf.distance(turf.point(a), turf.point(coords[(i + 1) % coords.length]), { units: 'meters' }));
+  const perimeterM = sides.reduce((sum, m) => sum + m, 0);
+  const areaM2 = coords.length >= 3 ? turf.area(turf.polygon([[...coords, coords[0]]])) : 0;
+  return { sides, perimeterM, areaM2, areaHa: areaM2 / 10000 };
+}
+
+// Theoretical lot count for an area: a share is kept for roads and common spaces,
+// the rest is divided by the lot area (surface-based, the shape of the area is not taken into account)
+export function computeLotQuota({ areaM2, lotWidthM, lotLengthM, reservePct }) {
+  const lotAreaM2 = Math.max(0, lotWidthM) * Math.max(0, lotLengthM);
+  const reserve = Math.min(Math.max(reservePct, 0), 95) / 100;
+  const reservedM2 = areaM2 * reserve;
+  const usableM2 = areaM2 - reservedM2;
+  const lots = lotAreaM2 > 0 ? Math.floor(usableM2 / lotAreaM2) : 0;
+  const leftoverM2 = usableM2 - lots * lotAreaM2;
+  return { lotAreaM2, reservedM2, usableM2, lots, leftoverM2 };
+}
+
+export function formatArea(m2) {
+  const nf0 = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
+  const nf2 = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return { m2: `${nf0.format(m2)} m²`, ha: `${nf2.format(m2 / 10000)} ha` };
+}
