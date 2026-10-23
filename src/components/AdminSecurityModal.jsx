@@ -52,19 +52,19 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout, session 
     <div className="fixed inset-0 z-[3500] bg-slate-900/60 backdrop-blur-xs flex justify-center items-center p-4 font-sans select-none animate-in fade-in duration-200">
       <div className="bg-white text-slate-800 w-full max-w-lg rounded-xl shadow-2xl border border-slate-200 overflow-hidden my-auto animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-6 py-4 bg-[#1a3a5c] text-white flex items-center justify-between">
+        <div className="px-6 py-4 bg-white text-slate-900 flex items-center justify-between border-b border-slate-200">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-cyan-300">
+            <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center text-brand-700">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm tracking-tight">Sécurité & Contrôle des Accès</h3>
-              <p className="text-[11px] text-blue-200">Gestion du mot de passe et de la session</p>
+              <h3 className="font-semibold text-sm">Mot de passe &amp; session</h3>
+              <p className="text-[11px] text-slate-500">Sécurité de votre compte</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-blue-200 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer" aria-label="Fermer"
           >
             <X className="w-4 h-4" />
           </button>

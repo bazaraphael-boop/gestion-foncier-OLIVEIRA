@@ -178,7 +178,7 @@ export default function ParcelFormModal({
         {/* Header */}
         <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-emerald-600" />
+            <MapPin className="w-4 h-4 text-slate-500" />
             <h2 className="font-bold text-base text-slate-900">
               Saisie de Parcelle (Forme Libre / Hexagonale)
             </h2>
@@ -195,15 +195,15 @@ export default function ParcelFormModal({
         <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
           {/* Quick Tracing Action Button */}
           {onStartDrawing && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-emerald-950 font-medium">
-                <Pencil className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+            <div className="bg-brand-50 border border-brand-100 rounded-lg p-2.5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-brand-900 font-medium">
+                <Pencil className="w-4 h-4 text-brand-700 flex-shrink-0" />
                 <span>Tracer et marquer les bornes sur le terrain (GPS / Viseur) ?</span>
               </div>
               <button
                 type="button"
                 onClick={onStartDrawing}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer flex-shrink-0"
+                className="px-3 py-1.5 bg-brand-700 hover:bg-brand-800 text-white rounded-lg font-semibold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer flex-shrink-0"
               >
                 <span>Tracer sur la Carte</span>
               </button>
@@ -258,7 +258,7 @@ export default function ParcelFormModal({
                   points.length === 4 ? 'bg-white text-slate-900 shadow-2xs border border-slate-200' : 'text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                <Square className="w-3 h-3 text-emerald-600" /> 4 Sommets (Standard)
+                <Square className="w-3 h-3 text-slate-500" /> 4 bornes (standard)
               </button>
               <button
                 type="button"
@@ -267,7 +267,7 @@ export default function ParcelFormModal({
                   points.length === 6 ? 'bg-white text-slate-900 shadow-2xs border border-slate-200' : 'text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                <Hexagon className="w-3 h-3 text-cyan-600" /> 6 Sommets (Hexagone)
+                <Hexagon className="w-3 h-3 text-slate-500" /> 6 bornes (hexagone)
               </button>
             </div>
           </div>
@@ -276,7 +276,7 @@ export default function ParcelFormModal({
           <div className="bg-slate-50 p-3.5 rounded border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                <Compass className="w-3.5 h-3.5 text-emerald-600" /> Sommets GPS ({points.length} points)
+                <Compass className="w-3.5 h-3.5 text-slate-500" /> Bornes GPS ({points.length})
               </span>
               <div className="flex items-center gap-2">
                 <div className="flex bg-slate-200 p-0.5 rounded text-[11px]">
@@ -308,7 +308,7 @@ export default function ParcelFormModal({
             <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
               {points.map((pt, idx) => (
                 <div key={idx} className="flex items-center gap-2">
-                  <span className="font-bold text-slate-700 w-7 text-right font-mono">P{idx + 1}.</span>
+                  <span className="font-bold text-slate-700 w-7 text-right font-mono">B{idx + 1}</span>
                   <input
                     type="text"
                     placeholder={coordFormat === 'dd' ? 'Latitude (ex: -5.914822)' : 'Lat DMS'}
@@ -327,7 +327,7 @@ export default function ParcelFormModal({
                     type="button"
                     onClick={() => handleRemovePointField(idx)}
                     className="p-1 text-slate-400 hover:text-rose-600 rounded"
-                    title="Supprimer ce sommet"
+                    title="Retirer cette borne"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -339,14 +339,14 @@ export default function ParcelFormModal({
               <button
                 type="button"
                 onClick={handleAddPointField}
-                className="text-emerald-700 font-semibold text-xs flex items-center gap-1 hover:underline"
+                className="text-brand-600 hover:text-brand-800 font-semibold text-xs flex items-center gap-1"
               >
-                <Plus className="w-3.5 h-3.5" /> Ajouter un sommet (P{points.length + 1})
+                <Plus className="w-3.5 h-3.5" /> Ajouter la borne B{points.length + 1}
               </button>
               <button
                 type="button"
                 onClick={handleValidateGeometry}
-                className="px-3 py-1 bg-slate-800 text-white rounded font-medium text-xs hover:bg-slate-700 cursor-pointer"
+                className="px-3 py-1 bg-white border border-slate-200 text-slate-700 rounded-lg font-medium text-xs hover:bg-slate-50 cursor-pointer"
               >
                 Vérifier Géométrie (Turf.js)
               </button>
@@ -399,7 +399,7 @@ export default function ParcelFormModal({
                 ) : (
                   <ShieldAlert className="w-4 h-4 text-rose-600" />
                 )}
-                <span>{validationResult.isValid ? `Polygone Conforme (${points.length} Sommets)` : 'Erreurs de Géométrie'}</span>
+                <span>{validationResult.isValid ? `Tracé valide (${points.length} bornes)` : 'Erreurs de Géométrie'}</span>
               </div>
               {validationResult.areaInfo && (
                 <div className="font-medium">
@@ -426,9 +426,9 @@ export default function ParcelFormModal({
             </button>
             <button
               type="submit"
-              className="px-5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs shadow-xs cursor-pointer"
+              className="px-5 py-1.5 bg-brand-700 hover:bg-brand-800 text-white font-semibold rounded-lg text-xs cursor-pointer"
             >
-              Enregistrer la Parcelle ({points.length} Sommets)
+              Enregistrer la parcelle
             </button>
           </div>
         </form>

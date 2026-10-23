@@ -102,11 +102,11 @@ export default function Navbar({
     <header className="bg-brand-900 text-white w-full sticky top-0 z-[1100] select-none pt-[env(safe-area-inset-top,0px)] border-b border-white/10">
       <div className="h-14 px-3 sm:px-4 flex items-center gap-3">
         {/* Identity */}
-        <div className="flex items-center gap-2.5 min-w-0 flex-shrink">
+        <div className="hidden sm:flex items-center gap-2.5 min-w-0 flex-shrink">
           <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
             <ShieldCheck className="w-5 h-5 text-white" />
           </div>
-          <div className="min-w-0 hidden sm:block">
+          <div className="min-w-0">
             <h1 className="font-semibold text-sm leading-tight truncate">
               <span className="lg:hidden">Concession Oliveira</span>
               <span className="hidden lg:inline">Concession Manuel Joaquim d&apos;Oliveira</span>

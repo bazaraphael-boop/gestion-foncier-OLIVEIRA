@@ -173,25 +173,18 @@ export default function AuditLogModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[4000] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 font-sans animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col h-[90vh] max-h-[850px] overflow-hidden border border-slate-200 text-slate-800">
+    <div className="fixed inset-0 z-[4000] bg-slate-900/50 flex items-center justify-center p-3 sm:p-5 font-sans animate-in fade-in duration-200">
+      <div className="bg-white w-full max-w-5xl rounded-xl shadow-[0_20px_48px_-12px_rgba(15,37,64,0.45)] flex flex-col h-[90vh] max-h-[850px] overflow-hidden border border-slate-200 text-slate-800">
         
         {/* Header */}
-        <div className="p-4 sm:px-6 sm:py-4 bg-[#0f2540] text-white flex items-center justify-between border-b border-slate-800 flex-shrink-0">
+        <div className="p-4 sm:px-6 sm:py-4 bg-white text-slate-900 flex items-center justify-between border-b border-slate-200 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-cyan-600/30 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-xs">
-              <ShieldCheck className="w-5 h-5 text-cyan-400" />
+            <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center text-brand-700">
+              <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-bold text-white tracking-tight flex items-center gap-2">
-                <span>Registre d'Audit &amp; Traçabilité des Actions</span>
-                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  Accès Admin
-                </span>
-              </h2>
-              <p className="text-xs text-blue-200">
-                Surveillance intégrale des connexions et des modifications cadastrales (Arpenteur, Clients, Admin)
-              </p>
+              <h2 className="text-sm sm:text-base font-semibold text-slate-900">Journal d&apos;audit</h2>
+              <p className="text-xs text-slate-500">Connexions et modifications du cadastre (administrateur et arpenteurs)</p>
             </div>
           </div>
 
@@ -199,16 +192,16 @@ export default function AuditLogModal({ isOpen, onClose }) {
             <button
               onClick={handleSyncCloud}
               disabled={isSyncing}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
               title="Synchroniser avec la base Supabase Cloud"
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-teal-400 ${isSyncing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${isSyncing ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Sync Cloud</span>
             </button>
 
             <button
               onClick={handleExportCSV}
-              className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+              className="px-2.5 py-1.5 rounded-lg bg-brand-700 hover:bg-brand-800 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               title="Exporter les logs affichés en format CSV"
             >
               <Download className="w-3.5 h-3.5" />
@@ -217,7 +210,7 @@ export default function AuditLogModal({ isOpen, onClose }) {
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer" aria-label="Fermer"
               title="Fermer le registre"
             >
               <X className="w-5 h-5" />
@@ -236,9 +229,9 @@ export default function AuditLogModal({ isOpen, onClose }) {
 
           <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
             <div className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-cyan-600" /> Dernières 24h
+              <Clock className="w-3.5 h-3.5 text-slate-400" /> Dernières 24h
             </div>
-            <div className="text-lg font-black text-cyan-700 mt-0.5">{metrics.last24h}</div>
+            <div className="text-lg font-semibold text-slate-900 mt-0.5 tabular-nums">{metrics.last24h}</div>
           </div>
 
           <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
@@ -276,7 +269,6 @@ export default function AuditLogModal({ isOpen, onClose }) {
             {[
               { id: 'all', label: 'Tous' },
               { id: 'arpenteur', label: 'Arpenteur', color: 'text-cyan-700 bg-cyan-50 border-cyan-200' },
-              { id: 'client', label: 'Client PIN', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
               { id: 'admin', label: 'Admin', color: 'text-amber-800 bg-amber-50 border-amber-200' },
               { id: 'security', label: 'Alertes', color: 'text-rose-700 bg-rose-50 border-rose-200' }
             ].map((pill) => (
@@ -285,7 +277,7 @@ export default function AuditLogModal({ isOpen, onClose }) {
                 onClick={() => setRoleFilter(pill.id)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                   roleFilter === pill.id
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                    ? 'bg-brand-700 text-white border-brand-700'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200'
                 }`}
               >
@@ -456,7 +448,7 @@ export default function AuditLogModal({ isOpen, onClose }) {
 
             <button
               onClick={onClose}
-              className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+              className="px-4 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-lg text-xs font-medium transition-colors cursor-pointer"
             >
               Fermer
             </button>

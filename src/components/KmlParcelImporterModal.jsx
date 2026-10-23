@@ -106,7 +106,7 @@ export default function KmlParcelImporterModal({
         {/* Header */}
         <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
-            <Upload className="w-4 h-4 text-emerald-600" />
+            <Upload className="w-4 h-4 text-slate-500" />
             <span>Importer des Parcelles KML / Google Earth</span>
           </div>
           <button
@@ -124,7 +124,7 @@ export default function KmlParcelImporterModal({
           </p>
 
           {/* Drag & Drop File Zone */}
-          <div className="border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50 p-6 rounded-lg text-center cursor-pointer transition-all relative">
+          <div className="border-2 border-dashed border-slate-300 hover:border-brand-500 bg-slate-50 p-6 rounded-lg text-center cursor-pointer transition-all relative">
             <input
               type="file"
               accept=".kml,.xml"
@@ -132,7 +132,7 @@ export default function KmlParcelImporterModal({
               className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
             />
             <div className="flex flex-col items-center gap-2">
-              <FileCode className="w-8 h-8 text-emerald-600" />
+              <FileCode className="w-8 h-8 text-slate-400" />
               <span className="font-bold text-slate-800">
                 {file ? file.name : 'Cliquez ou glissez-déposez un fichier KML ici'}
               </span>
@@ -161,7 +161,7 @@ export default function KmlParcelImporterModal({
               </div>
               <div className="flex flex-col justify-center">
                 <span className="text-[11px] text-slate-500 font-medium">Nombre de Lots Identifiés</span>
-                <span className="text-base font-black text-emerald-700">{parsedParcels.length} Parcelles</span>
+                <span className="text-base font-semibold text-slate-900">{parsedParcels.length} Parcelles</span>
               </div>
             </div>
           )}
@@ -189,7 +189,7 @@ export default function KmlParcelImporterModal({
                         </span>
                       )}
                     </div>
-                    <span className="font-bold text-emerald-700 font-mono">
+                    <span className="font-semibold text-slate-900 font-mono tabular-nums">
                       {p.properties.formattedHa}
                     </span>
                   </div>
@@ -211,7 +211,7 @@ export default function KmlParcelImporterModal({
             onClick={handleConfirmImport}
             disabled={parsedParcels.length === 0}
             className={`px-4 py-1.5 text-white font-bold rounded shadow-2xs flex items-center gap-1.5 transition-all ${
-              parsedParcels.length > 0 ? 'bg-emerald-600 hover:bg-emerald-500 cursor-pointer' : 'bg-slate-300 cursor-not-allowed'
+              parsedParcels.length > 0 ? 'bg-brand-700 hover:bg-brand-800 cursor-pointer' : 'bg-slate-300 cursor-not-allowed'
             }`}
           >
             <Plus className="w-3.5 h-3.5" />
