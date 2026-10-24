@@ -23,6 +23,7 @@ Il n'y a plus de portail client à code PIN.
 3. **Exécuter les migrations dans l'ordre** : *SQL Editor → New query*, coller le fichier, *Run* :
    1. `migrations/20261022000000_auth_roles_rls.sql`
    2. `migrations/20261023000000_admin_only_bornes_no_client.sql`
+   3. `migrations/20261024000000_parcel_photos_storage.sql` (photos des parcelles : espace privé « parcel-photos »)
 4. **Attribuer les rôles** : dans le SQL Editor, exécuter les requêtes `insert into public.profiles`
    de la section 5 du script, en y mettant les vrais e-mails.
 5. **Vérifier** : *Table Editor → parcels* doit afficher « RLS enabled ». Depuis un terminal, sans
@@ -41,4 +42,6 @@ Il n'y a plus de portail client à code PIN.
 - **Ajouter un arpenteur** : créer le compte (étape 2), puis l'insérer dans `profiles` avec le rôle
   `arpenteur` (étape 4).
 - **Retirer un accès** : supprimer l'utilisateur dans *Authentication → Users*.
+- **Photos des parcelles** : stockées dans *Storage → parcel-photos* (privé). L'admin et les arpenteurs
+  peuvent en ajouter, seul l'admin peut en supprimer.
 - **Mot de passe oublié** : *Authentication → Users → … → Send password recovery*.

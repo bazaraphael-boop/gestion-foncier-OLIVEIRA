@@ -7,6 +7,7 @@ import { getOceanZoneInfo } from '../utils/coastalZones';
 import OfficialHeaderBanner from './OfficialHeaderBanner';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import { SituationPlan, BornagePlan, SatelliteFigure } from './ParcelPlans';
+import { ParcelPhotoGallery } from './ParcelPhotos';
 import { buildRelevePdf, computeFingerprint, svgToPng } from '../utils/officialPdf';
 import {
   X,
@@ -582,6 +583,13 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                   </div>
                 )}
               </section>
+
+              <ParcelPhotoGallery
+                parcel={parcel}
+                canAdd={!isVisitorMode}
+                canDelete={!isVisitorMode && !isArpenteur}
+                onPhotosChange={(photos) => onUpdateParcel({ ...parcel, properties: { ...parcel.properties, photos } })}
+              />
 
               {/* Bornes */}
               <section className="px-5 py-4 space-y-2.5">

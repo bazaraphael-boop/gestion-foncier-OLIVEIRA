@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { validateParcelGeometry, dmsToDd, getNextRmbLotNumber } from '../utils/geoUtils';
 import { getOceanZoneInfo } from '../utils/coastalZones';
-import { X, Plus, Trash2, MapPin, Compass, CheckCircle2, ShieldAlert, Hexagon, Square, Waves, Pencil } from 'lucide-react';
+import { X, Plus, Trash2, MapPin, Compass, CheckCircle2, ShieldAlert, Hexagon, Square, Waves, Pencil, Loader2 } from 'lucide-react';
+import { PhotoPicker } from './ParcelPhotos';
+import { uploadParcelPhotos } from '../services/photoService';
 
 export default function ParcelFormModal({
   isOpen,
@@ -16,6 +18,8 @@ export default function ParcelFormModal({
   const [status, setStatus] = useState('disponible');
   const [occupantName, setOccupantName] = useState('');
   const [notes, setNotes] = useState('');
+  const [photoFiles, setPhotoFiles] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
   const [coordFormat, setCoordFormat] = useState('dd'); // 'dd' | 'dms'
 
   // Default 4 GPS vertex points (P1 to P4)
@@ -43,6 +47,8 @@ export default function ParcelFormModal({
       ]);
     }
     setValidationResult(null);
+    setPhotoFiles([]);
+    setIsSaving(false);
   }, [isOpen, initialPoints, existingParcels]);
 
   if (!isOpen) return null;
@@ -130,8 +136,9 @@ export default function ParcelFormModal({
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSaving) return;
     const val = handleValidateGeometry();
 
     if (!val.isValid) {
@@ -148,14 +155,29 @@ export default function ParcelFormModal({
     }
 
     const area = val.areaInfo;
+    const parcelId = `parcelle_${Date.now()}`;
+
+    // Photos are uploaded first so the parcel is saved with their storage paths
+    let photos = [];
+    if (photoFiles.length > 0) {
+      setIsSaving(true);
+      const { uploaded, errors } = await uploadParcelPhotos(parcelId, photoFiles);
+      photos = uploaded;
+      setIsSaving(false);
+      if (errors.length > 0) {
+        alert(`${errors.length} photo(s) n'ont pas pu être envoyées : ${errors[0]}\nLa parcelle est enregistrée${uploaded.length ? ` avec ${uploaded.length} photo(s)` : ' sans photo'} ; vous pourrez en ajouter depuis sa fiche.`);
+      }
+    }
+
     const newParcel = {
       type: 'Feature',
-      id: `parcelle_${Date.now()}`,
+      id: parcelId,
       properties: {
         lotNumber: lotNumber || `LOT-${Date.now()}`,
         status,
         occupantName,
         notes,
+        ...(photos.length ? { photos } : {}),
         createdAt: new Date().toISOString().split('T')[0],
         areaSqM: area ? area.sqMeters : 600,
         areaHa: area ? area.hectares : 0.06,
@@ -246,6 +268,8 @@ export default function ParcelFormModal({
               className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-slate-900 focus:outline-none focus:border-slate-400"
             />
           </div>
+
+          <PhotoPicker files={photoFiles} onChange={setPhotoFiles} disabled={isSaving} />
 
           {/* Preset Buttons for Geometry (4 sommets / 6 sommets Hexagone / Custom) */}
           <div className="flex items-center justify-between bg-slate-100 p-2 rounded border border-slate-200">
@@ -426,9 +450,11 @@ export default function ParcelFormModal({
             </button>
             <button
               type="submit"
-              className="px-5 py-1.5 bg-brand-700 hover:bg-brand-800 text-white font-semibold rounded-lg text-xs cursor-pointer"
+              disabled={isSaving}
+              className="px-5 py-1.5 bg-brand-700 hover:bg-brand-800 text-white font-semibold rounded-lg text-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
             >
-              Enregistrer la parcelle
+              {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {isSaving ? 'Envoi des photos…' : 'Enregistrer la parcelle'}
             </button>
           </div>
         </form>
