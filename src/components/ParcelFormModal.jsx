@@ -18,7 +18,7 @@ export default function ParcelFormModal({
   const [status, setStatus] = useState('disponible');
   const [occupantName, setOccupantName] = useState('');
   const [notes, setNotes] = useState('');
-  const [photoFiles, setPhotoFiles] = useState([]);
+  const [photoItems, setPhotoItems] = useState([]); // { file, location, takenAt }
   const [isSaving, setIsSaving] = useState(false);
   const [coordFormat, setCoordFormat] = useState('dd'); // 'dd' | 'dms'
 
@@ -47,7 +47,7 @@ export default function ParcelFormModal({
       ]);
     }
     setValidationResult(null);
-    setPhotoFiles([]);
+    setPhotoItems([]);
     setIsSaving(false);
   }, [isOpen, initialPoints, existingParcels]);
 
@@ -159,9 +159,9 @@ export default function ParcelFormModal({
 
     // Photos are uploaded first so the parcel is saved with their storage paths
     let photos = [];
-    if (photoFiles.length > 0) {
+    if (photoItems.length > 0) {
       setIsSaving(true);
-      const { uploaded, errors } = await uploadParcelPhotos(parcelId, photoFiles);
+      const { uploaded, errors } = await uploadParcelPhotos(parcelId, photoItems, { lotRef: lotNumber });
       photos = uploaded;
       setIsSaving(false);
       if (errors.length > 0) {
@@ -269,7 +269,7 @@ export default function ParcelFormModal({
             />
           </div>
 
-          <PhotoPicker files={photoFiles} onChange={setPhotoFiles} disabled={isSaving} />
+          <PhotoPicker items={photoItems} onChange={setPhotoItems} disabled={isSaving} />
 
           {/* Preset Buttons for Geometry (4 sommets / 6 sommets Hexagone / Custom) */}
           <div className="flex items-center justify-between bg-slate-100 p-2 rounded border border-slate-200">
