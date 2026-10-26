@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as turf from '@turf/turf';
-import { STATUS_COLORS, getParcelBornes, formatMeters } from '../utils/geoUtils';
+import { STATUS_COLORS, getParcelBornes, formatMeters, gridDistance } from '../utils/geoUtils';
 import { renderSatelliteSnapshot } from '../utils/satelliteSnapshot';
 
 // Vector plans printed on the Relevé Parcellaire:
@@ -250,7 +250,7 @@ export function BornagePlan({ parcel, parcels = [], pointPrefix = 'B', color: co
         x: mx + nx * (isShort ? 36 : 10),
         y: my + ny * (isShort ? 36 : 10),
         deg: isShort ? 0 : deg,
-        meters: turf.distance(turf.point(a), turf.point(bornes[(i + 1) % bornes.length]), { units: 'meters' })
+        meters: gridDistance(a, bornes[(i + 1) % bornes.length])
       };
     });
 

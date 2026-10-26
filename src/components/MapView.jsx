@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Polygon, Polyline, Popup, Tooltip, useMap, Marker, useMapEvents, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { STATUS_COLORS, ddToDms, fetchElevation, calculateArea } from '../utils/geoUtils';
+import { STATUS_COLORS, ddToDms, fetchElevation, calculateArea, measurePoints, parseDecimal } from '../utils/geoUtils';
 import { COASTAL_ZONES, SEPARATION_LINES, getOceanZoneInfo } from '../utils/coastalZones';
 import BorneMoveConfirmModal from './BorneMoveConfirmModal';
 import { MeasureLayer, MeasurePanel, MeasureSheet } from './MeasureTool';
@@ -801,11 +801,9 @@ export default function MapView({
   const editingConcessionMetrics = useMemo(() => {
     if (!activeConcessionRing || activeConcessionRing.length < 3) return null;
     try {
-      const closed = [...activeConcessionRing, activeConcessionRing[0]];
-      const poly = turf.polygon([closed]);
-      const areaM2 = turf.area(poly);
+      const { areaM2, perimeterM } = measurePoints(activeConcessionRing.map(([lng, lat]) => [lat, lng]));
       const areaHa = areaM2 / 10000;
-      const lengthKm = turf.length(turf.lineString(closed), { units: 'kilometers' });
+      const lengthKm = perimeterM / 1000;
       return {
         areaHa: areaHa.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         areaSqM: Math.round(areaM2).toLocaleString('fr-FR'),
@@ -966,9 +964,9 @@ export default function MapView({
 
   const handleSaveManualCoordinates = (newLat, newLng) => {
     if (!isAdmin || !inspectedBorne) return;
-    const latNum = parseFloat(newLat);
-    const lngNum = parseFloat(newLng);
-    if (isNaN(latNum) || isNaN(lngNum)) {
+    const latNum = parseDecimal(newLat);
+    const lngNum = parseDecimal(newLng);
+    if (isNaN(latNum) || isNaN(lngNum) || Math.abs(latNum) > 90 || Math.abs(lngNum) > 180) {
       alert('Coordonnées invalides. Veuillez saisir des nombres décimaux valides.');
       return;
     }
@@ -1116,17 +1114,8 @@ export default function MapView({
   const drawnMetrics = useMemo(() => {
     if (!drawnPoints || drawnPoints.length < 2) return null;
     try {
-      const lineCoords = drawnPoints.map(([lat, lng]) => [lng, lat]);
-      const line = turf.lineString(lineCoords);
-      const perimeterM = turf.length(line, { units: 'meters' });
-      let areaHa = 0;
-      let areaM2 = 0;
-      if (drawnPoints.length >= 3) {
-        const polyCoords = [...lineCoords, lineCoords[0]];
-        const poly = turf.polygon([polyCoords]);
-        areaM2 = turf.area(poly);
-        areaHa = areaM2 / 10000;
-      }
+      // From 3 bornes the perimeter includes the closing side back to B1
+      const { perimeterM, areaM2, areaHa } = measurePoints(drawnPoints);
       return {
         perimeterM: perimeterM.toFixed(1),
         areaHa: areaHa.toFixed(3),

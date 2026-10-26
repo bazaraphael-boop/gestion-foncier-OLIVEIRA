@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import QRCode from 'qrcode';
 import { logActivity } from '../services/auditService';
-import { STATUS_COLORS, ddToDms, exportParcelToCSV, calculateArea, getParcelBornes, getSideLengths, formatMeters, buildVerificationText, getReleveReference } from '../utils/geoUtils';
+import { STATUS_COLORS, ddToDms, exportParcelToCSV, calculateArea, getParcelBornes, getSideLengths, formatMeters, buildVerificationText, getReleveReference, parseDecimal, hasCrossingSides } from '../utils/geoUtils';
 import { getOceanZoneInfo } from '../utils/coastalZones';
 import OfficialHeaderBanner from './OfficialHeaderBanner';
 import DeleteConfirmModal from './DeleteConfirmModal';
@@ -133,11 +133,19 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
     const ringCoords = [];
     for (let i = 0; i < editVertices.length; i++) {
       const v = editVertices[i];
-      const lat = parseFloat(v.latStr);
-      const lng = parseFloat(v.lngStr);
-      if (!isNaN(lat) && !isNaN(lng)) {
-        ringCoords.push([lng, lat]);
+      const lat = parseDecimal(v.latStr);
+      const lng = parseDecimal(v.lngStr);
+      // A mistyped borne is reported, never silently dropped (that would change the surface)
+      if (isNaN(lat) || isNaN(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+        alert(`Borne B${i + 1} : coordonnées invalides (« ${v.latStr} », « ${v.lngStr} »). Corrigez-la ou supprimez-la.`);
+        return;
       }
+      ringCoords.push([lng, lat]);
+    }
+
+    if (hasCrossingSides(ringCoords)) {
+      alert('Des côtés du tracé se croisent : les bornes ne sont pas dans l’ordre. Remettez-les en faisant le tour de la parcelle.');
+      return;
     }
 
     if (ringCoords.length < 3) {

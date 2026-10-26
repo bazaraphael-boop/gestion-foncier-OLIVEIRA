@@ -75,10 +75,14 @@ export function formatUtm({ easting, northing }) {
  * (leading zeros included) so the record matches the Cadastre document.
  * @returns {{ points: Array<{ xStr: string, yStr: string, easting: number, northing: number }>, errors: string[] }}
  */
+// A comma followed by 1 to 3 digits is a decimal comma (0203417,5 -> 0203417.5). A comma followed by a
+// whole coordinate (7 digits) separates X from Y, as in 0203417,9346432.
+const normalizeDecimalCommas = (text) => String(text || '').replace(/(\d),(\d{1,3})(?!\d)/g, '$1.$2');
+
 export function parseUtmList(text) {
   const points = [];
   const errors = [];
-  const chunks = String(text || '')
+  const chunks = normalizeDecimalCommas(text)
     .split(/[:;\n\r]+/)
     .map((c) => c.trim())
     .filter(Boolean);
@@ -95,6 +99,11 @@ export function parseUtmList(text) {
       errors.push(`« ${chunk} » : valeurs hors des limites UTM (X entre 100 000 et 900 000, Y entre 0 et 10 000 000).`);
       return;
     }
+    // Both coordinates have at least 6 digits: a short Y is a typo or a misread decimal
+    if (northing < 100000) {
+      errors.push(`« ${chunk} » : Y (Northing) trop court. Vérifiez le couple X,Y.`);
+      return;
+    }
     points.push({ xStr, yStr, easting, northing });
   });
   return { points, errors };
@@ -105,7 +114,7 @@ export function parseUtmList(text) {
  * "Parcelle 1 = 0203417,9346432: 0203434,9346394: 0203453,9346417: 0203436,9346427"
  */
 export function parseUtmParcels(text) {
-  const lines = String(text || '').split(/\r?\n/).map((l) => l.trim());
+  const lines = normalizeDecimalCommas(text).split(/\r?\n/).map((l) => l.trim());
 
   // A line holding a single pair continues the current parcel (one point per line input);
   // a named line, a line with 3+ pairs or a blank line starts a new parcel

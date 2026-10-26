@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { validateParcelGeometry, dmsToDd, ddToDms, getNextRmbLotNumber } from '../utils/geoUtils';
+import { validateParcelGeometry, dmsToDd, ddToDms, getNextRmbLotNumber, parseDecimal } from '../utils/geoUtils';
 import { utmToLatLng, latLngToUtm, parseUtmList, DEFAULT_UTM_ZONE } from '../utils/utm';
 import { getOceanZoneInfo } from '../utils/coastalZones';
 import { X, Plus, Trash2, MapPin, Compass, CheckCircle2, ShieldAlert, Hexagon, Square, Waves, Pencil, Loader2 } from 'lucide-react';
@@ -97,16 +97,16 @@ export default function ParcelFormModal({
     let lat;
     let lng;
     if (isUtmFormat(format)) {
-      const x = parseFloat(String(p.latStr).replace(/\s/g, ''));
-      const y = parseFloat(String(p.lngStr).replace(/\s/g, ''));
+      const x = parseDecimal(p.latStr);
+      const y = parseDecimal(p.lngStr);
       if (isNaN(x) || isNaN(y)) return null;
       ({ lat, lng } = utmToLatLng(x, y, utmZoneOf(format)));
     } else if (format === 'dms') {
       lat = dmsToDd(p.latStr);
       lng = dmsToDd(p.lngStr);
     } else {
-      lat = parseFloat(p.latStr);
-      lng = parseFloat(p.lngStr);
+      lat = parseDecimal(p.latStr);
+      lng = parseDecimal(p.lngStr);
     }
     return isNaN(lat) || isNaN(lng) ? null : { lat, lng };
   };
@@ -239,10 +239,10 @@ export default function ParcelFormModal({
             }
           : {}),
         createdAt: new Date().toISOString().split('T')[0],
-        areaSqM: area ? area.sqMeters : 600,
-        areaHa: area ? area.hectares : 0.06,
-        formattedSqM: area ? area.formattedSqM : '600 m²',
-        formattedHa: area ? area.formattedHa : '0,06 ha'
+        areaSqM: area.sqMeters,
+        areaHa: area.hectares,
+        formattedSqM: area.formattedSqM,
+        formattedHa: area.formattedHa
       },
       geometry: {
         type: 'Polygon',

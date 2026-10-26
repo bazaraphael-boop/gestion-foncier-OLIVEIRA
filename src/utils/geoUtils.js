@@ -1,5 +1,70 @@
 import * as turf from '@turf/turf';
 import { getOceanZoneInfo } from './coastalZones';
+import { latLngToUtm, DEFAULT_UTM_ZONE } from './utm';
+
+// Surfaces and side lengths are measured like the Cadastre: on the plane UTM zone 33S grid
+// (the coordinates written on the Cadastre plans), not on Turf's sphere, which reads ~0.3 % high here.
+
+/** [lng, lat] -> [easting, northing] in metres, UTM zone 33S */
+export function toUtmGrid([lng, lat]) {
+  const { easting, northing } = latLngToUtm(lat, lng, DEFAULT_UTM_ZONE);
+  return [easting, northing];
+}
+
+/** Grid distance in metres between two [lng, lat] points */
+export function gridDistance(a, b) {
+  const [x1, y1] = toUtmGrid(a);
+  const [x2, y2] = toUtmGrid(b);
+  return Math.hypot(x2 - x1, y2 - y1);
+}
+
+// Shoelace area of one ring of [lng, lat] (closed or not), in m²
+function ringGridArea(ring) {
+  const pts = ring.map(toUtmGrid);
+  let sum = 0;
+  pts.forEach(([x, y], i) => {
+    const [x2, y2] = pts[(i + 1) % pts.length];
+    sum += x * y2 - x2 * y;
+  });
+  return Math.abs(sum) / 2;
+}
+
+const polygonGridArea = (rings) => ringGridArea(rings[0]) - rings.slice(1).reduce((s, hole) => s + ringGridArea(hole), 0);
+
+/** Grid area in m² of a Polygon / MultiPolygon geometry or feature */
+export function gridArea(featureOrGeometry) {
+  const geometry = featureOrGeometry?.geometry || featureOrGeometry;
+  if (geometry?.type === 'Polygon') return polygonGridArea(geometry.coordinates);
+  if (geometry?.type === 'MultiPolygon') return geometry.coordinates.reduce((s, rings) => s + polygonGridArea(rings), 0);
+  return 0;
+}
+
+/** True when two sides of the ring cross (bornes entered in the wrong order) */
+export function hasCrossingSides(ringLngLat) {
+  if (!ringLngLat || ringLngLat.length < 4) return false;
+  const first = ringLngLat[0];
+  const last = ringLngLat[ringLngLat.length - 1];
+  const closed = first[0] === last[0] && first[1] === last[1] ? ringLngLat : [...ringLngLat, first];
+  try {
+    return turf.kinks(turf.polygon([closed])).features.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reads a typed number: decimal comma or point, thousands spaces allowed ("-5,9063675", "203 417").
+ * Returns NaN for anything that is not entirely a number, instead of silently cutting it ("-5,9" -> -5).
+ * Other spaces are kept so that "-5 54 22.92" (degrees minutes seconds) is not read as -55422.92.
+ */
+export function parseDecimal(value) {
+  if (typeof value === 'number') return value;
+  const str = String(value ?? '')
+    .trim()
+    .replace(/(\d)[\s  ](?=\d{3}(?:\D|$))/g, '$1')
+    .replace(',', '.');
+  return str === '' ? NaN : Number(str);
+}
 
 /**
  * Calculates surface area of a polygon or feature in m² and Hectares
@@ -13,15 +78,15 @@ export function calculateArea(featureOrGeometry) {
       polyFeature = featureOrGeometry;
     } else if (featureOrGeometry.geometry && featureOrGeometry.geometry.coordinates) {
       polyFeature = turf.polygon(featureOrGeometry.geometry.coordinates);
-    } else if (featureOrGeometry.type === 'Polygon' && featureOrGeometry.coordinates) {
-      polyFeature = turf.polygon(featureOrGeometry.coordinates);
+    } else if ((featureOrGeometry.type === 'Polygon' || featureOrGeometry.type === 'MultiPolygon') && featureOrGeometry.coordinates) {
+      polyFeature = featureOrGeometry;
     } else if (Array.isArray(featureOrGeometry)) {
       polyFeature = turf.polygon(featureOrGeometry);
     } else {
       return { sqMeters: 0, hectares: 0, formattedSqM: '0 m²', formattedHa: '0.00 ha' };
     }
 
-    const sqMeters = turf.area(polyFeature);
+    const sqMeters = gridArea(polyFeature);
     const hectares = sqMeters / 10000;
 
     const formattedSqM = new Intl.NumberFormat('fr-FR', {
@@ -77,6 +142,12 @@ export function validateParcelGeometry(ringCoords, concessionPolygon = null, exi
     return { isValid: false, errors, warnings, areaInfo: null };
   }
 
+  // Crossed sides give a wrong surface (e.g. 267 m² instead of 611 m² with B3 and B4 swapped)
+  if (hasCrossingSides(closedCoords)) {
+    errors.push('Des côtés du tracé se croisent : les bornes ne sont pas dans l’ordre. Saisissez-les en faisant le tour de la parcelle (B1, B2, B3, B4…).');
+    return { isValid: false, errors, warnings, areaInfo: calculateArea(parcelPolygon) };
+  }
+
   const areaInfo = calculateArea(parcelPolygon);
   if (areaInfo.sqMeters <= 0) {
     errors.push('La surface de la parcelle est nulle ou invalide.');
@@ -110,7 +181,7 @@ export function validateParcelGeometry(ringCoords, concessionPolygon = null, exi
           turf.featureCollection([parcelPolygon, existPoly])
         );
         if (overlap) {
-          const overlapArea = turf.area(overlap);
+          const overlapArea = gridArea(overlap);
           if (overlapArea > 0.1) {
             warnings.push(
               `Chevauchement détecté avec le lot ${existing.properties.lotNumber || existing.id} (${Math.round(overlapArea)} m²).`
@@ -144,40 +215,42 @@ export function validateParcelGeometry(ringCoords, concessionPolygon = null, exi
   };
 }
 
+/**
+ * Degrees-minutes-seconds text -> decimal degrees. Accepts 5°54'22.92"S, 5 54 22,92 S, -5 54 22.92,
+ * and O (Ouest) for W. Returns NaN when the hemisphere is missing (S/N, E/O or a minus sign), since
+ * guessing it would move the parcel by hundreds of km, and when minutes or seconds reach 60.
+ */
 export function dmsToDd(dmsStr) {
   if (typeof dmsStr === 'number') return dmsStr;
   if (!dmsStr) return NaN;
 
-  const str = dmsStr.trim();
-  if (!isNaN(Number(str))) return parseFloat(str);
+  const str = String(dmsStr).trim();
+  const plain = parseDecimal(str);
+  if (!isNaN(plain)) return plain;
 
-  const regex = /(\d+)[\s°]+(\d+)[\s']+(\d+(?:\.\d+)?)[\s"]*\s*([NSEW])?/i;
+  const regex = /^(-)?\s*(\d+)[\s°]+(\d+)[\s'’]+(\d+(?:[.,]\d+)?)[\s"”]*([NSEWO])?$/i;
   const match = str.match(regex);
+  if (!match) return NaN;
 
-  if (match) {
-    const deg = parseFloat(match[1]);
-    const min = parseFloat(match[2]);
-    const sec = parseFloat(match[3]);
-    const dir = match[4] ? match[4].toUpperCase() : null;
+  const deg = parseFloat(match[2]);
+  const min = parseFloat(match[3]);
+  const sec = parseDecimal(match[4]);
+  const dir = match[5] ? match[5].toUpperCase() : null;
+  if (min >= 60 || sec >= 60) return NaN;
+  if (!dir && !match[1]) return NaN;
 
-    let dd = deg + min / 60 + sec / 3600;
-    if (dir === 'S' || dir === 'W') {
-      dd = -dd;
-    }
-    return dd;
-  }
-
-  return parseFloat(str);
+  const dd = deg + min / 60 + sec / 3600;
+  return match[1] || dir === 'S' || dir === 'W' || dir === 'O' ? -dd : dd;
 }
 
 export function ddToDms(dd, isLatitude = true) {
   if (isNaN(dd)) return '';
 
-  const absolute = Math.abs(dd);
-  const degrees = Math.floor(absolute);
-  const minutesNotTruncated = (absolute - degrees) * 60;
-  const minutes = Math.floor(minutesNotTruncated);
-  const seconds = ((minutesNotTruncated - minutes) * 60).toFixed(2);
+  // Rounded to the hundredth of a second first, so 59.999" carries over (no 5°54'60.00")
+  const totalCentiSec = Math.round(Math.abs(dd) * 360000);
+  const degrees = Math.floor(totalCentiSec / 360000);
+  const minutes = Math.floor((totalCentiSec % 360000) / 6000);
+  const seconds = ((totalCentiSec % 6000) / 100).toFixed(2);
 
   let direction = '';
   if (isLatitude) {
@@ -202,7 +275,7 @@ export function getParcelBornes(parcelOrGeometry) {
 // Side lengths between consecutive bornes, in meters
 export function getSideLengths(parcel) {
   const bornes = getParcelBornes(parcel);
-  return bornes.map((a, i) => turf.distance(turf.point(a), turf.point(bornes[(i + 1) % bornes.length]), { units: 'meters' }));
+  return bornes.map((a, i) => gridDistance(a, bornes[(i + 1) % bornes.length]));
 }
 
 export function formatMeters(m) {
@@ -307,10 +380,11 @@ export function measurePoints(points) {
   const coords = points.map(([lat, lng]) => [lng, lat]);
   const sides = coords.length < 2 ? [] : coords
     .slice(0, coords.length >= 3 ? coords.length : coords.length - 1)
-    .map((a, i) => turf.distance(turf.point(a), turf.point(coords[(i + 1) % coords.length]), { units: 'meters' }));
+    .map((a, i) => gridDistance(a, coords[(i + 1) % coords.length]));
   const perimeterM = sides.reduce((sum, m) => sum + m, 0);
-  const areaM2 = coords.length >= 3 ? turf.area(turf.polygon([[...coords, coords[0]]])) : 0;
-  return { sides, perimeterM, areaM2, areaHa: areaM2 / 10000 };
+  const areaM2 = coords.length >= 3 ? gridArea({ type: 'Polygon', coordinates: [[...coords, coords[0]]] }) : 0;
+  const crossing = hasCrossingSides(coords);
+  return { sides, perimeterM, areaM2, areaHa: areaM2 / 10000, crossing };
 }
 
 // Theoretical lot count for an area: a share is kept for roads and common spaces,

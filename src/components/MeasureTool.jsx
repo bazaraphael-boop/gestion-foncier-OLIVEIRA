@@ -177,6 +177,11 @@ export function MeasurePanel({ points, settings, onSettingsChange, onUndo, onCle
               <span className="text-[13px] text-slate-500 tabular-nums">{area.m2}</span>
             </div>
           )}
+          {closed && measure.crossing && (
+            <p role="alert" className="mb-2 px-2.5 py-2 rounded-md bg-rose-50 border border-rose-200 text-[12px] text-rose-800">
+              Des côtés se croisent : la surface est fausse. Placez les points en faisant le tour de la zone.
+            </p>
+          )}
           {measure.sides.length > 0 && (
             <>
               <ResultRow label={closed ? 'Périmètre' : 'Longueur'} value={formatMeters(measure.perimeterM)} strong />
@@ -268,7 +273,7 @@ export function MeasurePanel({ points, settings, onSettingsChange, onUndo, onCle
             <Trash2 className="w-4 h-4 text-slate-500" /> Effacer
           </button>
         </div>
-        {closed && (
+        {closed && !measure.crossing && (
           <div className="flex gap-2">
             <button
               onClick={onPrint}

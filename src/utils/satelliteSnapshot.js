@@ -1,5 +1,5 @@
 import * as turf from '@turf/turf';
-import { formatMeters } from './geoUtils';
+import { formatMeters, gridDistance } from './geoUtils';
 
 // Builds a north-up satellite image (PNG data URL) of a parcel or measured zone, for the
 // printable / downloadable sheets: Esri World Imagery tiles (served with CORS) stitched on a
@@ -161,7 +161,7 @@ export async function renderSatelliteSnapshot({
       nx = -nx;
       ny = -ny;
     }
-    const text = formatMeters(turf.distance(turf.point(a), turf.point(b), { units: 'meters' }));
+    const text = formatMeters(gridDistance(a, b));
     const tw = ctx.measureText(text).width + 10;
     const lx = mx + nx * 14;
     const ly = my + ny * 14;
