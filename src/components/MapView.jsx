@@ -7,6 +7,7 @@ import { COASTAL_ZONES, SEPARATION_LINES, getOceanZoneInfo } from '../utils/coas
 import BorneMoveConfirmModal from './BorneMoveConfirmModal';
 import { MeasureLayer, MeasurePanel, MeasureSheet } from './MeasureTool';
 import { useMeasureSettings } from '../hooks/useMeasure';
+import { LiveSurveyorsLayer, LiveSurveyorsPanel } from './LiveSurveyors';
 import {
   Layers,
   MapPin,
@@ -562,6 +563,7 @@ export default function MapView({
   onUpdateParcel,
   isAdmin = false,
   isArpenteur = false,
+  liveSurveyors = [],
   editConcessionTrigger = 0,
   onCancelConcessionEditing
 }) {
@@ -593,6 +595,7 @@ export default function MapView({
   const [sharpnessHD, setSharpnessHD] = useState(true);
   const [showMobileGisMenu, setShowMobileGisMenu] = useState(false);
   const [isTilesLoading, setIsTilesLoading] = useState(true);
+  const [surveyorFocus, setSurveyorFocus] = useState(null);
 
   const effectiveUserLocation = externalUserLocation || userLocation;
 
@@ -2284,7 +2287,12 @@ export default function MapView({
             </Marker>
           </>
         )}
+
+        {/* Admin: live position and trail of the arpenteurs */}
+        {isAdmin && liveSurveyors.length > 0 && <LiveSurveyorsLayer surveyors={liveSurveyors} focus={surveyorFocus} />}
       </MapContainer>
+
+      {isAdmin && <LiveSurveyorsPanel surveyors={liveSurveyors} onFocus={setSurveyorFocus} />}
 
       {isMeasuring && (
         <MeasurePanel
