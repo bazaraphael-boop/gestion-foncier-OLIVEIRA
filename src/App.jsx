@@ -291,7 +291,7 @@ export default function App() {
     // 1. Coastal Zone and exact distance from ocean
     const zoneInfo = getOceanZoneInfo(userLocation);
 
-    // 2. Check if inside Concession Manuel Joaquim d'Oliveira (5 326,15 ha)
+    // 2. Check if inside Concession Manuel Joaquim d'Oliveira (5 310,21 ha)
     let inConcession = false;
     if (concessionPolygon && concessionPolygon.geometry) {
       try {
@@ -818,7 +818,7 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
         actor: 'Administrateur',
         action: 'CONCESSION_RESET',
         actionLabel: 'Réinitialisation du périmètre de la concession',
-        target: 'Périmètre Manuel J. d\'Oliveira (5 326 ha)',
+        target: 'Périmètre Manuel J. d\'Oliveira (5 310 ha)',
         details: 'Restauration du tracé géodésique officiel par défaut',
         severity: 'warning'
       });

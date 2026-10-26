@@ -88,7 +88,7 @@ export default function Navbar({
     a.click();
   };
 
-  const concessionArea = concessionPolygon ? calculateArea(concessionPolygon) : { hectares: 5326.15, formattedHa: '5 326,15 ha' };
+  const concessionArea = concessionPolygon ? calculateArea(concessionPolygon) : { hectares: 5310.21, formattedHa: '5 310,21 ha' };
 
   const runAndClose = (fn) => () => {
     if (fn) fn();

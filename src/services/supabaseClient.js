@@ -252,7 +252,7 @@ export async function fetchConcessionFromSupabase() {
           id: 'main_concession',
           properties: {
             name: "Concession Manuel Joaquim d'Oliveira",
-            areaHa: data.area_ha || props.areaHa || 5326.15,
+            areaHa: data.area_ha || props.areaHa || 5310.21,
             ...props
           },
           geometry: geom
@@ -284,7 +284,7 @@ export async function saveConcessionToSupabase(concessionPolygon) {
   try {
     const geometry = concessionPolygon.geometry || concessionPolygon;
     const properties = concessionPolygon.properties || {};
-    const areaHa = properties.areaHa || 5326.15;
+    const areaHa = properties.areaHa || 5310.21;
 
     const row = {
       id: '__concession_boundary__',

@@ -1361,7 +1361,7 @@ export default function MapView({
             <div className="h-px bg-slate-100 my-2" />
             <div className="px-2.5 pt-1 pb-1 text-[11px] font-semibold text-slate-400">Calques</div>
             <LayerSwitch icon={Waves} label="Zonage littoral" detail="Bandes de distance à l'océan" checked={showOceanZones} onChange={setShowOceanZones} />
-            <LayerSwitch icon={Hexagon} label="Périmètre de la concession" detail="5 326 ha" checked={showConcession} onChange={setShowConcession} />
+            <LayerSwitch icon={Hexagon} label="Périmètre de la concession" detail="5 310 ha" checked={showConcession} onChange={setShowConcession} />
             {canViewAndInspectBornes && (
               <LayerSwitch icon={MapPin} label="Bornes du périmètre" detail="P1 à P32, avec altitude" checked={showConcessionBornes} onChange={setShowConcessionBornes} />
             )}
@@ -1754,7 +1754,7 @@ export default function MapView({
         {openMapPanel === 'layers' && (
           <MapPanel title="Calques & légende" onClose={() => setOpenMapPanel(null)} className="absolute top-0 left-full ml-2 w-72 max-h-[calc(100vh-160px)] overflow-y-auto">
             <LayerSwitch icon={Waves} label="Zonage littoral" detail="Bandes de distance à l'océan" checked={showOceanZones} onChange={setShowOceanZones} />
-            <LayerSwitch icon={Hexagon} label="Périmètre de la concession" detail="5 326 ha" checked={showConcession} onChange={setShowConcession} />
+            <LayerSwitch icon={Hexagon} label="Périmètre de la concession" detail="5 310 ha" checked={showConcession} onChange={setShowConcession} />
             {canViewAndInspectBornes && (
               <LayerSwitch icon={MapPin} label="Bornes du périmètre" detail="P1 à P32, avec altitude" checked={showConcessionBornes} onChange={setShowConcessionBornes} />
             )}
@@ -1909,7 +1909,7 @@ export default function MapView({
           >
             {!isDrawing && !isEditingConcession && (
               <Tooltip direction="top" className="text-[11px] font-medium">
-                Concession Manuel Joaquim d'Oliveira (5 326,15 ha)
+                Concession Manuel Joaquim d'Oliveira (5 310,21 ha)
               </Tooltip>
             )}
           </Polygon>
