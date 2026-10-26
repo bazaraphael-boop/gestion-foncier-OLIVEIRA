@@ -36,7 +36,8 @@ import {
   deleteAllParcelsInSupabase,
   saveConcessionToSupabase,
   fetchConcessionFromSupabase,
-  subscribeToRealtimeParcels
+  subscribeToRealtimeParcels,
+  getLastCloudError
 } from './services/supabaseClient';
 
 import { getCurrentSession, onSessionChange, logout } from './services/authService';
@@ -532,12 +533,23 @@ export default function App() {
     stopLocation();
   };
 
+  // A write refused by the server is shown with its reason instead of failing silently
+  const reportCloudRefusal = (ok, parcel) => {
+    if (ok) return;
+    const lotRef = parcel?.properties?.lotNumber || parcel?.id || '';
+    alert(`Le lot ${lotRef} n'a pas pu être enregistré sur le serveur.
+
+Raison : ${getLastCloudError() || 'inconnue (connexion Internet ?)'}
+
+La modification reste visible sur cet appareil mais n'est pas partagée.`);
+  };
+
   // Add new single parcel (Admin or Arpenteur)
   const handleAddParcel = (newParcel) => {
     if (isClientRole) return;
     setIsetechParcels((prev) => [newParcel, ...prev]);
     setGlobalParcels((prev) => [newParcel, ...prev]);
-    saveParcelToSupabase(newParcel);
+    saveParcelToSupabase(newParcel).then((ok) => reportCloudRefusal(ok, newParcel));
     setSelectedParcel(newParcel);
     setInitialFormPoints(null);
 
@@ -590,7 +602,7 @@ export default function App() {
     const updater = (prev) => prev.map((p) => (p.id === updatedParcel.id ? updatedParcel : p));
     setIsetechParcels(updater);
     setGlobalParcels(updater);
-    saveParcelToSupabase(updatedParcel);
+    saveParcelToSupabase(updatedParcel).then((ok) => reportCloudRefusal(ok, updatedParcel));
     setSelectedParcel(updatedParcel);
 
     if (verticesChanged) {

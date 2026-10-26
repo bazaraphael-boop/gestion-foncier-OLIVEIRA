@@ -24,6 +24,7 @@ Il n'y a plus de portail client à code PIN.
    1. `migrations/20261022000000_auth_roles_rls.sql`
    2. `migrations/20261023000000_admin_only_bornes_no_client.sql`
    3. `migrations/20261024000000_parcel_photos_storage.sql` (photos des parcelles : espace privé « parcel-photos »)
+   4. `migrations/20261026000000_fix_photos_and_bornes_check.sql` (correctif + diagnostic : chaque ligne doit afficher OK)
 4. **Attribuer les rôles** : dans le SQL Editor, exécuter les requêtes `insert into public.profiles`
    de la section 5 du script, en y mettant les vrais e-mails.
 5. **Vérifier** : *Table Editor → parcels* doit afficher « RLS enabled ». Depuis un terminal, sans

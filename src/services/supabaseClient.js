@@ -29,6 +29,10 @@ export function saveSupabaseConfig(url, key) {
 
 let supabase = null;
 
+// Reason of the last refused write, shown to the user (e.g. permission rule or database error)
+let lastCloudError = '';
+export const getLastCloudError = () => lastCloudError;
+
 export function initSupabaseClient() {
   const { url, key } = getSupabaseConfig();
   if (url && key) {
@@ -107,6 +111,7 @@ export async function saveParcelToSupabase(parcel) {
     if (error) throw error;
     return true;
   } catch (err) {
+    lastCloudError = err.message || String(err);
     console.warn('Supabase saveParcel fallback:', err.message);
     return false;
   }
@@ -155,6 +160,7 @@ export async function bulkSaveParcelsToSupabase(parcelsList) {
     if (error) throw error;
     return true;
   } catch (err) {
+    lastCloudError = err.message || String(err);
     console.warn('Supabase bulkSaveParcels fallback:', err.message);
     return false;
   }

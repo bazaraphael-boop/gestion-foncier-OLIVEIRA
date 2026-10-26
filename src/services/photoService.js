@@ -13,10 +13,10 @@ const JPEG_QUALITY = 0.82;
 function friendlyError(error) {
   const msg = (error?.message || '').toLowerCase();
   if (msg.includes('bucket not found')) {
-    return 'Le stockage des photos n’est pas encore configuré (script SQL « parcel_photos_storage » à exécuter dans Supabase).';
+    return 'Le stockage des photos n’est pas encore configuré : lancez le script « fix_photos_and_bornes_check » dans Supabase (SQL Editor).';
   }
   if (msg.includes('row-level security') || msg.includes('unauthorized') || error?.statusCode === '403') {
-    return 'Votre compte n’est pas autorisé à envoyer des photos.';
+    return `Envoi refusé par les règles du stockage (${error?.message || 'accès refusé'}). Vérifiez que votre compte a un rôle admin ou arpenteur et lancez le script « fix_photos_and_bornes_check » dans Supabase.`;
   }
   if (msg.includes('fetch') || msg.includes('network')) {
     return 'Connexion Internet indisponible : la photo n’a pas pu être envoyée.';
