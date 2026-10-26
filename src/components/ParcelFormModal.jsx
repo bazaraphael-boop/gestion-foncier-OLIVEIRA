@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { validateParcelGeometry, dmsToDd, getNextRmbLotNumber } from '../utils/geoUtils';
+import { validateParcelGeometry, dmsToDd, ddToDms, getNextRmbLotNumber } from '../utils/geoUtils';
+import { utmToLatLng, latLngToUtm, parseUtmList, DEFAULT_UTM_ZONE } from '../utils/utm';
 import { getOceanZoneInfo } from '../utils/coastalZones';
 import { X, Plus, Trash2, MapPin, Compass, CheckCircle2, ShieldAlert, Hexagon, Square, Waves, Pencil, Loader2 } from 'lucide-react';
 import { PhotoPicker } from './ParcelPhotos';
@@ -12,7 +13,8 @@ export default function ParcelFormModal({
   concessionPolygon,
   existingParcels,
   initialPoints,
-  onStartDrawing
+  onStartDrawing,
+  onOpenCadastreBatch
 }) {
   const [lotNumber, setLotNumber] = useState('');
   const [status, setStatus] = useState('disponible');
@@ -20,7 +22,11 @@ export default function ParcelFormModal({
   const [notes, setNotes] = useState('');
   const [photoItems, setPhotoItems] = useState([]); // { file, location, takenAt }
   const [isSaving, setIsSaving] = useState(false);
-  const [coordFormat, setCoordFormat] = useState('dd'); // 'dd' | 'dms'
+  // 'dd' | 'dms' | 'utm' (UTM WGS84 X,Y, zone to choose) | 'cadastre' (UTM WGS84 zone 33S, as written by the Cadastre)
+  const [coordFormat, setCoordFormat] = useState('dd');
+  const [utmZoneKey, setUtmZoneKey] = useState(`${DEFAULT_UTM_ZONE.zone}${DEFAULT_UTM_ZONE.hemisphere}`);
+  const [utmPaste, setUtmPaste] = useState('');
+  const [utmPasteErrors, setUtmPasteErrors] = useState([]);
 
   // Default 4 GPS vertex points (P1 to P4)
   const [points, setPoints] = useState([
@@ -79,21 +85,68 @@ export default function ParcelFormModal({
     setPoints(points.filter((_, i) => i !== index));
   };
 
-  const parseRingCoordinates = () => {
-    const ring = [];
-    for (let i = 0; i < points.length; i++) {
-      const p = points[i];
-      if (!p.latStr || !p.lngStr) continue;
-
-      const lat = coordFormat === 'dms' ? dmsToDd(p.latStr) : parseFloat(p.latStr);
-      const lng = coordFormat === 'dms' ? dmsToDd(p.lngStr) : parseFloat(p.lngStr);
-
-      if (!isNaN(lat) && !isNaN(lng)) {
-        ring.push([lng, lat]);
-      }
-    }
-    return ring;
+  const isUtmFormat = (format) => format === 'utm' || format === 'cadastre';
+  const utmZoneOf = (format) => {
+    if (format === 'cadastre') return DEFAULT_UTM_ZONE;
+    return { zone: parseInt(utmZoneKey, 10), hemisphere: utmZoneKey.slice(-1) };
   };
+
+  // In UTM formats the two fields hold X (Easting) then Y (Northing), kept as typed (leading zeros)
+  const pointToLatLng = (p, format = coordFormat) => {
+    if (!p.latStr || !p.lngStr) return null;
+    let lat;
+    let lng;
+    if (isUtmFormat(format)) {
+      const x = parseFloat(String(p.latStr).replace(/\s/g, ''));
+      const y = parseFloat(String(p.lngStr).replace(/\s/g, ''));
+      if (isNaN(x) || isNaN(y)) return null;
+      ({ lat, lng } = utmToLatLng(x, y, utmZoneOf(format)));
+    } else if (format === 'dms') {
+      lat = dmsToDd(p.latStr);
+      lng = dmsToDd(p.lngStr);
+    } else {
+      lat = parseFloat(p.latStr);
+      lng = parseFloat(p.lngStr);
+    }
+    return isNaN(lat) || isNaN(lng) ? null : { lat, lng };
+  };
+
+  const latLngToPoint = (lat, lng, format) => {
+    if (isUtmFormat(format)) {
+      const { easting, northing } = latLngToUtm(lat, lng, utmZoneOf(format));
+      return { latStr: String(Math.round(easting)).padStart(7, '0'), lngStr: String(Math.round(northing)) };
+    }
+    if (format === 'dms') return { latStr: ddToDms(lat, true), lngStr: ddToDms(lng, false) };
+    return { latStr: lat.toFixed(6), lngStr: lng.toFixed(6) };
+  };
+
+  // Switching format converts the bornes already typed
+  const changeFormat = (format) => {
+    if (format === coordFormat) return;
+    setPoints(
+      points.map((p) => {
+        const ll = pointToLatLng(p);
+        return ll ? latLngToPoint(ll.lat, ll.lng, format) : { latStr: '', lngStr: '' };
+      })
+    );
+    setCoordFormat(format);
+    setValidationResult(null);
+  };
+
+  // Paste of the Cadastre list: "0203417,9346432: 0203434,9346394 ..." (":" ";" or new lines)
+  const handleFillFromUtmList = () => {
+    const { points: parsed, errors } = parseUtmList(utmPaste);
+    setUtmPasteErrors(errors);
+    if (parsed.length >= 3) {
+      setPoints(parsed.map((pt) => ({ latStr: pt.xStr, lngStr: pt.yStr })));
+      setValidationResult(null);
+    } else if (!errors.length) {
+      setUtmPasteErrors(['Il faut au moins 3 couples X,Y pour former une parcelle.']);
+    }
+  };
+
+  const parseRingCoordinates = () =>
+    points.map((p) => pointToLatLng(p)).filter(Boolean).map(({ lat, lng }) => [lng, lat]);
 
   const handleValidateGeometry = () => {
     const ringCoords = parseRingCoordinates();
@@ -117,15 +170,13 @@ export default function ParcelFormModal({
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const lat = pos.coords.latitude.toFixed(6);
-          const lng = pos.coords.longitude.toFixed(6);
-
+          const pt = latLngToPoint(pos.coords.latitude, pos.coords.longitude, coordFormat);
           const emptyIdx = points.findIndex((p) => !p.latStr || !p.lngStr);
           if (emptyIdx !== -1) {
-            handlePointChange(emptyIdx, 'latStr', lat);
-            handlePointChange(emptyIdx, 'lngStr', lng);
+            handlePointChange(emptyIdx, 'latStr', pt.latStr);
+            handlePointChange(emptyIdx, 'lngStr', pt.lngStr);
           } else {
-            setPoints([...points, { latStr: lat, lngStr: lng }]);
+            setPoints([...points, pt]);
           }
         },
         (err) => {
@@ -178,6 +229,15 @@ export default function ParcelFormModal({
         occupantName,
         notes,
         ...(photos.length ? { photos } : {}),
+        ...(isUtmFormat(coordFormat)
+          ? {
+              sourceCoordinates: {
+                system: `UTM WGS84 zone ${utmZoneOf(coordFormat).zone}${utmZoneOf(coordFormat).hemisphere}`,
+                order: 'X (Easting), Y (Northing)',
+                points: points.filter((pt) => pointToLatLng(pt)).map((pt) => `${String(pt.latStr).trim()},${String(pt.lngStr).trim()}`)
+              }
+            }
+          : {}),
         createdAt: new Date().toISOString().split('T')[0],
         areaSqM: area ? area.sqMeters : 600,
         areaHa: area ? area.hectares : 0.06,
@@ -303,22 +363,17 @@ export default function ParcelFormModal({
                 <Compass className="w-3.5 h-3.5 text-slate-500" /> Bornes GPS ({points.length})
               </span>
               <div className="flex items-center gap-2">
-                <div className="flex bg-slate-200 p-0.5 rounded text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setCoordFormat('dd')}
-                    className={`px-2 py-0.5 rounded ${coordFormat === 'dd' ? 'bg-white font-bold text-slate-900 shadow-2xs' : 'text-slate-600'}`}
-                  >
-                    DD (ex: -5.914)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCoordFormat('dms')}
-                    className={`px-2 py-0.5 rounded ${coordFormat === 'dms' ? 'bg-white font-bold text-slate-900 shadow-2xs' : 'text-slate-600'}`}
-                  >
-                    DMS
-                  </button>
-                </div>
+                <select
+                  value={coordFormat}
+                  onChange={(e) => changeFormat(e.target.value)}
+                  aria-label="Format des coordonnées"
+                  className="h-7 px-2 bg-white border border-slate-300 rounded-md text-[11px] font-semibold text-slate-800 cursor-pointer focus:outline-none focus:border-brand-500"
+                >
+                  <option value="dd">GPS décimal (DD) : -5.914, 12.341</option>
+                  <option value="dms">GPS degrés-minutes-secondes (DMS)</option>
+                  <option value="utm">UTM WGS84 (X, Y)</option>
+                  <option value="cadastre">Cadastre local : 0203xxx, 9346xxx</option>
+                </select>
                 <button
                   type="button"
                   onClick={handleAddCurrentLocation}
@@ -329,20 +384,80 @@ export default function ParcelFormModal({
               </div>
             </div>
 
+            {isUtmFormat(coordFormat) && (
+              <div className="space-y-2 bg-white border border-slate-200 rounded-lg p-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] text-slate-600">
+                    Premier nombre = <strong>X (Easting)</strong>, second = <strong>Y (Northing)</strong>. Datum WGS84.
+                  </span>
+                  {coordFormat === 'utm' ? (
+                    <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
+                      Zone
+                      <select
+                        value={utmZoneKey}
+                        onChange={(e) => { setUtmZoneKey(e.target.value); setValidationResult(null); }}
+                        className="h-7 px-1.5 bg-white border border-slate-300 rounded-md text-[11px] font-semibold text-slate-800 cursor-pointer"
+                      >
+                        {['32S', '33S', '34S', '35S', '32N', '33N', '34N', '35N'].map((z) => (
+                          <option key={z} value={z}>{z}{z === '33S' ? ' (Muanda)' : ''}</option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : (
+                    <span className="text-[11px] font-semibold text-slate-700">Zone 33S (Muanda)</span>
+                  )}
+                </div>
+                <textarea
+                  rows={3}
+                  value={utmPaste}
+                  onChange={(e) => setUtmPaste(e.target.value)}
+                  placeholder={'Collez la liste du Cadastre, ex :\n0203417,9346432: 0203434,9346394: 0203453,9346417: 0203436,9346427'}
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-md font-mono text-[11px] text-slate-900 focus:outline-none focus:border-brand-500"
+                />
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-slate-500">
+                    Séparateurs : « : », « ; » ou retour à la ligne.
+                    {onOpenCadastreBatch && (
+                      <>
+                        {' '}
+                        <button type="button" onClick={onOpenCadastreBatch} className="text-brand-600 hover:text-brand-800 font-semibold underline underline-offset-2 cursor-pointer">
+                          Plusieurs parcelles d’un coup ?
+                        </button>
+                      </>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleFillFromUtmList}
+                    disabled={!utmPaste.trim()}
+                    className="h-7 px-3 bg-brand-700 hover:bg-brand-800 text-white rounded-md text-[11px] font-semibold cursor-pointer disabled:opacity-40"
+                  >
+                    Remplir les bornes
+                  </button>
+                </div>
+                {utmPasteErrors.map((err, i) => (
+                  <div key={i} className="text-[11px] text-rose-700">• {err}</div>
+                ))}
+              </div>
+            )}
+
             <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
               {points.map((pt, idx) => (
-                <div key={idx} className="flex items-center gap-2">
+                <div key={idx} className="space-y-0.5">
+                <div className="flex items-center gap-2">
                   <span className="font-bold text-slate-700 w-7 text-right font-mono">B{idx + 1}</span>
                   <input
                     type="text"
-                    placeholder={coordFormat === 'dd' ? 'Latitude (ex: -5.914822)' : 'Lat DMS'}
+                    inputMode={isUtmFormat(coordFormat) ? 'numeric' : undefined}
+                    placeholder={isUtmFormat(coordFormat) ? 'X Easting (ex: 0203417)' : coordFormat === 'dd' ? 'Latitude (ex: -5.914822)' : 'Lat DMS'}
                     value={pt.latStr}
                     onChange={(e) => handlePointChange(idx, 'latStr', e.target.value)}
                     className="flex-1 px-2.5 py-1 bg-white border border-slate-200 rounded font-mono text-slate-900 focus:outline-none focus:border-slate-400"
                   />
                   <input
                     type="text"
-                    placeholder={coordFormat === 'dd' ? 'Longitude (ex: 12.341789)' : 'Lng DMS'}
+                    inputMode={isUtmFormat(coordFormat) ? 'numeric' : undefined}
+                    placeholder={isUtmFormat(coordFormat) ? 'Y Northing (ex: 9346432)' : coordFormat === 'dd' ? 'Longitude (ex: 12.341789)' : 'Lng DMS'}
                     value={pt.lngStr}
                     onChange={(e) => handlePointChange(idx, 'lngStr', e.target.value)}
                     className="flex-1 px-2.5 py-1 bg-white border border-slate-200 rounded font-mono text-slate-900 focus:outline-none focus:border-slate-400"
@@ -355,6 +470,12 @@ export default function ParcelFormModal({
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
+                </div>
+                {isUtmFormat(coordFormat) && pointToLatLng(pt) && (
+                  <div className="pl-9 text-[10.5px] font-mono text-slate-500 tabular-nums">
+                    = GPS {pointToLatLng(pt).lat.toFixed(7)}, {pointToLatLng(pt).lng.toFixed(7)}
+                  </div>
+                )}
                 </div>
               ))}
             </div>
@@ -379,17 +500,7 @@ export default function ParcelFormModal({
 
           {/* Real-time Coastal Ocean Situation Badge */}
           {(() => {
-            const validPts = points
-              .map((p) => {
-                let lat = parseFloat(p.latStr);
-                let lng = parseFloat(p.lngStr);
-                if (coordFormat === 'dms') {
-                  lat = dmsToDd(p.latStr);
-                  lng = dmsToDd(p.lngStr);
-                }
-                return [lng, lat];
-              })
-              .filter((p) => !isNaN(p[0]) && !isNaN(p[1]));
+            const validPts = parseRingCoordinates();
             if (validPts.length === 0) return null;
             const oceanInfo = getOceanZoneInfo(validPts);
             if (!oceanInfo) return null;

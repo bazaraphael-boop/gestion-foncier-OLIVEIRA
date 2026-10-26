@@ -17,6 +17,7 @@ const ParcelModal = lazy(() => import('./components/ParcelModal'));
 const ParcelFormModal = lazy(() => import('./components/ParcelFormModal'));
 const KmlImporter = lazy(() => import('./components/KmlImporter'));
 const KmlParcelImporterModal = lazy(() => import('./components/KmlParcelImporterModal'));
+const CadastreBatchModal = lazy(() => import('./components/CadastreBatchModal'));
 const GeoJsonImporterModal = lazy(() => import('./components/GeoJsonImporterModal'));
 const SupabaseModal = lazy(() => import('./components/SupabaseModal'));
 const AdminSecurityModal = lazy(() => import('./components/AdminSecurityModal'));
@@ -136,6 +137,7 @@ export default function App() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isKmlImporterOpen, setIsKmlImporterOpen] = useState(false);
   const [isKmlParcelImporterOpen, setIsKmlParcelImporterOpen] = useState(false);
+  const [isCadastreBatchOpen, setIsCadastreBatchOpen] = useState(false);
   const [isGeoJsonImporterOpen, setIsGeoJsonImporterOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [isAdminSecurityOpen, setIsAdminSecurityOpen] = useState(false);
@@ -570,7 +572,9 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
     if (isClientRole) return;
     setIsetechParcels((prev) => [...newParcelsList, ...prev]);
     setGlobalParcels((prev) => [...newParcelsList, ...prev]);
-    bulkSaveParcelsToSupabase(newParcelsList);
+    bulkSaveParcelsToSupabase(newParcelsList).then((ok) =>
+      reportCloudRefusal(ok, { properties: { lotNumber: newParcelsList.map((p) => p.properties?.lotNumber).join(', ') } })
+    );
     if (newParcelsList.length > 0) {
       setSelectedParcel(newParcelsList[0]);
     }
@@ -875,6 +879,7 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
           }}
           onOpenKmlImporter={() => setIsKmlImporterOpen(true)}
           onOpenKmlParcelImporter={() => setIsKmlParcelImporterOpen(true)}
+          onOpenCadastreBatch={() => setIsCadastreBatchOpen(true)}
           onOpenGeoJsonImporter={() => setIsGeoJsonImporterOpen(true)}
           parcels={currentParcels}
           concessionPolygon={concessionPolygon}
@@ -1113,6 +1118,20 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
                 setIsFormOpen(false);
                 setDrawTrigger((prev) => prev + 1);
               }}
+              onOpenCadastreBatch={() => {
+                setIsFormOpen(false);
+                setIsCadastreBatchOpen(true);
+              }}
+            />
+          )}
+
+          {isCadastreBatchOpen && (
+            <CadastreBatchModal
+              isOpen={isCadastreBatchOpen}
+              onClose={() => setIsCadastreBatchOpen(false)}
+              onAddParcels={handleAddParcelsFromExternal}
+              concessionPolygon={concessionPolygon}
+              existingParcels={currentParcels}
             />
           )}
 

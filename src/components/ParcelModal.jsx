@@ -584,6 +584,23 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 )}
               </section>
 
+              {parcel.properties.sourceCoordinates?.points?.length > 0 && (
+                <section className="px-5 py-4 border-b border-slate-100 space-y-1.5">
+                  <h3 className="text-[13px] font-semibold text-slate-900">Coordonnées d’origine (Cadastre)</h3>
+                  <p className="text-[11px] text-slate-500">
+                    {parcel.properties.sourceCoordinates.system} · {parcel.properties.sourceCoordinates.order}
+                  </p>
+                  <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 font-mono text-[12px] tabular-nums">
+                    {parcel.properties.sourceCoordinates.points.map((xy, i) => (
+                      <div key={i} className="px-3 py-1.5 flex gap-3">
+                        <span className="font-sans font-semibold text-orange-700 w-6">B{i + 1}</span>
+                        <span className="text-slate-800">{xy}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               <ParcelPhotoGallery
                 parcel={parcel}
                 canAdd={!isVisitorMode}

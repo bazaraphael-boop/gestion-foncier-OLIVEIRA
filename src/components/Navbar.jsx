@@ -17,7 +17,8 @@ import {
   History,
   Pencil,
   PenTool,
-  Menu
+  Menu,
+  Layers3
 } from 'lucide-react';
 import { exportParcelsToGeoJSON, calculateArea } from '../utils/geoUtils';
 
@@ -32,6 +33,7 @@ export default function Navbar({
   onOpenCreateForm,
   onOpenKmlImporter,
   onOpenKmlParcelImporter,
+  onOpenCadastreBatch,
   onOpenGeoJsonImporter,
   parcels,
   concessionPolygon,
@@ -206,6 +208,12 @@ export default function Navbar({
                   <FileCode2 className={MENU_ICON} />
                   <span>Importer des parcelles (GeoJSON)</span>
                 </button>
+                {onOpenCadastreBatch && (
+                  <button role="menuitem" onClick={runAndClose(onOpenCadastreBatch)} className={MENU_ITEM}>
+                    <Layers3 className={MENU_ICON} />
+                    <span>Saisie Cadastre UTM (plusieurs parcelles)</span>
+                  </button>
+                )}
                 <button role="menuitem" onClick={runAndClose(onOpenKmlParcelImporter)} className={MENU_ITEM}>
                   <FileCode className={MENU_ICON} />
                   <span>Importer des parcelles (KML)</span>
