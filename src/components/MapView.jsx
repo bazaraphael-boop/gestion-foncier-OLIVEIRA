@@ -8,6 +8,7 @@ import BorneMoveConfirmModal from './BorneMoveConfirmModal';
 import { MeasureLayer, MeasurePanel, MeasureSheet } from './MeasureTool';
 import { useMeasureSettings } from '../hooks/useMeasure';
 import { LiveSurveyorsLayer, LiveSurveyorsPanel } from './LiveSurveyors';
+import { countCachedTiles, clearCachedTiles, useOnlineStatus } from '../utils/offlineTiles';
 import {
   Layers3,
   Layers,
@@ -413,6 +414,43 @@ function LayerSwitch({ icon: Icon, label, detail, checked, onChange }) {
   );
 }
 
+// Satellite images kept on the device (public/sw.js): shown instantly and without a connection
+function OfflineTilesInfo() {
+  const [count, setCount] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    countCachedTiles().then(setCount);
+  }, []);
+
+  if (count === null) return null;
+  return (
+    <div className="mt-2 pt-2 border-t border-slate-100 px-1 space-y-1">
+      <div className="text-[12px] text-slate-700">
+        <span className="font-medium">Hors connexion :</span> {new Intl.NumberFormat('fr-FR').format(count)} image{count > 1 ? 's' : ''} gardée{count > 1 ? 's' : ''} sur l’appareil
+      </div>
+      <p className="text-[11px] text-slate-500 leading-snug">
+        Chaque zone vue avec Internet reste visible sans connexion, à tous les niveaux de zoom consultés.
+      </p>
+      {count > 0 && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            await clearCachedTiles();
+            setCount(0);
+            setBusy(false);
+          }}
+          className="text-[11px] text-slate-500 hover:text-rose-700 underline underline-offset-2 cursor-pointer disabled:opacity-50"
+        >
+          Libérer l’espace
+        </button>
+      )}
+    </div>
+  );
+}
+
 function BasemapList({ value, onChange }) {
   return (
     <div className="space-y-0.5">
@@ -438,6 +476,7 @@ function BasemapList({ value, onChange }) {
           </button>
         );
       })}
+      <OfflineTilesInfo />
     </div>
   );
 }
@@ -571,6 +610,7 @@ export default function MapView({
   const [showMobileGisMenu, setShowMobileGisMenu] = useState(false);
   const [isTilesLoading, setIsTilesLoading] = useState(true);
   const [surveyorFocus, setSurveyorFocus] = useState(null);
+  const isOnline = useOnlineStatus();
 
   const effectiveUserLocation = externalUserLocation || userLocation;
 
@@ -1779,8 +1819,18 @@ export default function MapView({
         </div>
       )}
 
+      {/* No connection: only the images already viewed on this device are shown */}
+      {!isOnline && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none animate-in fade-in duration-200">
+          <div className="glass-pill h-8 px-3 rounded-full text-xs font-medium text-amber-800 flex items-center gap-2 shadow-[0_4px_14px_-4px_rgba(15,37,64,0.3)]">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span>Hors connexion : images déjà vues sur cet appareil</span>
+          </div>
+        </div>
+      )}
+
       {/* Imagery loading indicator */}
-      {isTilesLoading && (
+      {isOnline && isTilesLoading && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none animate-in fade-in duration-200 hidden sm:block">
           <div className="glass-pill h-8 px-3 rounded-full text-xs font-medium text-slate-600 flex items-center gap-2 shadow-[0_4px_14px_-4px_rgba(15,37,64,0.3)]">
             <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
