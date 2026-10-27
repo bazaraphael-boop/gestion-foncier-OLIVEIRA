@@ -26,6 +26,7 @@ Il n'y a plus de portail client à code PIN.
    3. `migrations/20261024000000_parcel_photos_storage.sql` (photos des parcelles : espace privé « parcel-photos »)
    4. `migrations/20261026000000_fix_photos_and_bornes_check.sql` (correctif + diagnostic : chaque ligne doit afficher OK)
    5. `migrations/20261027000000_surveyor_live_tracking.sql` (suivi en direct de l'arpenteur : seul l'admin voit les positions)
+   6. `migrations/20261028000000_parcel_documents_storage.sql` (documents des parcelles : espace privé « parcel-documents »)
 4. **Attribuer les rôles** : dans le SQL Editor, exécuter les requêtes `insert into public.profiles`
    de la section 5 du script, en y mettant les vrais e-mails.
 5. **Vérifier** : *Table Editor → parcels* doit afficher « RLS enabled ». Depuis un terminal, sans
@@ -46,6 +47,8 @@ Il n'y a plus de portail client à code PIN.
 - **Retirer un accès** : supprimer l'utilisateur dans *Authentication → Users*.
 - **Photos des parcelles** : stockées dans *Storage → parcel-photos* (privé). L'admin et les arpenteurs
   peuvent en ajouter, seul l'admin peut en supprimer.
+- **Documents des parcelles** : titre de concession, contrat, plan cadastral, PV de bornage… stockés dans
+  *Storage → parcel-documents* (privé). L'admin et les arpenteurs les ajoutent et les consultent ; seul l'admin les supprime.
 - **Suivi des arpenteurs** : quand un arpenteur active son GPS, sa position et son trajet du jour
   apparaissent sur la carte de l'admin (encadré « Arpenteurs »). Rien ne s'affiche chez l'arpenteur :
   prévenez-le du suivi (contrat ou règlement intérieur). Les trajets de plus de 30 jours sont supprimés

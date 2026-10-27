@@ -5,6 +5,8 @@ import { getOceanZoneInfo } from '../utils/coastalZones';
 import { X, Plus, Trash2, MapPin, Compass, CheckCircle2, ShieldAlert, Hexagon, Square, Waves, Pencil, Loader2 } from 'lucide-react';
 import { PhotoPicker } from './ParcelPhotos';
 import { uploadParcelPhotos } from '../services/photoService';
+import { DocumentPicker } from './ParcelDocuments';
+import { uploadParcelDocuments } from '../services/documentService';
 
 export default function ParcelFormModal({
   isOpen,
@@ -21,6 +23,7 @@ export default function ParcelFormModal({
   const [occupantName, setOccupantName] = useState('');
   const [notes, setNotes] = useState('');
   const [photoItems, setPhotoItems] = useState([]); // { file, location, takenAt }
+  const [documentItems, setDocumentItems] = useState([]); // { file, type }
   const [isSaving, setIsSaving] = useState(false);
   // 'dd' | 'dms' | 'utm' (UTM WGS84 X,Y, zone to choose) | 'cadastre' (UTM WGS84 zone 33S, as written by the Cadastre)
   const [coordFormat, setCoordFormat] = useState('dd');
@@ -220,6 +223,18 @@ export default function ParcelFormModal({
       }
     }
 
+    // Concession documents, uploaded the same way
+    let documents = [];
+    if (documentItems.length > 0) {
+      setIsSaving(true);
+      const { uploaded, errors } = await uploadParcelDocuments(parcelId, documentItems);
+      documents = uploaded;
+      setIsSaving(false);
+      if (errors.length > 0) {
+        alert(`${errors.length} document(s) n'ont pas pu être envoyés : ${errors[0]}\nLa parcelle est enregistrée${uploaded.length ? ` avec ${uploaded.length} document(s)` : ' sans document'} ; vous pourrez en ajouter depuis sa fiche.`);
+      }
+    }
+
     const newParcel = {
       type: 'Feature',
       id: parcelId,
@@ -229,6 +244,7 @@ export default function ParcelFormModal({
         occupantName,
         notes,
         ...(photos.length ? { photos } : {}),
+        ...(documents.length ? { documents } : {}),
         ...(isUtmFormat(coordFormat)
           ? {
               sourceCoordinates: {
@@ -330,6 +346,8 @@ export default function ParcelFormModal({
           </div>
 
           <PhotoPicker items={photoItems} onChange={setPhotoItems} disabled={isSaving} />
+
+          <DocumentPicker items={documentItems} onChange={setDocumentItems} disabled={isSaving} />
 
           {/* Preset Buttons for Geometry (4 sommets / 6 sommets Hexagone / Custom) */}
           <div className="flex items-center justify-between bg-slate-100 p-2 rounded border border-slate-200">
@@ -565,7 +583,7 @@ export default function ParcelFormModal({
               className="px-5 py-1.5 bg-brand-700 hover:bg-brand-800 text-white font-semibold rounded-lg text-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
             >
               {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {isSaving ? 'Envoi des photos…' : 'Enregistrer la parcelle'}
+              {isSaving ? 'Envoi des fichiers…' : 'Enregistrer la parcelle'}
             </button>
           </div>
         </form>

@@ -8,6 +8,7 @@ import OfficialHeaderBanner from './OfficialHeaderBanner';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import { SituationPlan, BornagePlan, SatelliteFigure } from './ParcelPlans';
 import { ParcelPhotoGallery } from './ParcelPhotos';
+import { ParcelDocumentList } from './ParcelDocuments';
 import { buildRelevePdf, computeFingerprint, svgToPng } from '../utils/officialPdf';
 import {
   X,
@@ -614,6 +615,13 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 canAdd={!isVisitorMode}
                 canDelete={!isVisitorMode && !isArpenteur}
                 onPhotosChange={(photos) => onUpdateParcel({ ...parcel, properties: { ...parcel.properties, photos } })}
+              />
+
+              <ParcelDocumentList
+                parcel={parcel}
+                canAdd={!isVisitorMode}
+                canDelete={!isVisitorMode && !isArpenteur}
+                onDocumentsChange={(documents) => onUpdateParcel({ ...parcel, properties: { ...parcel.properties, documents } })}
               />
 
               {/* Bornes */}
