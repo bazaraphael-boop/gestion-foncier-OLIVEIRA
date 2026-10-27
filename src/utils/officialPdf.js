@@ -216,12 +216,8 @@ function qrCard(doc, qr, x, y, size) {
 function header(doc, { banner, qr, docTitle, subject, reference, issuedOn, fingerprint, compact }) {
   let bottom;
   if (compact) {
-    // Continuation pages: smaller letterhead, QR card on the right
-    const w = 112;
-    const h = banner ? w * (banner.height / banner.width) : 24;
-    if (banner) doc.addImage(banner.dataUrl, 'JPEG', M, 8, w, h, undefined, 'FAST');
-    qrCard(doc, qr, PAGE.w - M - 22, 9, 22);
-    bottom = Math.max(8 + h, 33);
+    // Continuation pages: no letterhead nor QR (both are on page 1), only the reference line and title
+    bottom = 8;
   } else {
     // First page: letterhead across the full page width, QR card over the green band, top right
     const h = banner ? PAGE.w * (banner.height / banner.width) : 30;
