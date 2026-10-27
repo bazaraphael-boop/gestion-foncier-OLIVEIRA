@@ -52,7 +52,9 @@ export default function Navbar({
   onStartDrawing,
   onStartEditConcession,
   activeView,
-  onSelectView
+  onSelectView,
+  zones = [],
+  onOpenZoneManager
 }) {
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -97,7 +99,12 @@ export default function Navbar({
 
   const views = [
     { id: 'global', label: 'Concession', short: 'Concession', detail: concessionArea.formattedHa },
-    { id: 'isetech', label: 'Zone ISETECH', short: 'ISETECH', detail: '1 002,61 ha' }
+    ...zones.map((zone) => ({
+      id: zone.id,
+      label: zone.properties.name,
+      short: zone.properties.name.replace(/^zone\s+/i, ''),
+      detail: calculateArea(zone).formattedHa
+    }))
   ];
 
   return (
@@ -121,7 +128,7 @@ export default function Navbar({
 
         {/* View switcher: whole concession or ISETECH sub-cadastre */}
         {onSelectView && (
-          <div role="tablist" aria-label="Zone affichée" className="flex items-center p-0.5 rounded-lg bg-white/10 sm:ml-2 flex-shrink-0">
+          <div role="tablist" aria-label="Zone affichée" className="flex items-center p-0.5 rounded-lg bg-white/10 sm:ml-2 min-w-0 max-w-[60vw] md:max-w-[45vw] overflow-x-auto [scrollbar-width:none]">
             {views.map((v) => {
               const isActive = activeView === v.id;
               return (
@@ -130,7 +137,7 @@ export default function Navbar({
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => !isActive && onSelectView(v.id)}
-                  className={`h-8 px-3 rounded-md text-[13px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  className={`h-8 px-3 rounded-md text-[13px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap flex-shrink-0 ${
                     isActive ? 'bg-white text-brand-900 shadow-sm' : 'text-white/80 hover:text-white'
                   }`}
                   title={`${v.label} (${v.detail})`}
@@ -208,6 +215,12 @@ export default function Navbar({
                   <FileCode2 className={MENU_ICON} />
                   <span>Importer des parcelles (GeoJSON)</span>
                 </button>
+                {onOpenZoneManager && (
+                  <button role="menuitem" onClick={runAndClose(onOpenZoneManager)} className={MENU_ITEM}>
+                    <Layers3 className={MENU_ICON} />
+                    <span>Zones de la concession (ajouter / supprimer)</span>
+                  </button>
+                )}
                 {onOpenCadastreBatch && (
                   <button role="menuitem" onClick={runAndClose(onOpenCadastreBatch)} className={MENU_ITEM}>
                     <Layers3 className={MENU_ICON} />

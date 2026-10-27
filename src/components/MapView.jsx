@@ -9,6 +9,7 @@ import { MeasureLayer, MeasurePanel, MeasureSheet } from './MeasureTool';
 import { useMeasureSettings } from '../hooks/useMeasure';
 import { LiveSurveyorsLayer, LiveSurveyorsPanel } from './LiveSurveyors';
 import {
+  Layers3,
   Layers,
   MapPin,
   Waves,
@@ -80,32 +81,6 @@ const PRESET_PERCENTAGES = [
   { pct: 1000, level: 22, label: '1000% (Zoom Max HD)' }
 ];
 
-// Exact Hardcoded Boundary Coords for Zone ISETECH (1 002,61 ha)
-const ISETECH_OUTER_BOUNDARY_COORDS = [
-  [-5.914822, 12.3417897],
-  [-5.9143525, 12.3443968],
-  [-5.9142672, 12.3467035],
-  [-5.9073945, 12.3483343],
-  [-5.9006024, 12.351215],
-  [-5.8988142, 12.3529692],
-  [-5.8959541, 12.3546429],
-  [-5.8913864, 12.3538704],
-  [-5.8895509, 12.3527546],
-  [-5.8854527, 12.3487205],
-  [-5.882806, 12.3421116],
-  [-5.8819095, 12.336318],
-  [-5.8819095, 12.330739],
-  [-5.8890813, 12.3255033],
-  [-5.9078641, 12.3209542],
-  [-5.9102119, 12.3241835],
-  [-5.9116633, 12.32737],
-  [-5.9130933, 12.3306745],
-  [-5.913883, 12.3341078],
-  [-5.9145873, 12.3379487],
-  [-5.9150248, 12.339955],
-  [-5.914822, 12.3417897]
-];
-
 // Selected Parcel Borne Icon (draggable for Admin only). Created once per borne:
 // a new icon on each render would reset the marker and cancel an ongoing drag.
 const createParcelBorneIcon = (num, isDraggable) => L.divIcon({
@@ -115,8 +90,8 @@ const createParcelBorneIcon = (num, isDraggable) => L.divIcon({
   iconAnchor: [12, 12]
 });
 
-// Auto-fit bounds controller with deep zoom for ISETECH sub-parcels
-function MapBoundsController({ concessionPolygon, selectedParcel, activeView, isSidebarCollapsed }) {
+// Auto-fit bounds controller: whole concession, or the zone being explored
+function MapBoundsController({ concessionPolygon, subZones, selectedParcel, activeView, isSidebarCollapsed }) {
   const map = useMap();
   const prevViewRef = useRef(activeView);
   const initialFitDone = useRef(false);
@@ -155,12 +130,10 @@ function MapBoundsController({ concessionPolygon, selectedParcel, activeView, is
       initialFitDone.current = true;
       prevViewRef.current = activeView;
 
-      if (activeView === 'isetech' && !selectedParcel) {
+      const activeZone = subZones?.find((z) => z.id === activeView);
+      if (activeZone && !selectedParcel) {
         try {
-          const isetechPolygon = turf.polygon([
-            ISETECH_OUTER_BOUNDARY_COORDS.map(([lat, lng]) => [lng, lat])
-          ]);
-          const bbox = turf.bbox(isetechPolygon);
+          const bbox = turf.bbox(activeZone);
           const bounds = [
             [bbox[1], bbox[0]],
             [bbox[3], bbox[2]]
@@ -182,7 +155,7 @@ function MapBoundsController({ concessionPolygon, selectedParcel, activeView, is
         }
       }
     }
-  }, [concessionPolygon, activeView, selectedParcel, map]);
+  }, [concessionPolygon, subZones, activeView, selectedParcel, map]);
 
   return null;
 }
@@ -501,7 +474,7 @@ function MapLegend() {
         ))}
         <div className="flex items-center gap-2">
           <LegendSwatch line dashed stroke="#22d3ee" />
-          <span>Limite de la zone ISETECH</span>
+          <span>Limite d’une zone (ISETECH…)</span>
         </div>
         <div className="flex items-center gap-2">
           <LegendSwatch line dashed stroke="#d97706" />
@@ -564,6 +537,7 @@ export default function MapView({
   isAdmin = false,
   isArpenteur = false,
   liveSurveyors = [],
+  onCreateZoneFromPoints,
   editConcessionTrigger = 0,
   onCancelConcessionEditing
 }) {
@@ -1167,6 +1141,16 @@ export default function MapView({
     onOpenCreateFormWithPoints(pointsList);
   };
 
+  // Admin: the trace becomes a zone of the concession instead of a parcel
+  const handleFinishDrawingAsZone = () => {
+    if (drawnPoints.length < 3 || !onCreateZoneFromPoints) return;
+    const points = drawnPoints.map(([lat, lng]) => [lat, lng]);
+    setIsDrawing(false);
+    setDrawnPoints([]);
+    setLastMarkedInfo(null);
+    onCreateZoneFromPoints(points);
+  };
+
   const handleCancelDrawing = () => {
     setIsDrawing(false);
     setDrawnPoints([]);
@@ -1494,6 +1478,18 @@ export default function MapView({
             >
               Annuler
             </button>
+
+            {onCreateZoneFromPoints && (
+              <button
+                onClick={handleFinishDrawingAsZone}
+                disabled={drawnPoints.length < 3}
+                className="h-9 px-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 rounded-lg text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                title="Enregistrer ce tracé comme une nouvelle zone de la concession"
+              >
+                <Layers3 className="w-4 h-4 text-slate-500" />
+                <span>Zone</span>
+              </button>
+            )}
 
             <button
               onClick={handleFinishDrawing}
@@ -1943,33 +1939,38 @@ export default function MapView({
           </Marker>
         ))}
 
-        {/* Outer Delimitation Boundary of Zone ISETECH */}
-        {showSubZones && (
-          <Polygon
-            positions={ISETECH_OUTER_BOUNDARY_COORDS}
-            interactive={!isDrawing && !isMeasuring}
-            pathOptions={{
-              color: '#0284C7',
-              weight: activeView === 'isetech' ? 3.5 : 2.5,
-              dashArray: '8, 6',
-              fillColor: '#0284C7',
-              fillOpacity: activeView === 'isetech' ? 0.02 : 0.12
-            }}
-            eventHandlers={{
-              click: () => {
-                if (!isDrawing && activeView === 'global' && onExploreSubZone) {
-                  onExploreSubZone('isetech');
+        {/* Zones of the concession (Zone ISETECH and the zones added by the admin) */}
+        {showSubZones && subZones.map((zone) => {
+          const isActiveZone = activeView === zone.id;
+          const color = zone.properties?.color || '#0284C7';
+          return (
+            <Polygon
+              key={zone.id}
+              positions={zone.geometry.coordinates[0].map(([lng, lat]) => [lat, lng])}
+              interactive={!isDrawing && !isMeasuring}
+              pathOptions={{
+                color,
+                weight: isActiveZone ? 3.5 : 2.5,
+                dashArray: '8, 6',
+                fillColor: color,
+                fillOpacity: isActiveZone ? 0.02 : 0.12
+              }}
+              eventHandlers={{
+                click: () => {
+                  if (!isDrawing && !isActiveZone && onExploreSubZone) {
+                    onExploreSubZone(zone.id);
+                  }
                 }
-              }
-            }}
-          >
-            {!isDrawing && (
-              <Tooltip direction="top" className="bg-cyan-900 text-cyan-100 font-bold text-[11px] px-2.5 py-1 rounded shadow-md border border-cyan-400">
-                Périmètre Zone ISETECH (1 002,61 ha) {activeView === 'global' ? '• Cliquer pour explorer' : ''}
-              </Tooltip>
-            )}
-          </Polygon>
-        )}
+              }}
+            >
+              {!isDrawing && (
+                <Tooltip direction="top" className="bg-cyan-900 text-cyan-100 font-bold text-[11px] px-2.5 py-1 rounded shadow-md border border-cyan-400">
+                  Périmètre {zone.properties?.name} ({calculateArea(zone).formattedHa}) {!isActiveZone ? '• Cliquer pour explorer' : ''}
+                </Tooltip>
+              )}
+            </Polygon>
+          );
+        })}
 
         {/* Coastal Ocean Zones A, B, C, D Polygons */}
         {showOceanZones && COASTAL_ZONES.map((zone) => (

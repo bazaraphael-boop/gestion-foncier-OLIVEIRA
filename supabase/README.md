@@ -27,6 +27,7 @@ Il n'y a plus de portail client à code PIN.
    4. `migrations/20261026000000_fix_photos_and_bornes_check.sql` (correctif + diagnostic : chaque ligne doit afficher OK)
    5. `migrations/20261027000000_surveyor_live_tracking.sql` (suivi en direct de l'arpenteur : seul l'admin voit les positions)
    6. `migrations/20261028000000_parcel_documents_storage.sql` (documents des parcelles : espace privé « parcel-documents »)
+   7. `migrations/20261029000000_concession_zones.sql` (zones de la concession : seul l'admin ajoute ou supprime)
 4. **Attribuer les rôles** : dans le SQL Editor, exécuter les requêtes `insert into public.profiles`
    de la section 5 du script, en y mettant les vrais e-mails.
 5. **Vérifier** : *Table Editor → parcels* doit afficher « RLS enabled ». Depuis un terminal, sans

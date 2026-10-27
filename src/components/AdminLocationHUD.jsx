@@ -6,7 +6,7 @@ export default function AdminLocationHUD({
   locationAccuracy,
   locationZoneInfo,
   isInConcession,
-  isInIsetech,
+  insideZoneName,
   locatedParcel,
   isSimulated,
   onRecenter,
@@ -104,9 +104,9 @@ export default function AdminLocationHUD({
                   <ShieldAlert className="w-3 h-3" /> Hors Concession
                 </span>
               )}
-              {isInIsetech && (
+              {insideZoneName && (
                 <span className="text-[10px] bg-cyan-50 border border-cyan-200 text-cyan-800 px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold">
-                  <Layers3 className="w-3 h-3" /> Zone ISETECH
+                  <Layers3 className="w-3 h-3" /> {insideZoneName}
                 </span>
               )}
               {locatedParcel && (
@@ -194,10 +194,10 @@ export default function AdminLocationHUD({
               </div>
             )}
 
-            {isInIsetech && (
+            {insideZoneName && (
               <div className="px-2 py-1 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-xs font-semibold flex items-center gap-1">
                 <Layers3 className="w-3 h-3 text-cyan-700 flex-shrink-0" />
-                <span>Zone ISETECH (1 002 ha)</span>
+                <span>{insideZoneName}</span>
               </div>
             )}
 

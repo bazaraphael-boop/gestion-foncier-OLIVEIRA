@@ -18,13 +18,14 @@ const ParcelFormModal = lazy(() => import('./components/ParcelFormModal'));
 const KmlImporter = lazy(() => import('./components/KmlImporter'));
 const KmlParcelImporterModal = lazy(() => import('./components/KmlParcelImporterModal'));
 const CadastreBatchModal = lazy(() => import('./components/CadastreBatchModal'));
+const ZoneManagerModal = lazy(() => import('./components/ZoneManagerModal'));
 const GeoJsonImporterModal = lazy(() => import('./components/GeoJsonImporterModal'));
 const SupabaseModal = lazy(() => import('./components/SupabaseModal'));
 const AdminSecurityModal = lazy(() => import('./components/AdminSecurityModal'));
 const AuditLogModal = lazy(() => import('./components/AuditLogModal'));
 
 import { DEFAULT_KML_DATA } from './data/defaultConcession';
-import { parseKMLToGeoJSON, extractMainConcessionPolygon, extractSubZones } from './utils/kmlParser';
+import { parseKMLToGeoJSON, extractMainConcessionPolygon } from './utils/kmlParser';
 import { calculateArea, exportParcelsToGeoJSON } from './utils/geoUtils';
 import { Layers3, Globe, MapPin, Pencil, Navigation, Crosshair } from 'lucide-react';
 
@@ -44,6 +45,7 @@ import {
 import { getCurrentSession, onSessionChange, logout } from './services/authService';
 import { logActivity } from './services/auditService';
 import { useShareSurveyorPosition, useLiveSurveyors } from './hooks/useSurveyorTracking';
+import { useZones } from './hooks/useZones';
 
 const STORAGE_KEY_PARCELS = 'geocadastre_parcels_v3';
 const STORAGE_KEY_ISETECH = 'geocadastre_isetech_parcels_v3';
@@ -105,6 +107,12 @@ export default function App() {
   // Navigation View Mode: 'isetech' | 'global' (Defaults to the true cadastre ISETECH from Image 2)
   const [activeView, setActiveView] = useState('isetech');
 
+  // Zones of the concession (Zone ISETECH…): visible to all, added and deleted by the admin only
+  const { zones, addZone, removeZone } = useZones({ signedIn: !!session?.user?.id, isAdmin: session?.role === 'admin' });
+  const activeZone = zones.find((z) => z.id === activeView) || null;
+  // A zone that no longer exists (deleted on another device) brings the view back to the whole concession
+  if (activeView !== 'global' && !activeZone) setActiveView('global');
+
   // Sidebar Collapsed state for 100% Full Width Map (collapsed by default on mobile)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     try {
@@ -116,10 +124,6 @@ export default function App() {
 
   // Synchronous INSTANT initialization
   const [concessionPolygon, setConcessionPolygon] = useState(getInitialConcession);
-  const [subZones, setSubZones] = useState(() => {
-    const geojson = parseKMLToGeoJSON(DEFAULT_KML_DATA);
-    return extractSubZones(geojson);
-  });
 
   // Main Parcels array state & Sub-parcels array state
   const [globalParcels, setGlobalParcels] = useState(getInitialParcels);
@@ -139,6 +143,8 @@ export default function App() {
   const [isKmlImporterOpen, setIsKmlImporterOpen] = useState(false);
   const [isKmlParcelImporterOpen, setIsKmlParcelImporterOpen] = useState(false);
   const [isCadastreBatchOpen, setIsCadastreBatchOpen] = useState(false);
+  const [isZoneManagerOpen, setIsZoneManagerOpen] = useState(false);
+  const [zoneDraftPoints, setZoneDraftPoints] = useState(null); // [[lat, lng]] traced on the map for a new zone
   const [isGeoJsonImporterOpen, setIsGeoJsonImporterOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   const [isAdminSecurityOpen, setIsAdminSecurityOpen] = useState(false);
@@ -281,7 +287,7 @@ export default function App() {
       return {
         zoneInfo: null,
         isInConcession: false,
-        isInIsetech: false,
+        insideZoneName: null,
         locatedParcel: null
       };
     }
@@ -300,14 +306,14 @@ export default function App() {
       } catch (e) {}
     }
 
-    // 3. Check if inside Zone ISETECH (1 002,61 ha)
-    let inIsetech = false;
-    const isetechZone = subZones?.[0];
-    if (isetechZone && isetechZone.geometry) {
+    // 3. Zone of the concession containing the position (Zone ISETECH…)
+    const insideZone = zones.find((zone) => {
       try {
-        inIsetech = turf.booleanPointInPolygon(pt, isetechZone);
-      } catch (e) {}
-    }
+        return turf.booleanPointInPolygon(pt, zone);
+      } catch (e) {
+        return false;
+      }
+    });
 
     // 4. Check if inside a specific parcel
     let foundParcel = null;
@@ -326,10 +332,10 @@ export default function App() {
     return {
       zoneInfo,
       isInConcession: inConcession,
-      isInIsetech: inIsetech,
+      insideZoneName: insideZone?.properties?.name || null,
       locatedParcel: foundParcel
     };
-  }, [userLocation, concessionPolygon, subZones, globalParcels, isetechParcels]);
+  }, [userLocation, concessionPolygon, zones, globalParcels, isetechParcels]);
 
   // Role session flags
   const isClientRole = session?.role === 'client';
@@ -516,13 +522,11 @@ export default function App() {
   const loadDefaultConcession = () => {
     const geojson = parseKMLToGeoJSON(DEFAULT_KML_DATA);
     const mainPoly = extractMainConcessionPolygon(geojson);
-    const subs = extractSubZones(geojson);
     setConcessionPolygon(mainPoly);
-    setSubZones(subs);
   };
 
   const currentParcels = useMemo(() => {
-    return activeView === 'isetech' ? isetechParcels : globalParcels;
+    return activeView === 'global' ? globalParcels : isetechParcels;
   }, [activeView, isetechParcels, globalParcels]);
 
   // Auth Success Handlers
@@ -753,8 +757,8 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
   };
 
   const handleExploreSubZone = (zoneId) => {
-    if (zoneId === 'isetech') {
-      setActiveView('isetech');
+    if (zones.some((z) => z.id === zoneId)) {
+      setActiveView(zoneId);
       setSelectedParcel(null);
       setSelectedParcelIds([]);
     }
@@ -909,7 +913,9 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
           onStartDrawing={() => setDrawTrigger((prev) => prev + 1)}
           onStartEditConcession={() => setEditConcessionTrigger((prev) => prev + 1)}
           activeView={activeView}
-          onSelectView={(view) => (view === 'isetech' ? handleExploreSubZone('isetech') : handleReturnToGlobal())}
+          zones={zones}
+          onSelectView={(view) => (view === 'global' ? handleReturnToGlobal() : handleExploreSubZone(view))}
+          onOpenZoneManager={isAdmin ? () => setIsZoneManagerOpen(true) : undefined}
         />
       )}
 
@@ -920,7 +926,7 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
           locationAccuracy={locationAccuracy}
           locationZoneInfo={locationAnalysis.zoneInfo}
           isInConcession={locationAnalysis.isInConcession}
-          isInIsetech={locationAnalysis.isInIsetech}
+          insideZoneName={locationAnalysis.insideZoneName}
           locatedParcel={locationAnalysis.locatedParcel}
           isSimulated={isSimulated}
           onRecenter={handleRecenterLocation}
@@ -931,7 +937,7 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
 
       {/* Dashboard Analytics */}
       <Dashboard
-        concessionPolygon={activeView === 'isetech' ? subZones[0] || concessionPolygon : concessionPolygon}
+        concessionPolygon={activeZone || concessionPolygon}
         parcels={currentParcels}
       />
 
@@ -940,7 +946,15 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
         <main className="flex-1 h-full w-full relative transition-all duration-300 min-h-0">
           <MapView
             concessionPolygon={concessionPolygon}
-            subZones={subZones}
+            subZones={zones}
+            onCreateZoneFromPoints={
+              isAdmin
+                ? (points) => {
+                    setZoneDraftPoints(points);
+                    setIsZoneManagerOpen(true);
+                  }
+                : undefined
+            }
             parcels={currentParcels}
             selectedParcel={selectedParcel}
             selectedParcelIds={selectedParcelIds}
@@ -1133,6 +1147,50 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
               onOpenCadastreBatch={() => {
                 setIsFormOpen(false);
                 setIsCadastreBatchOpen(true);
+              }}
+            />
+          )}
+
+          {isZoneManagerOpen && isAdmin && (
+            <ZoneManagerModal
+              isOpen={isZoneManagerOpen}
+              onClose={() => {
+                setIsZoneManagerOpen(false);
+                setZoneDraftPoints(null);
+              }}
+              zones={zones}
+              concessionPolygon={concessionPolygon}
+              initialPoints={zoneDraftPoints}
+              onAddZone={async (zone) => {
+                await addZone(zone);
+                logActivity({
+                  role: 'admin',
+                  actor: 'Administrateur',
+                  action: 'ZONE_CREATE',
+                  actionLabel: `Zone ajoutée : ${zone.properties.name}`,
+                  target: zone.properties.name,
+                  details: `Zone de la concession ajoutée (${zone.geometry.coordinates[0].length - 1} bornes)`,
+                  severity: 'info'
+                });
+              }}
+              onRemoveZone={async (id) => {
+                const zone = zones.find((z) => z.id === id);
+                await removeZone(id);
+                if (activeView === id) handleReturnToGlobal();
+                logActivity({
+                  role: 'admin',
+                  actor: 'Administrateur',
+                  action: 'ZONE_DELETE',
+                  actionLabel: `Zone supprimée : ${zone?.properties?.name || id}`,
+                  target: zone?.properties?.name || id,
+                  details: 'Zone retirée de la carte (les parcelles sont conservées)',
+                  severity: 'warning'
+                });
+              }}
+              onStartDrawing={() => {
+                setIsZoneManagerOpen(false);
+                setZoneDraftPoints(null);
+                setDrawTrigger((prev) => prev + 1);
               }}
             />
           )}
