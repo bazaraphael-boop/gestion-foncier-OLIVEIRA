@@ -1488,7 +1488,7 @@ export default function MapView({
               <button
                 onClick={handleFinishDrawingAsZone}
                 disabled={drawnPoints.length < 3}
-                className="h-9 px-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 rounded-lg text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                className="h-9 px-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 rounded-lg text-[13px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
                 title="Enregistrer ce tracé comme une nouvelle zone de la concession"
               >
                 <Layers3 className="w-4 h-4 text-slate-500" />
@@ -1499,7 +1499,7 @@ export default function MapView({
             <button
               onClick={handleFinishDrawing}
               disabled={drawnPoints.length < 3}
-              className="h-9 px-3.5 bg-brand-700 hover:bg-brand-800 text-white rounded-lg text-[13px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
+              className="h-9 px-3.5 bg-brand-700 hover:bg-brand-800 text-white rounded-lg text-[13px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
               title={drawingForZone ? 'Terminer le tracé et créer la zone' : 'Terminer le tracé et créer la parcelle'}
             >
               <Check className="w-4 h-4" />
@@ -1944,7 +1944,9 @@ export default function MapView({
           </Marker>
         ))}
 
-        {/* Zones of the concession (Zone ISETECH and the zones added by the admin) */}
+        {/* Zones of the concession (Zone ISETECH and the zones added by the admin): outline only and
+            not clickable, so parcels inside stay selectable and bornes can be traced inside.
+            A zone is opened from its tab in the top bar. */}
         {showSubZones && subZones.map((zone) => {
           const isActiveZone = activeView === zone.id;
           const color = zone.properties?.color || '#0284C7';
@@ -1952,25 +1954,17 @@ export default function MapView({
             <Polygon
               key={zone.id}
               positions={zone.geometry.coordinates[0].map(([lng, lat]) => [lat, lng])}
-              interactive={!isDrawing && !isMeasuring}
+              interactive={false}
               pathOptions={{
                 color,
                 weight: isActiveZone ? 3.5 : 2.5,
                 dashArray: '8, 6',
-                fillColor: color,
-                fillOpacity: isActiveZone ? 0.02 : 0.12
-              }}
-              eventHandlers={{
-                click: () => {
-                  if (!isDrawing && !isActiveZone && onExploreSubZone) {
-                    onExploreSubZone(zone.id);
-                  }
-                }
+                fill: false
               }}
             >
-              {!isDrawing && (
-                <Tooltip direction="top" className="bg-cyan-900 text-cyan-100 font-bold text-[11px] px-2.5 py-1 rounded shadow-md border border-cyan-400">
-                  Périmètre {zone.properties?.name} ({calculateArea(zone).formattedHa}) {!isActiveZone ? '• Cliquer pour explorer' : ''}
+              {!isDrawing && !isMeasuring && (
+                <Tooltip permanent direction="center" className="zone-name-label" opacity={0.9}>
+                  {zone.properties?.name}
                 </Tooltip>
               )}
             </Polygon>

@@ -168,6 +168,16 @@
   box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.25);
 }
 
+/* Name of a concession zone, in the middle of its outline: never intercepts a click */
+.leaflet-tooltip.zone-name-label {
+  pointer-events: none;
+  padding: 2px 8px;
+  font: 600 11px/1.4 system-ui, sans-serif;
+  color: #0f2540;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: none;
+}
+
 /* Relevé Parcellaire: print only the official sheet (A4), with its colours and plans */
 @media print {
   @page {
