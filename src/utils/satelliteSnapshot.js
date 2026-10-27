@@ -2,11 +2,16 @@ import * as turf from '@turf/turf';
 import { formatMeters, gridDistance } from './geoUtils';
 
 // Builds a north-up satellite image (PNG data URL) of a parcel or measured zone, for the
-// printable / downloadable sheets: Esri World Imagery tiles (served with CORS) stitched on a
-// canvas, then the outline, numbered points, side lengths, scale bar and north arrow on top.
+// printable / downloadable sheets: satellite tiles (served with CORS) stitched on a canvas,
+// then the outline, numbered points, side lengths, scale bar and north arrow on top.
+// Google imagery, the same as the map: around Muanda Esri only goes to zoom 17 and answers
+// "Map data not yet available" beyond, which left small lots on a grey background.
 
 const TILE_SIZE = 256;
-const TILE_URL = (z, x, y) => `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+const TILE_SOURCES = [
+  { url: (z, x, y) => `https://mt${(x + y) % 4}.google.com/vt/lyrs=s&x=${x}&y=${y}&z=${z}`, maxZoom: 20, credit: 'Imagerie © Google' },
+  { url: (z, x, y) => `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`, maxZoom: 17, credit: 'Imagerie © Esri, Maxar, Earthstar Geographics' }
+];
 const MAX_ZOOM = 19;
 const MIN_ZOOM = 10;
 
@@ -17,14 +22,24 @@ function project([lng, lat], z) {
   return [((lng + 180) / 360) * scale, (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale];
 }
 
-function loadTile(z, x, y) {
+function loadImage(url) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
-    img.src = TILE_URL(z, x, y);
+    img.src = url;
   });
+}
+
+// Google first; Esri only when Google fails and it has imagery at this zoom
+async function loadTile(z, x, y) {
+  for (const source of TILE_SOURCES) {
+    if (z > source.maxZoom) continue;
+    const img = await loadImage(source.url(z, x, y));
+    if (img) return { img, credit: source.credit };
+  }
+  return { img: null, credit: null };
 }
 
 function niceLength(maxMeters) {
@@ -101,11 +116,12 @@ export async function renderSatelliteSnapshot({
   const jobs = [];
   for (let tx = minTx; tx <= maxTx; tx++) {
     for (let ty = minTy; ty <= maxTy; ty++) {
-      jobs.push(loadTile(zoom, tx, ty).then((img) => ({ img, tx, ty })));
+      jobs.push(loadTile(zoom, tx, ty).then(({ img, credit }) => ({ img, credit, tx, ty })));
     }
   }
   const tiles = await Promise.all(jobs);
   let missingTiles = 0;
+  const credits = [...new Set(tiles.map((t) => t.credit).filter(Boolean))];
   tiles.forEach(({ img, tx, ty }) => {
     if (img) ctx.drawImage(img, tx * TILE_SIZE - originX, ty * TILE_SIZE - originY, TILE_SIZE, TILE_SIZE);
     else missingTiles += 1;
@@ -253,7 +269,7 @@ export async function renderSatelliteSnapshot({
   ctx.font = '500 8px ui-sans-serif, system-ui, sans-serif';
   ctx.textAlign = 'right';
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.fillText('Imagerie © Esri, Maxar, Earthstar Geographics', width - 8, height - 8);
+  ctx.fillText(credits.join(' · ') || TILE_SOURCES[0].credit, width - 8, height - 8);
 
   return { dataUrl: canvas.toDataURL('image/jpeg', 0.9), zoom, missingTiles };
 }
