@@ -538,6 +538,7 @@ export default function MapView({
   isArpenteur = false,
   liveSurveyors = [],
   onCreateZoneFromPoints,
+  drawingForZone = false,
   editConcessionTrigger = 0,
   onCancelConcessionEditing
 }) {
@@ -1126,6 +1127,10 @@ export default function MapView({
   };
 
   const handleFinishDrawing = () => {
+    if (drawingForZone && onCreateZoneFromPoints) {
+      handleFinishDrawingAsZone();
+      return;
+    }
     if (drawnPoints.length < 3) {
       alert('Veuillez marquer au moins 3 bornes pour former une parcelle fermée.');
       return;
@@ -1422,11 +1427,11 @@ export default function MapView({
 
       {/* GPS / on-map parcel tracing bar */}
       {isDrawing && canDrawAndManageParcels && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1150] w-[calc(100%-24px)] sm:w-auto sm:min-w-[520px] max-w-2xl bg-white text-slate-800 border border-slate-200 rounded-xl shadow-[0_12px_32px_-8px_rgba(15,37,64,0.35)] p-3 animate-in fade-in slide-in-from-top-2 duration-200 select-none" role="region" aria-label="Tracé d'une parcelle">
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1150] w-[calc(100%-24px)] sm:w-auto sm:min-w-[520px] max-w-2xl bg-white text-slate-800 border border-slate-200 rounded-xl shadow-[0_12px_32px_-8px_rgba(15,37,64,0.35)] p-3 animate-in fade-in slide-in-from-top-2 duration-200 select-none" role="region" aria-label={drawingForZone ? "Tracé d'une zone" : "Tracé d'une parcelle"}>
           <div className="flex items-center justify-between gap-3 pb-2.5 mb-2.5 border-b border-slate-100">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
-              <span className="font-semibold text-[14px] text-slate-900 truncate">Tracé d&apos;une parcelle</span>
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${drawingForZone ? 'bg-violet-600' : 'bg-orange-500'}`} />
+              <span className="font-semibold text-[14px] text-slate-900 truncate">{drawingForZone ? 'Tracé d’une zone de la concession' : 'Tracé d’une parcelle'}</span>
               <span className="text-[12px] text-slate-500 tabular-nums flex-shrink-0">
                 {drawnPoints.length} borne{drawnPoints.length > 1 ? 's' : ''}
               </span>
@@ -1479,7 +1484,7 @@ export default function MapView({
               Annuler
             </button>
 
-            {onCreateZoneFromPoints && (
+            {onCreateZoneFromPoints && !drawingForZone && (
               <button
                 onClick={handleFinishDrawingAsZone}
                 disabled={drawnPoints.length < 3}
@@ -1495,10 +1500,10 @@ export default function MapView({
               onClick={handleFinishDrawing}
               disabled={drawnPoints.length < 3}
               className="h-9 px-3.5 bg-brand-700 hover:bg-brand-800 text-white rounded-lg text-[13px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
-              title="Terminer le tracé et créer la parcelle"
+              title={drawingForZone ? 'Terminer le tracé et créer la zone' : 'Terminer le tracé et créer la parcelle'}
             >
               <Check className="w-4 h-4" />
-              <span>Valider</span>
+              <span>{drawingForZone ? 'Créer la zone' : 'Valider'}</span>
             </button>
           </div>
 

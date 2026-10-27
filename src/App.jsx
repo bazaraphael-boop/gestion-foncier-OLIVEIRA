@@ -157,6 +157,7 @@ export default function App() {
   const [isSimulated, setIsSimulated] = useState(false);
   const [flyToTrigger, setFlyToTrigger] = useState(0);
   const [drawTrigger, setDrawTrigger] = useState(0);
+  const [drawingForZone, setDrawingForZone] = useState(false); // trace started from "Zones de la concession"
   const [editConcessionTrigger, setEditConcessionTrigger] = useState(0);
   const watchIdRef = useRef(null);
   const isFirstFixRef = useRef(true);
@@ -910,7 +911,10 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
           isLocating={isLocating}
           locationZoneInfo={locationAnalysis.zoneInfo}
           isArpenteur={isArpenteur}
-          onStartDrawing={() => setDrawTrigger((prev) => prev + 1)}
+          onStartDrawing={() => {
+            setDrawingForZone(false);
+            setDrawTrigger((prev) => prev + 1);
+          }}
           onStartEditConcession={() => setEditConcessionTrigger((prev) => prev + 1)}
           activeView={activeView}
           zones={zones}
@@ -947,9 +951,11 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
           <MapView
             concessionPolygon={concessionPolygon}
             subZones={zones}
+            drawingForZone={drawingForZone}
             onCreateZoneFromPoints={
               isAdmin
                 ? (points) => {
+                    setDrawingForZone(false);
                     setZoneDraftPoints(points);
                     setIsZoneManagerOpen(true);
                   }
@@ -1074,6 +1080,7 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
               active: false,
               onClick: () => {
                 setIsSidebarCollapsed(true);
+                setDrawingForZone(false);
                 setDrawTrigger((prev) => prev + 1);
               }
             },
@@ -1142,6 +1149,7 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
               initialPoints={initialFormPoints}
               onStartDrawing={() => {
                 setIsFormOpen(false);
+                setDrawingForZone(false);
                 setDrawTrigger((prev) => prev + 1);
               }}
               onOpenCadastreBatch={() => {
@@ -1190,6 +1198,7 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
               onStartDrawing={() => {
                 setIsZoneManagerOpen(false);
                 setZoneDraftPoints(null);
+                setDrawingForZone(true);
                 setDrawTrigger((prev) => prev + 1);
               }}
             />
