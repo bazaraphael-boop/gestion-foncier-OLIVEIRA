@@ -47,6 +47,7 @@ Il n'y a plus de portail client à code PIN.
 - **Photos des parcelles** : stockées dans *Storage → parcel-photos* (privé). L'admin et les arpenteurs
   peuvent en ajouter, seul l'admin peut en supprimer.
 - **Suivi des arpenteurs** : quand un arpenteur active son GPS, sa position et son trajet du jour
-  apparaissent sur la carte de l'admin (encadré « Arpenteurs »). L'arpenteur voit un bandeau vert tant
-  qu'il est suivi. Les trajets de plus de 30 jours sont supprimés automatiquement.
+  apparaissent sur la carte de l'admin (encadré « Arpenteurs »). Rien ne s'affiche chez l'arpenteur :
+  prévenez-le du suivi (contrat ou règlement intérieur). Les trajets de plus de 30 jours sont supprimés
+  automatiquement.
 - **Mot de passe oublié** : *Authentication → Users → … → Send password recovery*.

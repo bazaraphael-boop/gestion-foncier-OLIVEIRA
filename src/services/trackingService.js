@@ -4,7 +4,15 @@ import { getSupabaseInstance } from './supabaseClient';
 // The arpenteur writes his own position; RLS lets only the admin read the others'.
 
 /** Latest position (upsert) and, when he moved, one point of the trail */
-export async function publishSurveyorPosition(session, { lat, lng, accuracy, heading, speed }, { addTrailPoint }) {
+export async function publishSurveyorPosition(session, position, options) {
+  try {
+    return await upsertSurveyorPosition(session, position, options);
+  } catch (err) {
+    return { ok: false, error: err?.message || String(err) };
+  }
+}
+
+async function upsertSurveyorPosition(session, { lat, lng, accuracy, heading, speed }, { addTrailPoint }) {
   const client = getSupabaseInstance();
   const userId = session?.user?.id;
   if (!client || !userId) return { ok: false, error: 'Non connecté' };

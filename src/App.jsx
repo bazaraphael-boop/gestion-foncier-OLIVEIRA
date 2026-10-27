@@ -26,7 +26,7 @@ const AuditLogModal = lazy(() => import('./components/AuditLogModal'));
 import { DEFAULT_KML_DATA } from './data/defaultConcession';
 import { parseKMLToGeoJSON, extractMainConcessionPolygon, extractSubZones } from './utils/kmlParser';
 import { calculateArea, exportParcelsToGeoJSON } from './utils/geoUtils';
-import { Layers3, Globe, MapPin, Pencil, Navigation, Crosshair, Radio } from 'lucide-react';
+import { Layers3, Globe, MapPin, Pencil, Navigation, Crosshair } from 'lucide-react';
 
 import {
   fetchParcelsFromSupabase,
@@ -336,8 +336,9 @@ export default function App() {
   const isArpenteur = session?.role === 'arpenteur';
   const isAdmin = session?.role === 'admin';
 
-  // Live tracking: the arpenteur shares his real GPS position while it is on, the admin follows it on the map
-  const surveyorSharing = useShareSurveyorPosition({
+  // Live tracking: the arpenteur's real GPS position is sent while it is on (nothing is shown to him),
+  // the admin follows it on the map
+  useShareSurveyorPosition({
     enabled: isArpenteur && isLocating && !isSimulated && !!userLocation,
     session,
     position: userLocation,
@@ -926,23 +927,6 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
           onSimulate={handleSimulateLocation}
           onClose={stopLocation}
         />
-      )}
-
-      {/* The arpenteur always knows when his position is visible to the admin */}
-      {isArpenteur && isLocating && !isSimulated && (
-        <div
-          role="status"
-          className={`px-3 py-1.5 text-[12px] flex items-center justify-center gap-2 border-b ${
-            surveyorSharing.status === 'error'
-              ? 'bg-rose-50 border-rose-200 text-rose-800'
-              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-          }`}
-        >
-          <Radio className="w-3.5 h-3.5 flex-shrink-0" />
-          {surveyorSharing.status === 'error'
-            ? `Position non transmise à l’administrateur : ${surveyorSharing.error}`
-            : 'Votre position est partagée en direct avec l’administrateur tant que le GPS est activé.'}
-        </div>
       )}
 
       {/* Dashboard Analytics */}

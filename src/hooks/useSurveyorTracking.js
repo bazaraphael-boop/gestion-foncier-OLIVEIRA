@@ -17,26 +17,35 @@ export const OFFLINE_AFTER_MS = 90000; // no news for 1 min 30: shown as offline
 const distanceM = (a, b) => gridDistance([a[1], a[0]], [b[1], b[0]]);
 
 /**
- * Arpenteur side: shares his position while `enabled` (GPS on, real fix, signed in as arpenteur).
- * @returns {{ status: 'idle' | 'sharing' | 'error', error: string | null }}
+ * Arpenteur side: sends his position while `enabled` (GPS on, real fix, signed in as arpenteur).
+ * Nothing is shown to him; a failed send (weak 4G, screen locked) is retried on the next GPS fix
+ * or heartbeat, and the trail point is kept until it gets through.
  */
 export function useShareSurveyorPosition({ enabled, session, position, accuracy }) {
-  const [state, setState] = useState({ status: 'idle', error: null });
   const latest = useRef({ position, accuracy });
-  const lastSent = useRef({ at: 0, trailPos: null });
+  const lastSent = useRef({ at: 0, trailPos: null, failed: false });
+  const inFlight = useRef(false);
   const wasEnabled = useRef(false);
 
   latest.current = { position, accuracy };
 
   const send = async (force) => {
     const { position: pos, accuracy: acc } = latest.current;
-    if (!pos) return;
+    if (!pos || inFlight.current) return;
     const now = Date.now();
     const moved = !lastSent.current.trailPos || distanceM(pos, lastSent.current.trailPos) >= MIN_MOVE_M;
-    if (!force && (!moved || now - lastSent.current.at < MIN_INTERVAL_MS)) return;
-    lastSent.current = { at: now, trailPos: moved ? pos : lastSent.current.trailPos };
+    const due = now - lastSent.current.at >= MIN_INTERVAL_MS;
+    if (!force && !(due && (moved || lastSent.current.failed))) return;
+    inFlight.current = true;
     const res = await publishSurveyorPosition(session, { lat: pos[0], lng: pos[1], accuracy: acc }, { addTrailPoint: moved });
-    setState(res.ok ? { status: 'sharing', error: null } : { status: 'error', error: res.error });
+    inFlight.current = false;
+    if (res.ok) {
+      lastSent.current = { at: now, trailPos: moved ? pos : lastSent.current.trailPos, failed: false };
+    } else {
+      // Retried at the next GPS fix (at most every 4 s) or heartbeat
+      console.warn('Suivi arpenteur : envoi impossible', res.error);
+      lastSent.current = { ...lastSent.current, at: now, failed: true };
+    }
   };
 
   // New GPS position
@@ -50,9 +59,8 @@ export function useShareSurveyorPosition({ enabled, session, position, accuracy 
     if (!enabled) {
       if (wasEnabled.current) {
         wasEnabled.current = false;
-        lastSent.current = { at: 0, trailPos: null };
+        lastSent.current = { at: 0, trailPos: null, failed: false };
         setSurveyorOffline(session);
-        setState({ status: 'idle', error: null });
       }
       return undefined;
     }
@@ -66,8 +74,6 @@ export function useShareSurveyorPosition({ enabled, session, position, accuracy 
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, session?.user?.id]);
-
-  return state;
 }
 
 /**
