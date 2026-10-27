@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import { logActivity } from '../services/auditService';
 import { STATUS_COLORS, ddToDms, exportParcelToCSV, calculateArea, getParcelBornes, getSideLengths, formatMeters, buildVerificationText, getReleveReference, parseDecimal, hasCrossingSides } from '../utils/geoUtils';
 import { getOceanZoneInfo } from '../utils/coastalZones';
+import { utmToLatLng, parseUtmList, lngLatToCadastreXY, buildSourceCoordinates } from '../utils/utm';
 import OfficialHeaderBanner from './OfficialHeaderBanner';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import { SituationPlan, BornagePlan, SatelliteFigure } from './ParcelPlans';
@@ -44,6 +45,9 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
   });
 
   const [editVertices, setEditVertices] = useState([]);
+  // Bornes are edited in GPS decimal degrees or in the Cadastre's UTM 33S X,Y (the parcel's original format)
+  const [vertexFormat, setVertexFormat] = useState('dd');
+  const [utmPaste, setUtmPaste] = useState('');
 
   useEffect(() => {
     if (parcel) {
@@ -57,12 +61,31 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
       const initialVerts = parcel.geometry?.coordinates?.[0] || [];
       const uniqueVerts = initialVerts.slice(0, initialVerts.length > 3 && initialVerts[0][0] === initialVerts[initialVerts.length - 1][0] && initialVerts[0][1] === initialVerts[initialVerts.length - 1][1] ? -1 : initialVerts.length);
 
-      setEditVertices(
-        uniqueVerts.map(([lng, lat]) => ({
-          latStr: lat.toFixed(6),
-          lngStr: lng.toFixed(6)
-        }))
-      );
+      // Parcels entered from the Cadastre are edited with their original X,Y (typed text, leading zeros kept)
+      const source = parcel.properties.sourceCoordinates?.points;
+      if (Array.isArray(source) && source.length > 0) {
+        setVertexFormat('utm');
+        setEditVertices(
+          source.length === uniqueVerts.length
+            ? source.map((xy) => {
+                const [xStr = '', yStr = ''] = String(xy).split(',');
+                return { latStr: xStr.trim(), lngStr: yStr.trim() };
+              })
+            : uniqueVerts.map((pt) => {
+                const { xStr, yStr } = lngLatToCadastreXY(pt);
+                return { latStr: xStr, lngStr: yStr };
+              })
+        );
+      } else {
+        setVertexFormat('dd');
+        setEditVertices(
+          uniqueVerts.map(([lng, lat]) => ({
+            latStr: lat.toFixed(6),
+            lngStr: lng.toFixed(6)
+          }))
+        );
+      }
+      setUtmPaste('');
 
       // Anti-fraud QR code holding the lot's key facts (see buildVerificationText)
       QRCode.toDataURL(buildVerificationText(parcel, new Date().toLocaleDateString('fr-FR')), {
@@ -92,6 +115,52 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
   const bornes = getParcelBornes(parcel);
   const sideLengths = getSideLengths(parcel);
   const perimeter = sideLengths.reduce((sum, m) => sum + m, 0);
+
+  // A borne field pair -> [lng, lat], or null when it cannot be read. In UTM, latStr holds X and lngStr Y.
+  const vertexToLngLat = (v, format = vertexFormat) => {
+    const a = parseDecimal(v.latStr);
+    const b = parseDecimal(v.lngStr);
+    if (isNaN(a) || isNaN(b)) return null;
+    if (format === 'utm') {
+      if (a < 100000 || a > 900000 || b < 100000 || b > 10000000) return null;
+      const { lat, lng } = utmToLatLng(a, b);
+      return [lng, lat];
+    }
+    return Math.abs(a) > 90 || Math.abs(b) > 180 ? null : [b, a];
+  };
+
+  // Switching format converts the bornes already typed
+  const handleVertexFormatChange = (format) => {
+    if (format === vertexFormat) return;
+    setEditVertices(
+      editVertices.map((v) => {
+        const pt = vertexToLngLat(v);
+        if (!pt) return { latStr: '', lngStr: '' };
+        if (format === 'utm') {
+          const { xStr, yStr } = lngLatToCadastreXY(pt);
+          return { latStr: xStr, lngStr: yStr };
+        }
+        return { latStr: pt[1].toFixed(7), lngStr: pt[0].toFixed(7) };
+      })
+    );
+    setVertexFormat(format);
+  };
+
+  // Pasted Cadastre list "0203417,9346432: 0203434,9346394: …" replaces the bornes
+  const handleFillFromUtmPaste = () => {
+    const { points, errors } = parseUtmList(utmPaste);
+    if (errors.length) {
+      alert(errors[0]);
+      return;
+    }
+    if (points.length < 3) {
+      alert('Collez au moins 3 bornes X,Y.');
+      return;
+    }
+    setVertexFormat('utm');
+    setEditVertices(points.map((p) => ({ latStr: p.xStr, lngStr: p.yStr })));
+    setUtmPaste('');
+  };
 
   const handleVertexChange = (index, field, value) => {
     const newVerts = [...editVertices];
@@ -134,14 +203,13 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
     const ringCoords = [];
     for (let i = 0; i < editVertices.length; i++) {
       const v = editVertices[i];
-      const lat = parseDecimal(v.latStr);
-      const lng = parseDecimal(v.lngStr);
+      const pt = vertexToLngLat(v);
       // A mistyped borne is reported, never silently dropped (that would change the surface)
-      if (isNaN(lat) || isNaN(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      if (!pt) {
         alert(`Borne B${i + 1} : coordonnées invalides (« ${v.latStr} », « ${v.lngStr} »). Corrigez-la ou supprimez-la.`);
         return;
       }
-      ringCoords.push([lng, lat]);
+      ringCoords.push(pt);
     }
 
     if (hasCrossingSides(ringCoords)) {
@@ -176,6 +244,20 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         coordinates: [ringCoords]
       }
     };
+
+    // The Cadastre coordinates follow the bornes: typed X,Y in UTM, recomputed when edited in GPS
+    if (vertexFormat === 'utm') {
+      updated.properties.sourceCoordinates = buildSourceCoordinates(
+        editVertices.map((v) => `${String(v.latStr).trim()},${String(v.lngStr).trim()}`)
+      );
+    } else if (parcel.properties.sourceCoordinates && JSON.stringify(ringCoords) !== JSON.stringify(parcel.geometry?.coordinates?.[0])) {
+      updated.properties.sourceCoordinates = buildSourceCoordinates(
+        ringCoords.slice(0, -1).map((pt) => {
+          const { xStr, yStr } = lngLatToCadastreXY(pt);
+          return `${xStr},${yStr}`;
+        })
+      );
+    }
 
     const newArea = calculateArea(updated);
     updated.properties.areaSqM = newArea.sqMeters;
@@ -733,10 +815,19 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 </div>
               ) : (
               <div className="bg-slate-50 p-3 rounded border border-slate-200 space-y-2">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-wrap justify-between items-center gap-2">
                   <span className="font-bold text-slate-800 text-xs">
-                    Édition des Bornes GPS ({editVertices.length} bornes)
+                    Édition des Bornes ({editVertices.length} bornes)
                   </span>
+                  <select
+                    value={vertexFormat}
+                    onChange={(e) => handleVertexFormatChange(e.target.value)}
+                    aria-label="Format des coordonnées des bornes"
+                    className="h-7 px-1.5 bg-white border border-slate-300 rounded text-[11px] font-semibold text-slate-800 cursor-pointer"
+                  >
+                    <option value="utm">Cadastre UTM 33S (X, Y)</option>
+                    <option value="dd">GPS décimal (lat, lng)</option>
+                  </select>
                   <button
                     type="button"
                     onClick={handleAddVertexField}
@@ -746,22 +837,50 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                   </button>
                 </div>
 
-                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
-                  {editVertices.map((vt, idx) => (
-                    <div key={idx} className="flex items-center gap-1.5">
+                {vertexFormat === 'utm' && (
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      value={utmPaste}
+                      onChange={(e) => setUtmPaste(e.target.value)}
+                      placeholder="Coller la liste : 0203417,9346432: 0203434,9346394: …"
+                      aria-label="Coller la liste des bornes du Cadastre"
+                      className="flex-1 min-w-0 px-2 py-1 bg-white border border-slate-200 rounded font-mono text-[11px] text-slate-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleFillFromUtmPaste}
+                      disabled={!utmPaste.trim()}
+                      className="px-2 py-1 bg-brand-700 hover:bg-brand-800 text-white rounded text-[11px] font-semibold cursor-pointer disabled:opacity-40"
+                    >
+                      Remplir
+                    </button>
+                  </div>
+                )}
+
+                <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                  {editVertices.map((vt, idx) => {
+                    const pt = vertexFormat === 'utm' ? vertexToLngLat(vt) : null;
+                    return (
+                    <div key={idx}>
+                    <div className="flex items-center gap-1.5">
                       <span className="font-bold text-slate-500 w-6 text-right font-mono text-[11px]">
                         B{idx + 1}.
                       </span>
                       <input
                         type="text"
-                        placeholder="Latitude"
+                        inputMode="decimal"
+                        placeholder={vertexFormat === 'utm' ? 'X (Easting)' : 'Latitude'}
+                        aria-label={`Borne B${idx + 1} : ${vertexFormat === 'utm' ? 'X (Easting)' : 'latitude'}`}
                         value={vt.latStr}
                         onChange={(e) => handleVertexChange(idx, 'latStr', e.target.value)}
                         className="flex-1 px-2 py-0.5 bg-white border border-slate-200 rounded font-mono text-[11px] text-slate-900"
                       />
                       <input
                         type="text"
-                        placeholder="Longitude"
+                        inputMode="decimal"
+                        placeholder={vertexFormat === 'utm' ? 'Y (Northing)' : 'Longitude'}
+                        aria-label={`Borne B${idx + 1} : ${vertexFormat === 'utm' ? 'Y (Northing)' : 'longitude'}`}
                         value={vt.lngStr}
                         onChange={(e) => handleVertexChange(idx, 'lngStr', e.target.value)}
                         className="flex-1 px-2 py-0.5 bg-white border border-slate-200 rounded font-mono text-[11px] text-slate-900"
@@ -775,7 +894,14 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  ))}
+                    {vertexFormat === 'utm' && (
+                      <div className={`pl-8 text-[10px] font-mono tabular-nums ${pt ? 'text-slate-500' : 'text-rose-600'}`}>
+                        {pt ? `= GPS ${pt[1].toFixed(7)}, ${pt[0].toFixed(7)}` : vt.latStr || vt.lngStr ? 'X,Y non valides' : ''}
+                      </div>
+                    )}
+                    </div>
+                    );
+                  })}
                 </div>
               </div>
               )}

@@ -69,6 +69,17 @@ export function formatUtm({ easting, northing }) {
   return `${String(Math.round(easting)).padStart(7, '0')},${Math.round(northing)}`;
 }
 
+/** Cadastre X and Y texts of a [lng, lat] point, to the metre */
+export function lngLatToCadastreXY([lng, lat], opts = DEFAULT_UTM_ZONE) {
+  const [xStr, yStr] = formatUtm(latLngToUtm(lat, lng, opts)).split(',');
+  return { xStr, yStr };
+}
+
+/** properties.sourceCoordinates of a parcel: its bornes as written by the Cadastre ("0203417,9346432") */
+export function buildSourceCoordinates(points, { zone, hemisphere } = DEFAULT_UTM_ZONE) {
+  return { system: `UTM WGS84 zone ${zone}${hemisphere}`, order: 'X (Easting), Y (Northing)', points };
+}
+
 /**
  * Parses a pasted list of UTM points: pairs "X,Y" (or "X Y") separated by ":" or ";" or new lines.
  * The first number of each pair is the Easting (X), the second the Northing (Y). Original text is kept

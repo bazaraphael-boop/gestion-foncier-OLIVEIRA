@@ -9,6 +9,7 @@ import { MeasureLayer, MeasurePanel, MeasureSheet } from './MeasureTool';
 import { useMeasureSettings } from '../hooks/useMeasure';
 import { LiveSurveyorsLayer, LiveSurveyorsPanel } from './LiveSurveyors';
 import { countCachedTiles, clearCachedTiles, useOnlineStatus } from '../utils/offlineTiles';
+import { lngLatToCadastreXY, buildSourceCoordinates } from '../utils/utm';
 import {
   Layers3,
   Layers,
@@ -711,6 +712,16 @@ export default function MapView({
         areaHa: newArea.hectares,
         formattedSqM: newArea.formattedSqM,
         formattedHa: newArea.formattedHa,
+        ...(parcel.properties?.sourceCoordinates
+          ? {
+              sourceCoordinates: buildSourceCoordinates(
+                geometry.coordinates[0].slice(0, -1).map((pt) => {
+                  const { xStr, yStr } = lngLatToCadastreXY(pt);
+                  return `${xStr},${yStr}`;
+                })
+              )
+            }
+          : {}),
         updatedAt: new Date().toISOString().split('T')[0]
       },
       geometry
