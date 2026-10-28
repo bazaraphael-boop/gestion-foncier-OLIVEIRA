@@ -29,6 +29,19 @@ import {
   Waves,
 } from 'lucide-react';
 
+const todayIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// Issue date printed on the relevé: the one set by the Admin (properties.releveIssuedOn, yyyy-mm-dd), else today
+function releveIssuedOnText(parcel) {
+  const iso = parcel.properties?.releveIssuedOn;
+  if (!iso) return new Date().toLocaleDateString('fr-FR');
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteParcel, isVisitorMode, isArpenteur, concessionPolygon }) {
   const [isEditing, setIsEditing] = useState(false);
   const [showReleve, setShowReleve] = useState(false);
@@ -37,6 +50,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const releveRef = useRef(null);
+  const shownParcelIdRef = useRef(null);
 
   const [formData, setFormData] = useState({
     lotNumber: '',
@@ -89,7 +103,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
       setUtmPaste('');
 
       // Anti-fraud QR code holding the lot's key facts (see buildVerificationText)
-      QRCode.toDataURL(buildVerificationText(parcel, new Date().toLocaleDateString('fr-FR')), {
+      QRCode.toDataURL(buildVerificationText(parcel, releveIssuedOnText(parcel)), {
         width: 420,
         margin: 1,
         color: {
@@ -101,9 +115,13 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         .then((url) => setQrCodeDataUrl(url))
         .catch((err) => console.error('Erreur génération QR Code:', err));
 
-      setIsEditing(false);
-      setShowReleve(false);
-      setShowDeleteConfirm(false);
+      // Another lot opened: back to its sheet. The same lot updated (e.g. its issue date) keeps the view.
+      if (shownParcelIdRef.current !== parcel.id) {
+        shownParcelIdRef.current = parcel.id;
+        setIsEditing(false);
+        setShowReleve(false);
+        setShowDeleteConfirm(false);
+      }
     }
   }, [parcel]);
 
@@ -338,7 +356,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
     const lotRef = parcel.properties.lotNumber || parcel.id;
     setIsDownloadingPdf(true);
     try {
-      const issuedOn = new Date().toLocaleDateString('fr-FR');
+      const issuedOn = releveIssuedOnText(parcel);
       const reference = getReleveReference(parcel);
       const owner = parcel.properties.occupantName || 'Aucun (domaine libre)';
       const fingerprint = await computeFingerprint({
@@ -443,7 +461,27 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
                 <span>Fiche Officielle de Relevé Parcellaire Cadastral</span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {/* Issue date of the relevé: chosen by the Admin, kept with the lot */}
+                <label className="flex items-center gap-1.5 text-[12px] text-slate-600">
+                  Date d&apos;émission
+                  {isArpenteur || isVisitorMode ? (
+                    <span className="font-semibold text-slate-900 tabular-nums">{releveIssuedOnText(parcel)}</span>
+                  ) : (
+                    <input
+                      type="date"
+                      value={parcel.properties.releveIssuedOn || todayIso()}
+                      onChange={(e) => {
+                        const { releveIssuedOn: _previous, ...rest } = parcel.properties;
+                        onUpdateParcel({
+                          ...parcel,
+                          properties: e.target.value && e.target.value !== todayIso() ? { ...rest, releveIssuedOn: e.target.value } : rest
+                        });
+                      }}
+                      className="h-9 px-2 bg-white border border-slate-300 rounded-lg text-[13px] text-slate-900 cursor-pointer"
+                    />
+                  )}
+                </label>
                 <button
                   onClick={handleDownloadReleve}
                   disabled={isDownloadingPdf}
@@ -489,7 +527,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                   IDENTIFIANT CADASTRAL OFFICIEL : {parcel.properties.lotNumber || parcel.id}
                 </div>
                 <div className="text-[10px] text-slate-500 font-mono">
-                  Établi le {new Date().toLocaleDateString('fr-FR')} • Réf. {getReleveReference(parcel)}
+                  Établi le {releveIssuedOnText(parcel)} • Réf. {getReleveReference(parcel)}
                 </div>
               </div>
 
