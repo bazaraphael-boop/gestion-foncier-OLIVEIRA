@@ -11,7 +11,7 @@ export const MAX_DOCUMENT_MB = 15;
 
 export const DOCUMENT_TYPES = [
   { id: 'titre', label: 'Titre de la concession' },
-  { id: 'contrat', label: 'Contrat de vente / cession' },
+  { id: 'contrat', label: 'Acte de cession / contrat de vente' },
   { id: 'plan', label: 'Plan cadastral' },
   { id: 'pv_bornage', label: 'Procès-verbal de bornage' },
   { id: 'fiche', label: 'Fiche parcellaire' },

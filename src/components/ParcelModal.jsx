@@ -11,6 +11,7 @@ import { SituationPlan, BornagePlan, SatelliteFigure } from './ParcelPlans';
 import { ParcelPhotoGallery } from './ParcelPhotos';
 import { ParcelDocumentList } from './ParcelDocuments';
 import { buildRelevePdf, computeFingerprint, svgToPng } from '../utils/officialPdf';
+import { loadParcelAnnexes, appendPdfAnnexes } from '../utils/pdfAnnexes';
 import {
   X,
   User,
@@ -359,6 +360,9 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         ? { dataUrl: satelliteImg.src, width: satelliteImg.naturalWidth, height: satelliteImg.naturalHeight }
         : null;
 
+      // Acte de cession attached to the lot, added as annexes
+      const annexes = await loadParcelAnnexes(parcel);
+
       const hex = colorConfig.hex.replace('#', '');
       const doc = await buildRelevePdf({
         lotRef,
@@ -384,9 +388,21 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         situationPlan,
         bornagePlan,
         satellite,
-        notes: parcel.properties.notes || ''
+        notes: parcel.properties.notes || '',
+        annexes
       });
-      doc.save(`Releve_${String(lotRef).replace(/[^\w-]+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+      const fileName = `Releve_${String(lotRef).replace(/[^\w-]+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      if (annexes.some((a) => a.pdfBytes)) {
+        const bytes = await appendPdfAnnexes(doc.output('arraybuffer'), annexes, { reference });
+        const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      } else {
+        doc.save(fileName);
+      }
       logActivity({
         role: isArpenteur ? 'arpenteur' : 'admin',
         actor: isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur',

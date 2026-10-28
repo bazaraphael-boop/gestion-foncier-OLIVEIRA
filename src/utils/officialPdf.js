@@ -408,10 +408,13 @@ async function loadBanner() {
 /* ─────────────── Documents ─────────────── */
 
 /**
- * Relevé parcellaire officiel (2 pages).
+ * Relevé parcellaire officiel (2 pages, then the annexes).
  * data: { lotRef, owner, statusLabel, statusColor, areaHa, areaM2, perimeter, coastal, coastalDetail,
  *         bornes: [{ name, lat, lng, latDms, lngDms, side }], qrText, reference, issuedOn, fingerprint,
- *         situationPlan, bornagePlan, satellite }
+ *         situationPlan, bornagePlan, satellite,
+ *         annexes: [{ title, name, image?: { dataUrl, width, height }, pdfPages?: number, note? }] }
+ * Image annexes get one page each here; PDF annexes (pdfPages) are appended afterwards by
+ * appendPdfAnnexes (utils/pdfAnnexes.js) and only counted in the page numbers.
  */
 export async function buildRelevePdf(data) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
@@ -419,7 +422,8 @@ export async function buildRelevePdf(data) {
   const docTitle = 'RELEVÉ PARCELLAIRE OFFICIEL';
   const subject = `Lot ${data.lotRef}`;
   const common = { banner, qr, docTitle, subject, reference: data.reference, issuedOn: data.issuedOn, fingerprint: data.fingerprint };
-  const pages = 2;
+  const annexes = data.annexes || [];
+  const pages = 2 + annexes.reduce((n, a) => n + (a.pdfPages || 1), 0);
 
   // Page 1: identification, plans, satellite view
   let y = header(doc, common);
@@ -473,6 +477,27 @@ export async function buildRelevePdf(data) {
   y = sectionTitle(doc, 7, 'Observations', y + 8);
   observations(doc, y, PAGE.h - 24, data.notes);
   footer(doc, { page: 2, pages, reference: data.reference, fingerprint: data.fingerprint });
+
+  // Annexes: one page per photo / scan (acte de cession…)
+  let page = 2;
+  annexes.forEach((annex, i) => {
+    if (annex.pdfPages) return;
+    page += 1;
+    doc.addPage();
+    y = header(doc, { ...common, compact: true });
+    y = sectionTitle(doc, `Annexe ${i + 1}`, annex.title, y);
+    figure(doc, {
+      title: annex.name || annex.title,
+      image: annex.image,
+      format: 'JPEG',
+      x: M,
+      y,
+      w: CONTENT_W,
+      h: PAGE.h - 24 - y - 8,
+      note: annex.note || 'Document indisponible'
+    });
+    footer(doc, { page, pages, reference: data.reference, fingerprint: data.fingerprint });
+  });
 
   return doc;
 }
