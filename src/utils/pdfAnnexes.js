@@ -1,10 +1,15 @@
-import { getDocumentUrl, documentTypeLabel } from '../services/documentService';
+import { getDocumentUrl, documentTypeLabel, DOCUMENT_TYPES } from '../services/documentService';
 
-// Annexes of the relevé PDF: the parcel's acte de cession (documents of type "contrat"), as a photo
-// or a PDF. Photos become pages of the relevé (utils/officialPdf.js); PDF pages are appended to it
+// Annexes of the relevé PDF: every document attached to the parcel, the acte de cession first,
+// then in the order of the document types (a file filed under another type is not left out).
+// Photos / scans become pages of the relevé (utils/officialPdf.js); PDF pages are appended to it
 // with pdf-lib, loaded only when a PDF annex exists.
 
-export const ANNEX_DOCUMENT_TYPES = ['contrat'];
+const ANNEX_ORDER = ['contrat', ...DOCUMENT_TYPES.map((t) => t.id).filter((id) => id !== 'contrat')];
+const annexRank = (doc) => {
+  const i = ANNEX_ORDER.indexOf(doc.type);
+  return i === -1 ? ANNEX_ORDER.length : i;
+};
 const MAX_SIDE = 2000; // px: sharp once printed on A4, light enough for the PDF
 
 const isPdf = (doc) => /\.pdf$/i.test(doc.name || doc.path);
@@ -35,11 +40,11 @@ function blobToJpeg(blob) {
 }
 
 /**
- * Downloads the parcel's acte de cession files and prepares them for the relevé.
+ * Downloads the parcel's documents and prepares them for the relevé.
  * @returns {Promise<Array<{ title, name, image?, pdfBytes?, pdfPages?, note? }>>}
  */
 export async function loadParcelAnnexes(parcel) {
-  const documents = (parcel.properties?.documents || []).filter((d) => ANNEX_DOCUMENT_TYPES.includes(d.type));
+  const documents = [...(parcel.properties?.documents || [])].sort((a, b) => annexRank(a) - annexRank(b));
   const annexes = [];
   for (const doc of documents) {
     const title = documentTypeLabel(doc.type);
