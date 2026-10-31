@@ -21,7 +21,12 @@ export default function SupabaseModal({ isOpen, onClose, onSyncCloud }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    saveSupabaseConfig(url.trim(), key.trim());
+    try {
+      saveSupabaseConfig(url.trim(), key.trim());
+    } catch (err) {
+      alert(err.message);
+      return;
+    }
     setSaved(true);
     setTimeout(() => {
       setSaved(false);

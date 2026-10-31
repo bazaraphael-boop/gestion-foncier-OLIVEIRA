@@ -136,6 +136,7 @@ export function ParcelDocumentList({ parcel, canAdd, canDelete, onDocumentsChang
   const handleOpen = async (doc, download) => {
     setMessage('');
     const tab = download ? null : window.open('', '_blank');
+    if (tab) tab.opener = null;
     try {
       const url = await getDocumentUrl(doc, { download });
       if (tab) tab.location.assign(url);

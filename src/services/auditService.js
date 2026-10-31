@@ -225,6 +225,18 @@ export async function clearAuditLogs() {
 /**
  * Export audit logs to formatted CSV file
  */
+// A cell starting with = + - @ would run as a formula in Excel: values typed by users are neutralised
+const csvCell = (value) => `"${String(value ?? '').replace(/^[=+\-@\t\r]/, "'$&").replace(/"/g, '""')}"`;
+
+/** Removes the copy of the journal kept on this device (the cloud journal stays) */
+export function clearLocalAuditLogs() {
+  try {
+    localStorage.removeItem(STORAGE_KEY_AUDIT_LOGS);
+  } catch {
+    // Storage unavailable: nothing to remove
+  }
+}
+
 export function exportAuditLogsToCSV(logs) {
   if (!logs || logs.length === 0) return '';
 
@@ -245,13 +257,13 @@ export function exportAuditLogsToCSV(logs) {
     return [
       `"${dateFormatted}"`,
       `"${(log.role || '').toUpperCase()}"`,
-      `"${(log.actor || '').replace(/"/g, '""')}"`,
-      `"${log.action || ''}"`,
-      `"${(log.actionLabel || '').replace(/"/g, '""')}"`,
-      `"${log.target || '-'}"`,
-      `"${(log.details || '').replace(/"/g, '""')}"`,
-      `"${log.severity || 'info'}"`,
-      `"${(log.device || '').replace(/"/g, '""')}"`
+      csvCell(log.actor),
+      csvCell(log.action),
+      csvCell(log.actionLabel),
+      csvCell(log.target || '-'),
+      csvCell(log.details),
+      csvCell(log.severity || 'info'),
+      csvCell(log.device)
     ].join(';');
   });
 

@@ -16,7 +16,8 @@ const initialsOf = (name) =>
     .filter(Boolean)
     .slice(0, 2)
     .map((w) => w[0].toUpperCase())
-    .join('') || '?';
+    .join('')
+    .replace(/[^\p{L}\p{N}]/gu, '') || '?';
 
 const timeFmt = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 

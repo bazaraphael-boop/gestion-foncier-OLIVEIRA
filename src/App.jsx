@@ -43,7 +43,7 @@ import {
 } from './services/supabaseClient';
 
 import { getCurrentSession, onSessionChange, logout } from './services/authService';
-import { logActivity } from './services/auditService';
+import { logActivity, clearLocalAuditLogs } from './services/auditService';
 import { useShareSurveyorPosition, useLiveSurveyors } from './hooks/useSurveyorTracking';
 import { useZones } from './hooks/useZones';
 
@@ -353,6 +353,14 @@ export default function App() {
   });
   const liveSurveyors = useLiveSurveyors(isAdmin);
 
+  // Signed out: lots (owners, documents) and journal do not stay on a possibly shared device.
+  // Everything comes back from the cloud at the next sign-in.
+  const clearPrivateLocalData = () => {
+    setGlobalParcels([]);
+    setIsetechParcels([]);
+    clearLocalAuditLogs();
+  };
+
   // Restore the Supabase session on load and react to sign-out / token expiration
   useEffect(() => {
     let isMounted = true;
@@ -365,6 +373,7 @@ export default function App() {
       if (isMounted && !next) {
         setSession(null);
         setAuthView('portal');
+        clearPrivateLocalData();
       }
     });
     return () => {
@@ -542,6 +551,7 @@ export default function App() {
 
   const handleLogout = async () => {
     await logout(session);
+    clearPrivateLocalData();
     setSession(null);
     setAuthView('portal');
     setDrawTrigger(0);

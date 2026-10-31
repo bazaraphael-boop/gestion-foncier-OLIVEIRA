@@ -7,20 +7,40 @@ export const DEFAULT_SUPABASE_URL = 'https://oliofshztausxckzmfce.supabase.co';
 const STORAGE_KEY_URL = 'geocadastre_supabase_url';
 const STORAGE_KEY_KEY = 'geocadastre_supabase_key';
 
-export function getSupabaseConfig() {
-  let url = localStorage.getItem(STORAGE_KEY_URL) || import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
-  // Auto-migrate if legacy invalid URL is stored
-  if (!url || url.includes('7Ns4c6xSjJ6RtxkPtzhXgg')) {
-    url = DEFAULT_SUPABASE_URL;
-    try {
-      localStorage.setItem(STORAGE_KEY_URL, DEFAULT_SUPABASE_URL);
-    } catch (e) {}
+// Passwords are sent to this server: only an https Supabase host is accepted
+function isSupabaseUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && parsed.hostname.endsWith('.supabase.co');
+  } catch {
+    return false;
   }
-  const key = localStorage.getItem(STORAGE_KEY_KEY) || import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY;
-  return { url, key };
+}
+
+// A secret / service_role key bypasses every RLS rule and must never reach a browser
+function isSecretKey(key) {
+  if (String(key).startsWith('sb_secret_')) return true;
+  try {
+    return JSON.parse(atob(String(key).split('.')[1])).role === 'service_role';
+  } catch {
+    return false;
+  }
+}
+
+export function getSupabaseConfig() {
+  const storedUrl = localStorage.getItem(STORAGE_KEY_URL);
+  const storedKey = localStorage.getItem(STORAGE_KEY_KEY);
+  // A stored server only counts together with its own key, both valid; otherwise the official project
+  const useStored = isSupabaseUrl(storedUrl) && storedKey && !isSecretKey(storedKey);
+  return {
+    url: useStored ? storedUrl : import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL,
+    key: useStored ? storedKey : import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_KEY
+  };
 }
 
 export function saveSupabaseConfig(url, key) {
+  if (!isSupabaseUrl(url)) throw new Error('Adresse refusée : elle doit être de la forme https://xxxx.supabase.co');
+  if (isSecretKey(key)) throw new Error('Clé refusée : utilisez la clé « publishable », jamais une clé secrète.');
   localStorage.setItem(STORAGE_KEY_URL, url);
   localStorage.setItem(STORAGE_KEY_KEY, key);
   initSupabaseClient();

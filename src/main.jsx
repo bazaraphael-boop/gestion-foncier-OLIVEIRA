@@ -4,11 +4,16 @@ import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 
+// Clickjacking protection: the app refuses to run inside another site's frame
+if (window.top !== window.self) {
+  window.top.location.replace(window.self.location.href);
+}
+
 // Actively purge obsolete caches from previous builds on every visit
 if (typeof window !== 'undefined' && 'caches' in window) {
   caches.keys().then((keys) => {
     keys.forEach((key) => {
-      if (key !== 'cadastre-oliveira-pwa-v4') {
+      if (key !== 'cadastre-oliveira-pwa-v5' && key !== 'cadastre-tiles-v1') {
         caches.delete(key);
       }
     });
