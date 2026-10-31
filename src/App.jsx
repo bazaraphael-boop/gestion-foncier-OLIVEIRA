@@ -42,7 +42,7 @@ import {
   getLastCloudError
 } from './services/supabaseClient';
 
-import { getCurrentSession, onSessionChange, logout } from './services/authService';
+import { getCurrentSession, onSessionChange, logout, getMfaFactor } from './services/authService';
 import { logActivity, clearLocalAuditLogs } from './services/auditService';
 import { useShareSurveyorPosition, useLiveSurveyors } from './hooks/useSurveyorTracking';
 import { useZones } from './hooks/useZones';
@@ -384,6 +384,17 @@ export default function App() {
   }, []);
 
   const sessionUserId = session?.user?.id;
+
+  // The admin is reminded until two-step verification is on: until then, a stolen password gives everything
+  const [adminMfaMissing, setAdminMfaMissing] = useState(false);
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+    let cancelled = false;
+    getMfaFactor().then((factor) => !cancelled && setAdminMfaMissing(!factor));
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin]);
 
   // Cache version migration to clear obsolete local storage on all devices
   const CACHE_VERSION = 'v7_restore_concession_5326ha';
@@ -950,6 +961,15 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
         />
       )}
 
+      {isAdmin && adminMfaMissing && (
+        <div role="alert" className="px-3 py-1.5 text-[12px] text-amber-900 bg-amber-50 border-b border-amber-200 flex flex-wrap items-center justify-center gap-x-3">
+          <span>Activez la double vérification : aujourd’hui, le mot de passe seul donne tous les droits.</span>
+          <button type="button" onClick={() => setIsAdminSecurityOpen(true)} className="font-semibold underline underline-offset-2 cursor-pointer">
+            Activer maintenant
+          </button>
+        </div>
+      )}
+
       {/* Discreet notice: the arpenteur is told that his position is shared while the GPS is on */}
       {isArpenteur && isLocating && !isSimulated && (
         <p className="px-3 py-0.5 text-[9px] leading-tight text-slate-400 text-center bg-white">
@@ -1259,6 +1279,7 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
 
           {isAdminSecurityOpen && (
             <AdminSecurityModal
+              onMfaChange={(active) => setAdminMfaMissing(!active)}
               isOpen={isAdminSecurityOpen}
               onClose={() => setIsAdminSecurityOpen(false)}
               onLogout={handleLogout}

@@ -145,6 +145,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      setVerification(null);
     };
   }, [showReleve, parcel, isVisitorMode, isArpenteur]);
 
@@ -430,6 +431,8 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         })),
         qrText: issued ? issued.url : buildVerificationText(parcel, issuedOn, fingerprint),
         verifiedOnline: !!issued,
+        verifyCode: issued?.code,
+        verifySite: issued?.site,
         reference,
         issuedOn,
         fingerprint,
@@ -571,8 +574,13 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
                   IDENTIFIANT CADASTRAL OFFICIEL : {parcel.properties.lotNumber || parcel.id}
                 </div>
                 <div className="text-[10px] text-slate-500 font-mono">
-                  Établi le {releveIssuedOnText(parcel)} • Réf. {getReleveReference(parcel)}
+                  Établi le {verification?.issuedOn || releveIssuedOnText(parcel)} • Réf. {getReleveReference(parcel)}
                 </div>
+                {verification && (
+                  <div className="text-[10px] text-slate-700 font-mono">
+                    Code de vérification : <strong>{verification.code}</strong> • à vérifier sur {verification.site}
+                  </div>
+                )}
               </div>
 
               <div data-pdf-block className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded border border-slate-200">

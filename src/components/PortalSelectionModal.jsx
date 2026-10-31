@@ -74,6 +74,12 @@ export default function PortalSelectionModal({ onSelectAdmin }) {
         </div>
       </div>
 
+      <div className="relative z-10 flex justify-center px-4 pb-6">
+        <a href="?verifier" className="h-11 px-5 rounded-lg bg-white/95 hover:bg-white text-[#1a3a5c] text-sm font-semibold flex items-center shadow-md">
+          Vérifier l’authenticité d’un relevé
+        </a>
+      </div>
+
       {/* Pied de page */}
       <footer className="relative z-10 w-full bg-[#0f2540]/90 text-blue-100 py-4 px-4 border-t border-white/10">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px]">

@@ -285,15 +285,16 @@ function footer(doc, { page, pages, reference, fingerprint }) {
   doc.text(pdfText(`Page ${page} / ${pages}`), PAGE.w - M, PAGE.h - 13.5, { align: 'right' });
 }
 
-function authenticationBlock(doc, { y, qr, reference, fingerprint, issuedOn, checks, verifiedOnline = false }) {
-  const h = 50;
+function authenticationBlock(doc, { y, qr, reference, fingerprint, issuedOn, checks, verifiedOnline = false, verifyCode, verifySite }) {
+  const h = verifiedOnline ? 58 : 50;
+  const qrSize = 44;
   doc.setDrawColor(...NAVY);
   doc.setLineWidth(0.4);
   doc.setFillColor(...TINT);
   doc.rect(M, y, CONTENT_W, h, 'FD');
-  doc.addImage(qr, 'PNG', M + 3, y + 3, h - 6, h - 6);
+  doc.addImage(qr, 'PNG', M + 3, y + (h - qrSize) / 2, qrSize, qrSize);
 
-  const tx = M + h + 2;
+  const tx = M + qrSize + 8;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...NAVY);
@@ -304,24 +305,25 @@ function authenticationBlock(doc, { y, qr, reference, fingerprint, issuedOn, che
   const intro = doc.splitTextToSize(
     pdfText(
       verifiedOnline
-        ? "Scannez le QR code avec un téléphone : la page officielle de la Concession doit indiquer « Relevé authentique » et reprendre exactement ce document " +
+        ? `Ouvrez vous-même ${verifySite} (ne suivez pas un lien reçu), puis tapez le code ou scannez le QR code depuis cette page. Elle doit indiquer « Relevé authentique » et reprendre exactement ce document ` +
             checks +
             '. Toute différence, ou un code introuvable, signifie que le document a été modifié (retouche, montage ou IA) : il est alors NUL.'
         : "Scannez le QR code avec l'appareil photo d'un téléphone : le message affiché doit reprendre exactement les informations imprimées ci-dessous " +
             checks +
             '. Toute différence signifie que le document a été modifié (retouche, montage ou génération par intelligence artificielle) : il est alors NUL.'
     ),
-    CONTENT_W - h - 6
+    CONTENT_W - qrSize - 12
   );
   doc.text(intro, tx, y + 12);
 
   const rows = [
+    ...(verifiedOnline ? [['Code de vérification', verifyCode]] : []),
     ['Référence', reference],
     ['Empreinte numérique (SHA-256)', fingerprint],
     ['Date d\'émission', issuedOn]
   ];
   rows.forEach(([label, value], i) => {
-    const ry = y + 28 + i * 5.2;
+    const ry = y + (verifiedOnline ? 31 : 28) + i * 5.2;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...MUTED);
@@ -340,7 +342,7 @@ function authenticationBlock(doc, { y, qr, reference, fingerprint, issuedOn, che
         ? 'Sécurités : relevé inscrit au registre de la Concession (vérification en ligne), empreinte calculée par le serveur, lignes de micro-texte (visibles à la loupe).'
         : 'Sécurités : référence unique, empreinte numérique reprise dans le QR code, lignes de micro-texte (visibles à la loupe). Non inscrit au registre en ligne.'
     ),
-    CONTENT_W - h - 6
+    CONTENT_W - qrSize - 12
   );
   doc.text(note, tx, y + h - 3 - (note.length - 1) * 2.6);
   return y + h;
@@ -478,7 +480,7 @@ export async function buildRelevePdf(data) {
   });
 
   y = sectionTitle(doc, 5, 'Authentification', y + 8);
-  y = authenticationBlock(doc, { y, qr, reference: data.reference, fingerprint: data.fingerprint, issuedOn: data.issuedOn, checks: '(lot, propriétaire, superficie, côtés, référence et empreinte)', verifiedOnline: data.verifiedOnline });
+  y = authenticationBlock(doc, { y, qr, reference: data.reference, fingerprint: data.fingerprint, issuedOn: data.issuedOn, checks: '(lot, propriétaire, superficie, côtés, référence et empreinte)', verifiedOnline: data.verifiedOnline, verifyCode: data.verifyCode, verifySite: data.verifySite });
 
   y = sectionTitle(doc, 6, 'Visas', y + 8);
   y = signatures(doc, y, { leftTitle: 'Le Géomètre-Arpenteur agréé', rightTitle: "La Direction de la Concession" });

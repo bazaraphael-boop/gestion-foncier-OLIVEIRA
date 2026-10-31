@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldCheck, ArrowLeft, Lock, KeyRound, User, Eye, EyeOff, Loader2, ShieldAlert } from 'lucide-react';
-import { loginAdmin } from '../services/authService';
+import { loginAdmin, verifyLoginCode, cancelLogin } from '../services/authService';
 
 export default function AdminLoginModal({ onSuccess, onBack }) {
   const [identifier, setIdentifier] = useState('');
@@ -8,6 +8,8 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [mfaStep, setMfaStep] = useState(false);
+  const [mfaCode, setMfaCode] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,6 +25,9 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
       const res = await loginAdmin(identifier, password);
       if (res.success) {
         onSuccess(res.session);
+      } else if (res.mfaRequired) {
+        setPassword('');
+        setMfaStep(true);
       } else {
         setError(res.error);
       }
@@ -31,6 +36,27 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleMfaSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    const res = await verifyLoginCode(mfaCode);
+    setIsLoading(false);
+    if (res.success) {
+      onSuccess(res.session);
+    } else {
+      setMfaCode('');
+      setError(res.error);
+    }
+  };
+
+  const handleMfaCancel = async () => {
+    await cancelLogin();
+    setMfaStep(false);
+    setMfaCode('');
+    setError('');
   };
 
   return (
@@ -76,6 +102,46 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
           </div>
 
           {/* Form */}
+          {mfaStep ? (
+            <form onSubmit={handleMfaSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="mfa-code" className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5 text-center">
+                  Code de votre application d'authentification
+                </label>
+                <input
+                  id="mfa-code"
+                  autoFocus
+                  value={mfaCode}
+                  onChange={(e) => {
+                    setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6));
+                    setError('');
+                  }}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  disabled={isLoading}
+                  placeholder="000000"
+                  className="w-full h-12 text-center font-mono text-xl tracking-[0.4em] bg-gray-50 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:border-[#1a3a5c] focus:bg-white"
+                />
+              </div>
+              {error ? (
+                <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs text-center flex items-center justify-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-red-500 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              ) : null}
+              <button
+                type="submit"
+                disabled={isLoading || mfaCode.length !== 6}
+                className="w-full py-3 bg-[#1a3a5c] hover:bg-[#122840] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin text-blue-200" /> : <ShieldCheck className="w-4 h-4 text-blue-200" />}
+                <span>Valider le code</span>
+              </button>
+              <button type="button" onClick={handleMfaCancel} className="w-full text-xs text-gray-500 hover:text-gray-800 cursor-pointer py-1">
+                Annuler et revenir au mot de passe
+              </button>
+            </form>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Identifiant ou Email */}
             <div>
@@ -159,6 +225,7 @@ export default function AdminLoginModal({ onSuccess, onBack }) {
               )}
             </button>
           </form>
+          )}
 
           {/* Security Notice */}
           <div className="pt-2 border-t border-gray-100 flex items-center justify-center gap-2 text-[11px] text-gray-400 text-center">

@@ -1,9 +1,10 @@
 ﻿import React, { useState } from 'react';
 import { ShieldCheck, Lock, CheckCircle2, AlertCircle, X, LogOut, Eye, EyeOff } from 'lucide-react';
 import { updateAdminPassword } from '../services/authService';
+import MfaSetup from './MfaSetup';
 
-export default function AdminSecurityModal({ isOpen, onClose, onLogout, session }) {
-  const [activeTab, setActiveTab] = useState('admin_pwd'); // 'admin_pwd' | 'session'
+export default function AdminSecurityModal({ isOpen, onClose, onLogout, session, onMfaChange }) {
+  const [activeTab, setActiveTab] = useState('mfa'); // 'mfa' | 'admin_pwd' | 'session'
 
   // Admin Password state
   const [currentAdminPwd, setCurrentAdminPwd] = useState('');
@@ -73,6 +74,16 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout, session 
         {/* Navigation Tabs */}
         <div className="flex border-b border-gray-200 bg-gray-50 text-xs font-semibold">
           <button
+            onClick={() => setActiveTab('mfa')}
+            className={`flex-1 py-3 px-3 text-center border-b-2 transition-colors cursor-pointer ${
+              activeTab === 'mfa'
+                ? 'border-[#1a3a5c] text-[#1a3a5c] bg-white font-bold'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Double vérification
+          </button>
+          <button
             onClick={() => setActiveTab('admin_pwd')}
             className={`flex-1 py-3 px-3 text-center border-b-2 transition-colors cursor-pointer ${
               activeTab === 'admin_pwd'
@@ -80,7 +91,7 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout, session 
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            Mot de Passe Admin
+            Mot de passe
           </button>
           <button
             onClick={() => setActiveTab('session')}
@@ -90,12 +101,14 @@ export default function AdminSecurityModal({ isOpen, onClose, onLogout, session 
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            Session Active
+            Session
           </button>
         </div>
 
         {/* Body Content */}
-        <div className="p-6">
+        <div className="p-6 max-h-[70vh] overflow-y-auto">
+          {activeTab === 'mfa' && <MfaSetup onChange={onMfaChange} />}
+
           {/* TAB 1: ADMIN PASSWORD */}
           {activeTab === 'admin_pwd' && (
             <form onSubmit={handleUpdateAdminPassword} className="space-y-4">

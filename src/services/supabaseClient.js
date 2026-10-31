@@ -70,6 +70,12 @@ export function initSupabaseClient() {
 // Initialise client
 initSupabaseClient();
 
+// Separate client without saved session: checks a password without touching the current session
+export function createTemporaryClient() {
+  const { url, key } = getSupabaseConfig();
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'geocadastre_temp_auth' } });
+}
+
 export function getSupabaseInstance() {
   if (!supabase) {
     initSupabaseClient();

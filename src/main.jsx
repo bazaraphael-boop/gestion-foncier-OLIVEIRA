@@ -22,12 +22,13 @@ if (typeof window !== 'undefined' && 'caches' in window) {
 }
 
 // QR code of a relevé: public verification page, without sign-in
-const verifyToken = new URLSearchParams(window.location.search).get('verifier');
+const params = new URLSearchParams(window.location.search);
+const isVerifyPage = params.has('verifier');
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      {verifyToken ? <VerifyRelevePage token={verifyToken} /> : <App />}
+      {isVerifyPage ? <VerifyRelevePage token={params.get('verifier')} /> : <App />}
     </ErrorBoundary>
   </StrictMode>,
 )

@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ShieldCheck, ShieldAlert, ShieldX, Loader2, WifiOff } from 'lucide-react';
-import { verifyReleve } from '../services/releveVerification';
+import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { ShieldCheck, ShieldAlert, ShieldX, Loader2, WifiOff, ScanLine, Search } from 'lucide-react';
+import { verifyReleve, verifyReleveCode, parseOfficialQr } from '../services/releveVerification';
 
-// Public page opened by the QR code of a relevé: no sign-in, shows what the server's registry holds
+const QrScanner = lazy(() => import('./QrScanner'));
+
+// Official verification page, public. Checking from here (typed code or the scanner below) does not
+// depend on any link printed on the paper, so a forged QR code leading to a fake site is useless.
 
 const nf = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 });
 const nfHa = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -35,28 +38,59 @@ const STATUS = {
     icon: 'text-rose-700',
     title: 'Relevé introuvable',
     text: 'Ce code ne correspond à aucun relevé du registre. Le document n’est pas authentique.'
+  },
+  foreign: {
+    Icon: ShieldX,
+    box: 'bg-rose-50 border-rose-300 text-rose-900',
+    icon: 'text-rose-700',
+    title: 'Ce QR code n’est pas officiel',
+    text: 'Il ne provient pas du registre de la Concession. N’ouvrez pas son lien et ne vous fiez pas à ce document. Contactez la Concession.'
   }
 };
 
 export default function VerifyRelevePage({ token }) {
   const [result, setResult] = useState(null);
+  const [isLoading, setIsLoading] = useState(!!token);
   const [failed, setFailed] = useState(false);
+  const [code, setCode] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const [lastCheck, setLastCheck] = useState(null);
 
-  const load = useCallback(() => {
+  const check = useCallback((request) => {
+    setLastCheck(() => request);
     setFailed(false);
     setResult(null);
-    verifyReleve(token).then(setResult).catch(() => setFailed(true));
-  }, [token]);
+    setIsLoading(true);
+    return request()
+      .then(setResult)
+      .catch(() => setFailed(true))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   useEffect(() => {
+    if (!token) return undefined;
     let cancelled = false;
     verifyReleve(token)
       .then((data) => !cancelled && setResult(data))
-      .catch(() => !cancelled && setFailed(true));
+      .catch(() => !cancelled && setFailed(true))
+      .finally(() => !cancelled && setIsLoading(false));
     return () => {
       cancelled = true;
     };
   }, [token]);
+
+  const handleScan = useCallback(
+    (text) => {
+      setScanning(false);
+      const scanned = parseOfficialQr(text);
+      if (scanned) check(() => verifyReleve(scanned));
+      else {
+        setFailed(false);
+        setResult({ status: 'foreign' });
+      }
+    },
+    [check]
+  );
 
   const status = result && (STATUS[result.status] || STATUS.unknown);
   const rows = result?.lot
@@ -80,7 +114,7 @@ export default function VerifyRelevePage({ token }) {
 
         <h1 className="text-[15px] font-semibold text-slate-700 text-center">Vérification d’un relevé parcellaire</h1>
 
-        {!result && !failed && (
+        {isLoading && (
           <div role="status" className="bg-white rounded-xl border border-slate-200 p-8 flex items-center justify-center gap-2.5 text-slate-600">
             <Loader2 className="w-5 h-5 animate-spin" /> Interrogation du registre…
           </div>
@@ -91,7 +125,7 @@ export default function VerifyRelevePage({ token }) {
             <WifiOff className="w-8 h-8 text-slate-400 mx-auto" />
             <p className="font-semibold">Vérification impossible pour le moment</p>
             <p className="text-sm text-slate-600">Vérifiez la connexion Internet. Ce message ne dit rien sur l’authenticité du document.</p>
-            <button onClick={load} className="h-10 px-4 bg-brand-700 hover:bg-brand-800 text-white rounded-lg text-sm font-semibold cursor-pointer">
+            <button type="button" onClick={() => (lastCheck ? check(lastCheck) : check(() => verifyReleve(token)))} className="h-10 px-4 bg-brand-700 hover:bg-brand-800 text-white rounded-lg text-sm font-semibold cursor-pointer">
               Réessayer
             </button>
           </div>
@@ -124,12 +158,44 @@ export default function VerifyRelevePage({ token }) {
           </>
         )}
 
-        {(status || failed) && (
-          <p className="text-xs text-slate-500 text-center">
-            Page officielle : vérifiez que l’adresse affichée par votre téléphone est bien <strong>{window.location.host}</strong> et correspond à celle
-            communiquée par la Concession.
+        {/* Official entry: typed code or scanner */}
+        <section className="bg-white rounded-xl border border-slate-200 p-4 space-y-3" aria-labelledby="verify-other">
+          <h2 id="verify-other" className="font-semibold text-sm">{status || failed ? 'Vérifier un autre relevé' : 'Entrez le code imprimé sur le relevé'}</h2>
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const typed = code;
+              if (typed.trim()) check(() => verifyReleveCode(typed));
+            }}
+          >
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="VERIF-XXXXX-XXXXX"
+              aria-label="Code de vérification du relevé"
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+              className="flex-1 min-w-0 h-11 px-3 bg-white border border-slate-300 rounded-lg font-mono text-[16px] focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            />
+            <button type="submit" disabled={!code.trim() || isLoading} aria-label="Vérifier le code" className="h-11 px-4 bg-brand-700 hover:bg-brand-800 text-white rounded-lg font-semibold text-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-40">
+              <Search className="w-4 h-4" /> Vérifier
+            </button>
+          </form>
+          {scanning ? (
+            <Suspense fallback={<div className="py-8 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>}>
+              <QrScanner onResult={handleScan} onClose={() => setScanning(false)} />
+            </Suspense>
+          ) : (
+            <button type="button" onClick={() => setScanning(true)} className="w-full h-11 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg font-medium text-sm flex items-center justify-center gap-2 cursor-pointer">
+              <ScanLine className="w-4 h-4 text-slate-500" /> Scanner le QR code du relevé
+            </button>
+          )}
+          <p className="text-xs text-slate-500">
+            Pour une vérification sûre, ouvrez vous-même cette page à l’adresse <strong>{window.location.host}</strong> : ne suivez pas un lien reçu ou imprimé sur un document douteux.
           </p>
-        )}
+        </section>
       </div>
     </main>
   );

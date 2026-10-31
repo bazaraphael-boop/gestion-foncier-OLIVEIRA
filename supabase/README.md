@@ -31,6 +31,7 @@ Il n'y a plus de portail client à code PIN.
    8. `migrations/20261030000000_security_hardening.sql` (champs réservés à l'admin, journal d'audit fiable, diagnostic RLS)
    9. `migrations/20261031000000_releve_verification.sql` (registre des relevés : le QR code du PDF se vérifie en ligne)
    10. `migrations/20261101000000_attack_simulation_fixes.sql` (parcelles piégées refusées, relevé vérifiable émis par l'admin seul)
+   11. `migrations/20261102000000_admin_mfa_and_releve_code.sql` (double vérification de l'admin, code imprimé des relevés)
 4. **Attribuer les rôles** : dans le SQL Editor, exécuter les requêtes `insert into public.profiles`
    de la section 5 du script, en y mettant les vrais e-mails.
 5. **Vérifier** : *Table Editor → parcels* doit afficher « RLS enabled ». Depuis un terminal, sans
@@ -53,6 +54,11 @@ Il n'y a plus de portail client à code PIN.
   peuvent en ajouter, seul l'admin peut en supprimer.
 - **Documents des parcelles** : titre de concession, contrat, plan cadastral, PV de bornage… stockés dans
   *Storage → parcel-documents* (privé). L'admin et les arpenteurs les ajoutent et les consultent ; seul l'admin les supprime.
+- **Double vérification** : *Outils → Sécurité → Double vérification*. Une fois active, le mot de passe seul
+  ne donne plus aucun droit admin. **Téléphone perdu** : le propriétaire du projet Supabase exécute dans le
+  SQL Editor `delete from auth.mfa_factors where user_id = (select id from auth.users where email = 'EMAIL_ADMIN');`
+  puis l'admin se reconnecte et réactive aussitôt la double vérification. Protégez aussi le compte Supabase
+  lui-même avec sa propre double vérification : il donne accès à tout.
 - **Relevés** : chaque relevé est inscrit dans la table `releves`. Pour en annuler un : *Table Editor →
   releves → revoked = true* ; son QR code affiche alors « Relevé annulé ».
 - **Suivi des arpenteurs** : quand un arpenteur active son GPS, sa position et son trajet du jour

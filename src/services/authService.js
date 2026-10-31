@@ -7,7 +7,7 @@
  * - Data access enforced by Row Level Security (see supabase/migrations)
  */
 
-import { getSupabaseInstance } from './supabaseClient';
+import { getSupabaseInstance, createTemporaryClient } from './supabaseClient';
 import { logActivity, flushAuditLogs } from './auditService';
 
 const VALID_ROLES = ['admin', 'arpenteur'];
@@ -64,7 +64,94 @@ async function signIn(email, password, allowedRoles) {
     await client.auth.signOut();
     return { success: false, error: "Ce compte n'est pas habilité pour cet espace." };
   }
+  // Two-step verification active: password alone gives no rights until the phone's code is confirmed
+  if (await needsMfaCode(client)) {
+    return { success: false, mfaRequired: true };
+  }
   return { success: true, session };
+}
+
+async function needsMfaCode(client) {
+  const { data } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+  return data?.nextLevel === 'aal2' && data?.currentLevel !== 'aal2';
+}
+
+function logLogin(session) {
+  const isArpenteur = session.role === 'arpenteur';
+  logActivity({
+    role: session.role,
+    actor: `${isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur'} (${session.user.email})`,
+    action: 'AUTH_LOGIN',
+    actionLabel: isArpenteur ? 'Connexion Espace Arpenteur Géomètre' : 'Connexion Espace Administration SIG',
+    details: isArpenteur ? 'Session de terrain et bornage activée' : 'Session complète de direction cadastrale ouverte',
+    severity: 'success'
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * TWO-STEP VERIFICATION (authenticator app on the phone)
+ * ───────────────────────────────────────────────────────────── */
+
+/** The account's active factor, or null */
+export async function getMfaFactor() {
+  const client = getSupabaseInstance();
+  const { data, error } = await client.auth.mfa.listFactors();
+  if (error) return null;
+  return data?.totp?.[0] || null;
+}
+
+async function verifyFactorCode(client, factorId, code) {
+  const { error } = await client.auth.mfa.challengeAndVerify({ factorId, code });
+  if (error) {
+    const msg = (error.message || '').toLowerCase();
+    if (error.status === 429 || msg.includes('too many') || msg.includes('rate limit')) {
+      throw new Error('Trop de tentatives. Patientez quelques minutes.');
+    }
+    throw new Error('Code incorrect ou expiré. Tapez le code affiché actuellement.');
+  }
+}
+
+/** Second step of the login */
+export async function verifyLoginCode(code) {
+  const client = getSupabaseInstance();
+  const factor = await getMfaFactor();
+  if (!factor) return { success: false, error: 'Double vérification introuvable sur ce compte.' };
+  try {
+    await verifyFactorCode(client, factor.id, code);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+  const { data } = await client.auth.getSession();
+  const session = await buildSession(data.session);
+  if (!session) return { success: false, error: "Ce compte n'est pas habilité pour cet espace." };
+  logLogin(session);
+  return { success: true, session };
+}
+
+/** Login abandoned between the password and the code */
+export async function cancelLogin() {
+  await getSupabaseInstance().auth.signOut({ scope: 'local' });
+}
+
+export async function startMfaEnrollment() {
+  const client = getSupabaseInstance();
+  // A previous attempt that was never confirmed would block a new one
+  const { data: list } = await client.auth.mfa.listFactors();
+  for (const f of list?.all || []) {
+    if (f.status !== 'verified') await client.auth.mfa.unenroll({ factorId: f.id });
+  }
+  const { data, error } = await client.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Téléphone' });
+  if (error) throw new Error(`Activation impossible : ${error.message}`);
+  return { factorId: data.id, qr: data.totp.qr_code, secret: data.totp.secret };
+}
+
+export async function confirmMfaEnrollment(factorId, code) {
+  await verifyFactorCode(getSupabaseInstance(), factorId, code);
+}
+
+export async function disableMfa(factorId) {
+  const { error } = await getSupabaseInstance().auth.mfa.unenroll({ factorId });
+  if (error) throw new Error(`Désactivation impossible : ${error.message}`);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -78,17 +165,7 @@ export async function loginAdmin(email, password) {
   }
 
   const res = await signIn(cleanEmail, password, ['admin', 'arpenteur']);
-  if (res.success) {
-    const isArpenteur = res.session.role === 'arpenteur';
-    logActivity({
-      role: res.session.role,
-      actor: `${isArpenteur ? 'Arpenteur Géomètre' : 'Administrateur'} (${cleanEmail})`,
-      action: 'AUTH_LOGIN',
-      actionLabel: isArpenteur ? 'Connexion Espace Arpenteur Géomètre' : 'Connexion Espace Administration SIG',
-      details: isArpenteur ? 'Session de terrain et bornage activée' : 'Session complète de direction cadastrale ouverte',
-      severity: 'success'
-    });
-  }
+  if (res.success) logLogin(res.session);
   return res;
 }
 
@@ -101,6 +178,11 @@ export async function getCurrentSession() {
   if (!client) return null;
   try {
     const { data } = await client.auth.getSession();
+    // A session stopped between the password and the code is not an opened session
+    if (data.session && (await needsMfaCode(client))) {
+      await client.auth.signOut({ scope: 'local' });
+      return null;
+    }
     return await buildSession(data.session);
   } catch (e) {
     console.warn('Lecture de session impossible:', e);
@@ -158,8 +240,8 @@ export async function updateAdminPassword(currentPassword, newPassword) {
     return { success: false, error: 'Session expirée. Veuillez vous reconnecter.' };
   }
 
-  // Verify current password before changing it
-  const { error: verifyError } = await client.auth.signInWithPassword({ email, password: currentPassword });
+  // Verify current password on a separate client: the session keeps its two-step verification
+  const { error: verifyError } = await createTemporaryClient().auth.signInWithPassword({ email, password: currentPassword });
   if (verifyError) {
     return { success: false, error: 'Le mot de passe actuel est incorrect.' };
   }
