@@ -949,6 +949,13 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
         />
       )}
 
+      {/* Discreet notice: the arpenteur is told that his position is shared while the GPS is on */}
+      {isArpenteur && isLocating && !isSimulated && (
+        <p className="px-3 py-0.5 text-[9px] leading-tight text-slate-400 text-center bg-white">
+          Position partagée avec l’administrateur tant que le GPS est activé.
+        </p>
+      )}
+
       {/* Dashboard Analytics */}
       <Dashboard
         concessionPolygon={activeZone || concessionPolygon}

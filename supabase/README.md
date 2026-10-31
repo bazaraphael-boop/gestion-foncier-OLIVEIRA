@@ -29,6 +29,7 @@ Il n'y a plus de portail client à code PIN.
    6. `migrations/20261028000000_parcel_documents_storage.sql` (documents des parcelles : espace privé « parcel-documents »)
    7. `migrations/20261029000000_concession_zones.sql` (zones de la concession : seul l'admin ajoute ou supprime)
    8. `migrations/20261030000000_security_hardening.sql` (champs réservés à l'admin, journal d'audit fiable, diagnostic RLS)
+   9. `migrations/20261031000000_releve_verification.sql` (registre des relevés : le QR code du PDF se vérifie en ligne)
 4. **Attribuer les rôles** : dans le SQL Editor, exécuter les requêtes `insert into public.profiles`
    de la section 5 du script, en y mettant les vrais e-mails.
 5. **Vérifier** : *Table Editor → parcels* doit afficher « RLS enabled ». Depuis un terminal, sans
@@ -51,8 +52,10 @@ Il n'y a plus de portail client à code PIN.
   peuvent en ajouter, seul l'admin peut en supprimer.
 - **Documents des parcelles** : titre de concession, contrat, plan cadastral, PV de bornage… stockés dans
   *Storage → parcel-documents* (privé). L'admin et les arpenteurs les ajoutent et les consultent ; seul l'admin les supprime.
+- **Relevés** : chaque relevé est inscrit dans la table `releves`. Pour en annuler un : *Table Editor →
+  releves → revoked = true* ; son QR code affiche alors « Relevé annulé ».
 - **Suivi des arpenteurs** : quand un arpenteur active son GPS, sa position et son trajet du jour
-  apparaissent sur la carte de l'admin (encadré « Arpenteurs »). Rien ne s'affiche chez l'arpenteur :
-  prévenez-le du suivi (contrat ou règlement intérieur). Les trajets de plus de 30 jours sont supprimés
+  apparaissent sur la carte de l'admin (encadré « Arpenteurs »). Une petite mention le lui indique à
+  l'écran ; prévenez-le aussi par écrit (contrat ou règlement intérieur). Les trajets de plus de 30 jours sont supprimés
   automatiquement.
 - **Mot de passe oublié** : *Authentication → Users → … → Send password recovery*.

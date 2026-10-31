@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import VerifyRelevePage from './components/VerifyRelevePage.jsx'
 
 // Clickjacking protection: the app refuses to run inside another site's frame
 if (window.top !== window.self) {
@@ -20,10 +21,13 @@ if (typeof window !== 'undefined' && 'caches' in window) {
   }).catch(() => {});
 }
 
+// QR code of a relevé: public verification page, without sign-in
+const verifyToken = new URLSearchParams(window.location.search).get('verifier');
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      {verifyToken ? <VerifyRelevePage token={verifyToken} /> : <App />}
     </ErrorBoundary>
   </StrictMode>,
 )

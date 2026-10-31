@@ -285,7 +285,7 @@ function footer(doc, { page, pages, reference, fingerprint }) {
   doc.text(pdfText(`Page ${page} / ${pages}`), PAGE.w - M, PAGE.h - 13.5, { align: 'right' });
 }
 
-function authenticationBlock(doc, { y, qr, reference, fingerprint, issuedOn, checks }) {
+function authenticationBlock(doc, { y, qr, reference, fingerprint, issuedOn, checks, verifiedOnline = false }) {
   const h = 50;
   doc.setDrawColor(...NAVY);
   doc.setLineWidth(0.4);
@@ -303,9 +303,13 @@ function authenticationBlock(doc, { y, qr, reference, fingerprint, issuedOn, che
   doc.setTextColor(...INK);
   const intro = doc.splitTextToSize(
     pdfText(
-      "Scannez le QR code avec l'appareil photo d'un téléphone : le message affiché doit reprendre exactement les informations imprimées ci-dessous " +
-        checks +
-        '. Toute différence signifie que le document a été modifié (retouche, montage ou génération par intelligence artificielle) : il est alors NUL.'
+      verifiedOnline
+        ? "Scannez le QR code avec un téléphone : la page officielle de la Concession doit indiquer « Relevé authentique » et reprendre exactement ce document " +
+            checks +
+            '. Toute différence, ou un code introuvable, signifie que le document a été modifié (retouche, montage ou IA) : il est alors NUL.'
+        : "Scannez le QR code avec l'appareil photo d'un téléphone : le message affiché doit reprendre exactement les informations imprimées ci-dessous " +
+            checks +
+            '. Toute différence signifie que le document a été modifié (retouche, montage ou génération par intelligence artificielle) : il est alors NUL.'
     ),
     CONTENT_W - h - 6
   );
@@ -331,7 +335,11 @@ function authenticationBlock(doc, { y, qr, reference, fingerprint, issuedOn, che
   doc.setFontSize(6.4);
   doc.setTextColor(...MUTED);
   const note = doc.splitTextToSize(
-    pdfText('Sécurités : référence unique, empreinte numérique reprise dans le QR code de chaque page, lignes de micro-texte (visibles à la loupe).'),
+    pdfText(
+      verifiedOnline
+        ? 'Sécurités : relevé inscrit au registre de la Concession (vérification en ligne), empreinte calculée par le serveur, lignes de micro-texte (visibles à la loupe).'
+        : 'Sécurités : référence unique, empreinte numérique reprise dans le QR code, lignes de micro-texte (visibles à la loupe). Non inscrit au registre en ligne.'
+    ),
     CONTENT_W - h - 6
   );
   doc.text(note, tx, y + h - 3 - (note.length - 1) * 2.6);
@@ -470,7 +478,7 @@ export async function buildRelevePdf(data) {
   });
 
   y = sectionTitle(doc, 5, 'Authentification', y + 8);
-  y = authenticationBlock(doc, { y, qr, reference: data.reference, fingerprint: data.fingerprint, issuedOn: data.issuedOn, checks: '(lot, propriétaire, superficie, côtés, référence et empreinte)' });
+  y = authenticationBlock(doc, { y, qr, reference: data.reference, fingerprint: data.fingerprint, issuedOn: data.issuedOn, checks: '(lot, propriétaire, superficie, côtés, référence et empreinte)', verifiedOnline: data.verifiedOnline });
 
   y = sectionTitle(doc, 6, 'Visas', y + 8);
   y = signatures(doc, y, { leftTitle: 'Le Géomètre-Arpenteur agréé', rightTitle: "La Direction de la Concession" });
