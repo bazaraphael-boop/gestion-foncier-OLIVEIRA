@@ -38,12 +38,12 @@ function surveyorIcon(initials, online) {
       key,
       L.divIcon({
         className: 'live-surveyor-icon',
-        html: `<div style="position:relative;width:34px;height:34px;display:flex;align-items:center;justify-content:center;">
+        html: `<div style="position:relative;width:22px;height:22px;display:flex;align-items:center;justify-content:center;">
           ${online ? `<div style="position:absolute;inset:0;border-radius:9999px;background:${color}55;animation:ping 1.6s cubic-bezier(0,0,0.2,1) infinite;"></div>` : ''}
-          <div style="position:relative;width:26px;height:26px;border-radius:9999px;background:${color};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(15,37,64,.45);color:#fff;font:700 10.5px/26px system-ui,sans-serif;text-align:center;">${initials}</div>
+          <div style="position:relative;width:18px;height:18px;border-radius:9999px;background:${color};border:1.5px solid #fff;box-shadow:0 1px 4px rgba(15,37,64,.45);color:#fff;font:700 8px/15px system-ui,sans-serif;text-align:center;">${initials}</div>
         </div>`,
-        iconSize: [34, 34],
-        iconAnchor: [17, 17]
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
       })
     );
   }
@@ -73,7 +73,7 @@ export function LiveSurveyorsLayer({ surveyors, focus }) {
         <Circle center={[s.lat, s.lng]} radius={s.accuracy} pathOptions={{ color: ONLINE, fillColor: ONLINE, fillOpacity: 0.1, weight: 1 }} />
       )}
       <Marker position={[s.lat, s.lng]} icon={surveyorIcon(initialsOf(s.name), s.online)} zIndexOffset={1000}>
-        <Tooltip direction="top" offset={[0, -16]} opacity={0.95}>
+        <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
           <span className="text-[11px] font-semibold">{s.name}</span>
         </Tooltip>
         <Popup>
