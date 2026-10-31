@@ -30,6 +30,7 @@ Il n'y a plus de portail client à code PIN.
    7. `migrations/20261029000000_concession_zones.sql` (zones de la concession : seul l'admin ajoute ou supprime)
    8. `migrations/20261030000000_security_hardening.sql` (champs réservés à l'admin, journal d'audit fiable, diagnostic RLS)
    9. `migrations/20261031000000_releve_verification.sql` (registre des relevés : le QR code du PDF se vérifie en ligne)
+   10. `migrations/20261101000000_attack_simulation_fixes.sql` (parcelles piégées refusées, relevé vérifiable émis par l'admin seul)
 4. **Attribuer les rôles** : dans le SQL Editor, exécuter les requêtes `insert into public.profiles`
    de la section 5 du script, en y mettant les vrais e-mails.
 5. **Vérifier** : *Table Editor → parcels* doit afficher « RLS enabled ». Depuis un terminal, sans

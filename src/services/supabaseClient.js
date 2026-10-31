@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { sanitizeParcels } from '../utils/parcelSafety';
 
 // Official Supabase Credentials supplied by user
 export const DEFAULT_SUPABASE_KEY = 'sb_publishable_7Ns4c6xSjJ6RtxkPtzhXgg_poq0dI1x';
@@ -91,14 +92,24 @@ export async function fetchParcelsFromSupabase() {
 
     if (error) throw error;
     if (data) {
-      return data
-        .filter((row) => !row.id || !row.id.startsWith('__'))
-        .map((row) => ({
-          id: row.id,
-          type: row.type || 'Feature',
-          geometry: typeof row.geometry === 'string' ? JSON.parse(row.geometry) : row.geometry,
-          properties: typeof row.properties === 'string' ? JSON.parse(row.properties) : row.properties
-        }));
+      const parseJson = (value) => {
+        if (typeof value !== 'string') return value;
+        try {
+          return JSON.parse(value);
+        } catch {
+          return null;
+        }
+      };
+      return sanitizeParcels(
+        data
+          .filter((row) => !row.id || !row.id.startsWith('__'))
+          .map((row) => ({
+            id: row.id,
+            type: row.type || 'Feature',
+            geometry: parseJson(row.geometry),
+            properties: parseJson(row.properties)
+          }))
+      );
     }
     return [];
   } catch (err) {

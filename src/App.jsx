@@ -46,6 +46,7 @@ import { getCurrentSession, onSessionChange, logout } from './services/authServi
 import { logActivity, clearLocalAuditLogs } from './services/auditService';
 import { useShareSurveyorPosition, useLiveSurveyors } from './hooks/useSurveyorTracking';
 import { useZones } from './hooks/useZones';
+import { sanitizeParcels } from './utils/parcelSafety';
 
 const STORAGE_KEY_PARCELS = 'geocadastre_parcels_v3';
 const STORAGE_KEY_ISETECH = 'geocadastre_isetech_parcels_v3';
@@ -71,7 +72,7 @@ function getInitialParcels() {
     const saved = localStorage.getItem(STORAGE_KEY_PARCELS);
     if (saved !== null) {
       const loaded = JSON.parse(saved);
-      if (Array.isArray(loaded)) return loaded;
+      if (Array.isArray(loaded)) return sanitizeParcels(loaded);
     }
   } catch (e) {}
   return [];
@@ -82,7 +83,7 @@ function getInitialIsetechParcels() {
     const saved = localStorage.getItem(STORAGE_KEY_ISETECH);
     if (saved !== null) {
       const loaded = JSON.parse(saved);
-      if (Array.isArray(loaded)) return loaded;
+      if (Array.isArray(loaded)) return sanitizeParcels(loaded);
     }
   } catch (e) {}
   return [];

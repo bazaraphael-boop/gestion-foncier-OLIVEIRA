@@ -130,7 +130,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
   // Relevé opened: recorded on the server, its QR code then opens the online verification page.
   // Short delay so that a change just saved (issue date) has reached the cloud.
   useEffect(() => {
-    if (!showReleve || !parcel || isVisitorMode) return undefined;
+    if (!showReleve || !parcel || isVisitorMode || isArpenteur) return undefined;
     let cancelled = false;
     const timer = setTimeout(async () => {
       const issued = await issueReleve(parcel.id);
@@ -146,7 +146,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [showReleve, parcel, isVisitorMode]);
+  }, [showReleve, parcel, isVisitorMode, isArpenteur]);
 
   if (!parcel) return null;
 
@@ -380,7 +380,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
     setIsDownloadingPdf(true);
     try {
       // Recorded on the server; a date just changed may need a moment to reach the cloud
-      let issued = await issueReleve(parcel.id);
+      let issued = isArpenteur ? null : await issueReleve(parcel.id);
       if (issued && issued.issuedOn !== releveIssuedOnText(parcel)) {
         await new Promise((resolve) => setTimeout(resolve, 1500));
         issued = await issueReleve(parcel.id);
@@ -439,7 +439,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         notes: parcel.properties.notes || '',
         annexes
       });
-      if (!issued) {
+      if (!issued && !isArpenteur) {
         alert('Relevé non inscrit au registre (pas de connexion, ou script « releve_verification » pas encore lancé). Le PDF est créé, mais son QR code ne pourra pas être vérifié en ligne.');
       }
       const fileName = `Releve_${String(lotRef).replace(/[^\w-]+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -538,7 +538,12 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
               </div>
             </div>
 
-            {verification === false && (
+            {isArpenteur && (
+              <p data-pdf-ignore className="px-6 py-1.5 text-[11px] text-slate-600 bg-slate-50 border-b border-slate-200 print:hidden">
+                Copie de travail : seul l&apos;administrateur peut émettre un relevé vérifiable en ligne.
+              </p>
+            )}
+            {!isArpenteur && verification === false && (
               <p data-pdf-ignore className="px-6 py-1.5 text-[11px] text-amber-800 bg-amber-50 border-b border-amber-200 print:hidden">
                 Relevé non inscrit au registre : son QR code ne pourra pas être vérifié en ligne (connexion ou script Supabase manquant).
               </p>

@@ -123,7 +123,7 @@ export function useLiveSurveyors(enabled) {
 
   if (!enabled) return [];
   return Object.entries(byUser)
-    .filter(([, entry]) => entry.location)
+    .filter(([, entry]) => Number.isFinite(entry.location?.lat) && Number.isFinite(entry.location?.lng))
     .map(([userId, { location, trail }]) => {
       const updatedAt = new Date(location.updated_at);
       return {
@@ -131,10 +131,10 @@ export function useLiveSurveyors(enabled) {
         name: location.full_name || 'Arpenteur',
         lat: location.lat,
         lng: location.lng,
-        accuracy: location.accuracy,
+        accuracy: Number.isFinite(location.accuracy) ? location.accuracy : null,
         updatedAt,
         online: location.is_active && now - updatedAt.getTime() < OFFLINE_AFTER_MS,
-        trail
+        trail: trail.filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]))
       };
     })
     .sort((a, b) => Number(b.online) - Number(a.online) || b.updatedAt - a.updatedAt);
