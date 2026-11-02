@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Polyline, Marker, Popup, Tooltip, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Radio, ChevronDown, ChevronUp, LocateFixed } from 'lucide-react';
+import { Radio, ChevronDown, ChevronUp, LocateFixed, Route, EyeOff } from 'lucide-react';
 import { formatMeters, gridDistance } from '../utils/geoUtils';
 
 // Admin view of the arpenteurs' live positions (data from hooks/useSurveyorTracking.js)
@@ -54,7 +54,7 @@ const trailLength = (trail) =>
   trail.reduce((sum, p, i) => (i === 0 ? 0 : sum + gridDistance([trail[i - 1][1], trail[i - 1][0]], [p[1], p[0]])), 0);
 
 /** Inside <MapContainer>: today's trail and live marker of each arpenteur */
-export function LiveSurveyorsLayer({ surveyors, focus }) {
+export function LiveSurveyorsLayer({ surveyors, focus, showTrails = true }) {
   const map = useMap();
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export function LiveSurveyorsLayer({ surveyors, focus }) {
 
   return surveyors.map((s) => (
     <React.Fragment key={s.userId}>
-      {s.trail.length > 1 && (
+      {showTrails && s.trail.length > 1 && (
         <Polyline
           positions={s.trail}
           pathOptions={{ color: s.online ? ONLINE : OFFLINE, weight: 3, opacity: 0.85, dashArray: s.online ? null : '6 6' }}
@@ -95,7 +95,7 @@ export function LiveSurveyorsLayer({ surveyors, focus }) {
 }
 
 /** Floating list of the arpenteurs, outside the map */
-export function LiveSurveyorsPanel({ surveyors, onFocus }) {
+export function LiveSurveyorsPanel({ surveyors, onFocus, showTrails = true, onToggleTrails }) {
   const [open, setOpen] = useState(true);
   const [, setTick] = useState(0);
 
@@ -143,6 +143,17 @@ export function LiveSurveyorsPanel({ surveyors, onFocus }) {
             </li>
           ))}
         </ul>
+      )}
+      {open && onToggleTrails && (
+        <button
+          type="button"
+          onClick={onToggleTrails}
+          aria-pressed={showTrails}
+          className="w-full h-9 px-3 border-t border-slate-100 flex items-center gap-2 text-left text-slate-700 hover:bg-slate-50 rounded-b-xl cursor-pointer"
+        >
+          {showTrails ? <EyeOff className="w-4 h-4 text-slate-500" /> : <Route className="w-4 h-4 text-orange-600" />}
+          {showTrails ? 'Masquer les trajets' : 'Afficher les trajets'}
+        </button>
       )}
     </div>
   );

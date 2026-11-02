@@ -83,6 +83,8 @@ const PRESET_PERCENTAGES = [
   { pct: 1000, level: 22, label: '1000% (Zoom Max HD)' }
 ];
 
+const SURVEYOR_TRAILS_KEY = 'geocadastre_surveyor_trails';
+
 // Selected Parcel Borne Icon (draggable for Admin only). Created once per borne:
 // a new icon on each render would reset the marker and cancel an ongoing drag.
 const createParcelBorneIcon = (num, isDraggable) => L.divIcon({
@@ -611,6 +613,23 @@ export default function MapView({
   const [showMobileGisMenu, setShowMobileGisMenu] = useState(false);
   const [isTilesLoading, setIsTilesLoading] = useState(true);
   const [surveyorFocus, setSurveyorFocus] = useState(null);
+  // Surveyors' trails can be hidden; the choice is remembered on this device
+  const [showSurveyorTrails, setShowSurveyorTrails] = useState(() => {
+    try {
+      return localStorage.getItem(SURVEYOR_TRAILS_KEY) !== 'hidden';
+    } catch {
+      return true;
+    }
+  });
+  const toggleSurveyorTrails = () => {
+    const next = !showSurveyorTrails;
+    setShowSurveyorTrails(next);
+    try {
+      localStorage.setItem(SURVEYOR_TRAILS_KEY, next ? 'shown' : 'hidden');
+    } catch {
+      // Storage unavailable: the choice lasts for this session
+    }
+  };
   const isOnline = useOnlineStatus();
 
   const effectiveUserLocation = externalUserLocation || userLocation;
@@ -2350,10 +2369,10 @@ export default function MapView({
         )}
 
         {/* Admin: live position and trail of the arpenteurs */}
-        {isAdmin && liveSurveyors.length > 0 && <LiveSurveyorsLayer surveyors={liveSurveyors} focus={surveyorFocus} />}
+        {isAdmin && liveSurveyors.length > 0 && <LiveSurveyorsLayer surveyors={liveSurveyors} focus={surveyorFocus} showTrails={showSurveyorTrails} />}
       </MapContainer>
 
-      {isAdmin && <LiveSurveyorsPanel surveyors={liveSurveyors} onFocus={setSurveyorFocus} />}
+      {isAdmin && <LiveSurveyorsPanel surveyors={liveSurveyors} onFocus={setSurveyorFocus} showTrails={showSurveyorTrails} onToggleTrails={toggleSurveyorTrails} />}
 
       {isMeasuring && (
         <MeasurePanel
