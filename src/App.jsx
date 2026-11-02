@@ -230,11 +230,14 @@ export default function App() {
       if (err.code === 1) {
         alert("Accès à la géolocalisation refusé. Veuillez autoriser la localisation dans les paramètres de votre navigateur.");
         stopLocation();
-      } else {
-        // Fallback retry with getCurrentPosition
+      } else if (isFirstFixRef.current) {
+        // No position yet: fallback retry with getCurrentPosition. Once located, a passing loss of
+        // signal (trees, buildings) must not stop the tracking: the watch simply continues.
+        
         navigator.geolocation.getCurrentPosition(
           successCallback,
           (fallbackErr) => {
+            if (!isFirstFixRef.current) return;
             alert("Impossible de déterminer votre position GPS: " + fallbackErr.message);
             stopLocation();
           },
@@ -247,7 +250,7 @@ export default function App() {
       watchIdRef.current = navigator.geolocation.watchPosition(
         successCallback,
         errorCallback,
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+        { enableHighAccuracy: true, timeout: 30000, maximumAge: 5000 }
       );
     } catch (e) {
       console.error("WatchPosition error:", e);

@@ -32,6 +32,7 @@ Il n'y a plus de portail client à code PIN.
    9. `migrations/20261031000000_releve_verification.sql` (registre des relevés : le QR code du PDF se vérifie en ligne)
    10. `migrations/20261101000000_attack_simulation_fixes.sql` (parcelles piégées refusées, relevé vérifiable émis par l'admin seul)
    11. `migrations/20261102000000_admin_mfa_and_releve_code.sql` (double vérification de l'admin, code imprimé des relevés)
+   12. `migrations/20261103000000_surveyor_server_time.sql` (suivi des arpenteurs : heure fixée par le serveur)
 4. **Attribuer les rôles** : dans le SQL Editor, exécuter les requêtes `insert into public.profiles`
    de la section 5 du script, en y mettant les vrais e-mails.
 5. **Vérifier** : *Table Editor → parcels* doit afficher « RLS enabled ». Depuis un terminal, sans

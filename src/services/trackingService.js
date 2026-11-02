@@ -60,10 +60,11 @@ export async function fetchLiveSurveyors() {
       .from('surveyor_location_points')
       .select('user_id, lat, lng, recorded_at')
       .gte('recorded_at', startOfDay.toISOString())
-      .order('recorded_at', { ascending: true })
+      .order('recorded_at', { ascending: false })
       .limit(5000)
   ]);
-  return { locations: loc.data || [], points: pts.data || [], error: loc.error?.message || pts.error?.message };
+  // Newest 5000 points, put back in walking order
+  return { locations: loc.data || [], points: (pts.data || []).reverse(), error: loc.error?.message || pts.error?.message };
 }
 
 /** Admin: every new position as it arrives. Returns an unsubscribe function. */

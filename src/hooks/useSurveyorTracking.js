@@ -6,13 +6,15 @@ import {
   fetchLiveSurveyors,
   subscribeLiveSurveyors
 } from '../services/trackingService';
+import { MIN_MOVE_M, isTrailPoint, isUsableFix } from '../utils/trackingFilter';
 
 // Live tracking of the arpenteur (see services/trackingService.js)
 
-const MIN_MOVE_M = 5; // a new trail point once he moved this far
 const MIN_INTERVAL_MS = 4000; // at most one send every 4 s while moving
 const HEARTBEAT_MS = 20000; // still alive signal when he does not move
 export const OFFLINE_AFTER_MS = 90000; // no news for 1 min 30: shown as offline
+const SEND_TIMEOUT_MS = 15000; // a request stuck on weak 4G must not block the next ones
+const ADMIN_REFRESH_MS = 30000; // live updates can be missed when the connection drops
 
 const distanceM = (a, b) => gridDistance([a[1], a[0]], [b[1], b[0]]);
 
@@ -23,24 +25,39 @@ const distanceM = (a, b) => gridDistance([a[1], a[0]], [b[1], b[0]]);
  */
 export function useShareSurveyorPosition({ enabled, session, position, accuracy }) {
   const latest = useRef({ position, accuracy });
-  const lastSent = useRef({ at: 0, trailPos: null, failed: false });
+  const lastSent = useRef({ at: 0, trailPos: null, trailAt: 0, failed: false });
+  const lastGood = useRef(null); // { position, accuracy, at }: last fix precise enough for the map
   const inFlight = useRef(false);
   const wasEnabled = useRef(false);
 
   latest.current = { position, accuracy };
 
   const send = async (force) => {
-    const { position: pos, accuracy: acc } = latest.current;
-    if (!pos || inFlight.current) return;
+    if (!latest.current.position || inFlight.current) return;
     const now = Date.now();
-    const moved = !lastSent.current.trailPos || distanceM(pos, lastSent.current.trailPos) >= MIN_MOVE_M;
+    // A very rough fix does not replace a recent good one: the marker stays where it is
+    if (isUsableFix({ accuracy: latest.current.accuracy, lastGoodAt: lastGood.current?.at, now })) {
+      lastGood.current = { position: latest.current.position, accuracy: latest.current.accuracy, at: now };
+    }
+    const { position: pos, accuracy: acc } = lastGood.current;
+    const distance = lastSent.current.trailPos ? distanceM(pos, lastSent.current.trailPos) : null;
+    const moved = distance === null || distance >= MIN_MOVE_M;
+    const addTrailPoint = isTrailPoint({ distanceM: distance, accuracy: acc, lastTrailAt: lastSent.current.trailAt, now });
     const due = now - lastSent.current.at >= MIN_INTERVAL_MS;
     if (!force && !(due && (moved || lastSent.current.failed))) return;
     inFlight.current = true;
-    const res = await publishSurveyorPosition(session, { lat: pos[0], lng: pos[1], accuracy: acc }, { addTrailPoint: moved });
+    const res = await Promise.race([
+      publishSurveyorPosition(session, { lat: pos[0], lng: pos[1], accuracy: acc }, { addTrailPoint }),
+      new Promise((resolve) => setTimeout(() => resolve({ ok: false, error: 'Délai dépassé' }), SEND_TIMEOUT_MS))
+    ]);
     inFlight.current = false;
     if (res.ok) {
-      lastSent.current = { at: now, trailPos: moved ? pos : lastSent.current.trailPos, failed: false };
+      lastSent.current = {
+        at: now,
+        trailPos: addTrailPoint ? pos : lastSent.current.trailPos,
+        trailAt: addTrailPoint ? now : lastSent.current.trailAt,
+        failed: false
+      };
     } else {
       // Retried at the next GPS fix (at most every 4 s) or heartbeat
       console.warn('Suivi arpenteur : envoi impossible', res.error);
@@ -59,7 +76,8 @@ export function useShareSurveyorPosition({ enabled, session, position, accuracy 
     if (!enabled) {
       if (wasEnabled.current) {
         wasEnabled.current = false;
-        lastSent.current = { at: 0, trailPos: null, failed: false };
+        lastSent.current = { at: 0, trailPos: null, trailAt: 0, failed: false };
+        lastGood.current = null;
         setSurveyorOffline(session);
       }
       return undefined;
@@ -68,9 +86,36 @@ export function useShareSurveyorPosition({ enabled, session, position, accuracy 
     const timer = setInterval(() => send(true), HEARTBEAT_MS);
     const onPageHide = () => setSurveyorOffline(session);
     window.addEventListener('pagehide', onPageHide);
+
+    // Browsers stop the GPS when the screen locks: the screen stays on while the GPS is active
+    // (where the browser allows it), and the position leaves at once when the app comes back
+    let wakeLock = null;
+    let stopped = false;
+    const keepScreenOn = async () => {
+      try {
+        if (document.visibilityState !== 'visible' || !navigator.wakeLock) return;
+        const lock = await navigator.wakeLock.request('screen');
+        if (stopped) lock.release();
+        else wakeLock = lock;
+      } catch {
+        // Refused (low battery, unsupported): tracking continues without it
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        send(true);
+        keepScreenOn();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    keepScreenOn();
+
     return () => {
+      stopped = true;
       clearInterval(timer);
       window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibility);
+      wakeLock?.release().catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, session?.user?.id]);
@@ -99,8 +144,11 @@ export function useLiveSurveyors(enabled) {
         return { ...prev, [row.user_id]: { ...entry, trail: [...entry.trail, [row.lat, row.lng]] } };
       });
 
-    fetchLiveSurveyors().then(({ locations, points }) => {
-      if (cancelled) return;
+    // Full reload: at the start, then regularly and when the page comes back, so that updates missed
+    // during a connection drop are recovered. A failed reload keeps what is shown.
+    const refresh = async () => {
+      const { locations, points, error } = await fetchLiveSurveyors();
+      if (cancelled || error) return;
       const next = {};
       locations.forEach((row) => {
         next[row.user_id] = { location: row, trail: [] };
@@ -110,14 +158,30 @@ export function useLiveSurveyors(enabled) {
         next[row.user_id].trail.push([row.lat, row.lng]);
       });
       setByUser(next);
+      setNow(Date.now());
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+
+    refresh();
+    const unsubscribe = subscribeLiveSurveyors({
+      onLocation: (row) => {
+        applyLocation(row);
+        setNow(Date.now());
+      },
+      onPoint: applyPoint
     });
-    const unsubscribe = subscribeLiveSurveyors({ onLocation: applyLocation, onPoint: applyPoint });
     const timer = setInterval(() => setNow(Date.now()), 15000);
+    const refreshTimer = setInterval(refresh, ADMIN_REFRESH_MS);
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
       cancelled = true;
       unsubscribe();
       clearInterval(timer);
+      clearInterval(refreshTimer);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [enabled]);
 
