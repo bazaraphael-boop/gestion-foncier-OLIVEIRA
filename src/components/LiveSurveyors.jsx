@@ -1,15 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { Polyline, Marker, Popup, Tooltip, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Radio, ChevronDown, ChevronUp, LocateFixed, Route, EyeOff } from 'lucide-react';
+import { Radio, ChevronDown, ChevronUp, LocateFixed, Route, EyeOff, Users } from 'lucide-react';
 import { formatMeters, gridDistance } from '../utils/geoUtils';
 
 // Admin view of the arpenteurs' live positions (data from hooks/useSurveyorTracking.js)
 
-const ONLINE = '#ea580c';
 const OFFLINE = '#94a3b8';
 
-const initialsOf = (name) =>
+// Initials; a trailing number stays visible for accounts sharing a name ("Arpenteur Géomètre 2" -> A2)
+const initialsOf = (name) => {
+  const number = String(name || '').match(/\s(\d+)$/);
+  if (number) return `${String(name).trim()[0].toUpperCase()}${number[1]}`.replace(/[^\p{L}\p{N}]/gu, '') || '?';
+  return baseInitials(name);
+};
+
+const baseInitials = (name) =>
   String(name || '?')
     .replace(/@.*/, '')
     .split(/[\s._-]+/)
@@ -25,15 +31,16 @@ function sinceText(date) {
   const s = Math.max(0, Math.round((Date.now() - date.getTime()) / 1000));
   if (s < 60) return `il y a ${s} s`;
   if (s < 3600) return `il y a ${Math.round(s / 60)} min`;
+  if (s >= 86400) return `le ${date.toLocaleDateString('fr-FR')}`;
   return `à ${timeFmt.format(date)}`;
 }
 
 // Icons are cached: a new divIcon on every render makes Leaflet rebuild the marker
 const iconCache = new Map();
-function surveyorIcon(initials, online) {
-  const key = `${initials}|${online}`;
+function surveyorIcon(initials, online, onlineColor) {
+  const key = `${initials}|${online}|${onlineColor}`;
   if (!iconCache.has(key)) {
-    const color = online ? ONLINE : OFFLINE;
+    const color = online ? onlineColor : OFFLINE;
     iconCache.set(
       key,
       L.divIcon({
@@ -58,7 +65,8 @@ export function LiveSurveyorsLayer({ surveyors, focus, showTrails = true }) {
   const map = useMap();
 
   useEffect(() => {
-    if (focus) map.flyTo([focus.lat, focus.lng], Math.max(map.getZoom(), 17), { duration: 0.8 });
+    if (focus?.bounds) map.flyToBounds(focus.bounds, { padding: [70, 70], maxZoom: 17, duration: 0.8 });
+    else if (focus) map.flyTo([focus.lat, focus.lng], Math.max(map.getZoom(), 17), { duration: 0.8 });
   }, [focus, map]);
 
   return surveyors.map((s) => (
@@ -66,20 +74,20 @@ export function LiveSurveyorsLayer({ surveyors, focus, showTrails = true }) {
       {showTrails && s.trail.length > 1 && (
         <Polyline
           positions={s.trail}
-          pathOptions={{ color: s.online ? ONLINE : OFFLINE, weight: 3, opacity: 0.85, dashArray: s.online ? null : '6 6' }}
+          pathOptions={{ color: s.online ? s.color : OFFLINE, weight: 3, opacity: 0.85, dashArray: s.online ? null : '6 6' }}
         />
       )}
       {s.online && s.accuracy > 5 && (
-        <Circle center={[s.lat, s.lng]} radius={s.accuracy} pathOptions={{ color: ONLINE, fillColor: ONLINE, fillOpacity: 0.1, weight: 1 }} />
+        <Circle center={[s.lat, s.lng]} radius={s.accuracy} pathOptions={{ color: s.color, fillColor: s.color, fillOpacity: 0.1, weight: 1 }} />
       )}
-      <Marker position={[s.lat, s.lng]} icon={surveyorIcon(initialsOf(s.name), s.online)} zIndexOffset={1000}>
+      <Marker position={[s.lat, s.lng]} icon={surveyorIcon(initialsOf(s.name), s.online, s.color)} zIndexOffset={1000}>
         <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
           <span className="text-[11px] font-semibold">{s.name}</span>
         </Tooltip>
         <Popup>
           <div className="text-xs font-sans text-slate-900 min-w-[210px] space-y-1">
             <div className="font-semibold text-[13px]">{s.name}</div>
-            <div className={s.online ? 'text-orange-700 font-medium' : 'text-slate-500'}>
+            <div className={s.online ? 'font-medium' : 'text-slate-500'} style={s.online ? { color: s.color } : undefined}>
               {s.online ? '● En direct' : '○ Hors ligne'} · mis à jour {sinceText(s.updatedAt)}
             </div>
             <div className="font-mono text-[11px] text-slate-600">
@@ -131,7 +139,7 @@ export function LiveSurveyorsPanel({ surveyors, onFocus, showTrails = true, onTo
                 className="w-full px-3 py-1.5 flex items-center gap-2 text-left hover:bg-slate-50 cursor-pointer"
                 title="Centrer la carte sur l’arpenteur"
               >
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.online ? 'bg-orange-500' : 'bg-slate-300'}`} />
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.online ? s.color : OFFLINE }} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{s.name}</span>
                   <span className="block text-[11px] text-slate-500">
@@ -143,6 +151,15 @@ export function LiveSurveyorsPanel({ surveyors, onFocus, showTrails = true, onTo
             </li>
           ))}
         </ul>
+      )}
+      {open && surveyors.length > 1 && (
+        <button
+          type="button"
+          onClick={() => onFocus({ bounds: surveyors.map((s) => [s.lat, s.lng]), at: Date.now() })}
+          className="w-full h-9 px-3 border-t border-slate-100 flex items-center gap-2 text-left text-slate-700 hover:bg-slate-50 cursor-pointer"
+        >
+          <Users className="w-4 h-4 text-slate-500" /> Voir tous les arpenteurs
+        </button>
       )}
       {open && onToggleTrails && (
         <button

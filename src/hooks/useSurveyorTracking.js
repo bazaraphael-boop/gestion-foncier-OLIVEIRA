@@ -16,6 +16,9 @@ export const OFFLINE_AFTER_MS = 90000; // no news for 1 min 30: shown as offline
 const SEND_TIMEOUT_MS = 15000; // a request stuck on weak 4G must not block the next ones
 const ADMIN_REFRESH_MS = 30000; // live updates can be missed when the connection drops
 
+// One colour per arpenteur, stable as long as the list of accounts does not change
+const SURVEYOR_COLORS = ['#ea580c', '#7c3aed', '#0891b2', '#db2777', '#ca8a04', '#4f46e5', '#059669', '#dc2626'];
+
 const distanceM = (a, b) => gridDistance([a[1], a[0]], [b[1], b[0]]);
 
 /**
@@ -186,13 +189,25 @@ export function useLiveSurveyors(enabled) {
   }, [enabled]);
 
   if (!enabled) return [];
-  return Object.entries(byUser)
+  const located = Object.entries(byUser)
     .filter(([, entry]) => Number.isFinite(entry.location?.lat) && Number.isFinite(entry.location?.lng))
-    .map(([userId, { location, trail }]) => {
+    .sort(([a], [b]) => a.localeCompare(b));
+  // Accounts sharing a name are numbered so they can be told apart
+  const nameCount = {};
+  const seen = {};
+  located.forEach(([, { location }]) => {
+    const name = location.full_name || 'Arpenteur';
+    nameCount[name] = (nameCount[name] || 0) + 1;
+  });
+  return located
+    .map(([userId, { location, trail }], index) => {
       const updatedAt = new Date(location.updated_at);
+      const baseName = location.full_name || 'Arpenteur';
+      seen[baseName] = (seen[baseName] || 0) + 1;
       return {
         userId,
-        name: location.full_name || 'Arpenteur',
+        name: nameCount[baseName] > 1 ? `${baseName} ${seen[baseName]}` : baseName,
+        color: SURVEYOR_COLORS[index % SURVEYOR_COLORS.length],
         lat: location.lat,
         lng: location.lng,
         accuracy: Number.isFinite(location.accuracy) ? location.accuracy : null,

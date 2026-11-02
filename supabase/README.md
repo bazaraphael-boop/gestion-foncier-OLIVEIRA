@@ -49,7 +49,8 @@ Il n'y a plus de portail client à code PIN.
 
 - **Changer son mot de passe** : *Outils → Sécurité → Mot de passe*.
 - **Ajouter un arpenteur** : créer le compte (étape 2), puis l'insérer dans `profiles` avec le rôle
-  `arpenteur` (étape 4).
+  `arpenteur` et son vrai nom dans `full_name` (étape 4). Un compte par personne : le nom apparaît sur la
+  carte de l'admin, et deux personnes sur le même compte s'afficheraient comme une seule.
 - **Retirer un accès** : supprimer l'utilisateur dans *Authentication → Users*.
 - **Photos des parcelles** : stockées dans *Storage → parcel-photos* (privé). L'admin et les arpenteurs
   peuvent en ajouter, seul l'admin peut en supprimer.
