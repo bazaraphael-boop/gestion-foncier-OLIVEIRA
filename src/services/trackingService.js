@@ -1,4 +1,5 @@
 import { getSupabaseInstance } from './supabaseClient';
+import { getSurveyorDeviceId, getSurveyorName } from '../utils/surveyorDevice';
 
 // Live tracking of the arpenteur while his GPS is on (tables in supabase/migrations/20261027000000_surveyor_live_tracking.sql).
 // The arpenteur writes his own position; RLS lets only the admin read the others'.
@@ -17,9 +18,11 @@ async function upsertSurveyorPosition(session, { lat, lng, accuracy, heading, sp
   const userId = session?.user?.id;
   if (!client || !userId) return { ok: false, error: 'Non connecté' };
 
+  const deviceId = getSurveyorDeviceId();
   const { error } = await client.from('surveyor_locations').upsert({
     user_id: userId,
-    full_name: session.name || session.user.email,
+    device_id: deviceId,
+    full_name: getSurveyorName() || session.name || session.user.email,
     lat,
     lng,
     accuracy: accuracy ?? null,
@@ -27,11 +30,11 @@ async function upsertSurveyorPosition(session, { lat, lng, accuracy, heading, sp
     speed: Number.isFinite(speed) ? speed : null,
     is_active: true,
     updated_at: new Date().toISOString()
-  });
+  }, { onConflict: 'user_id,device_id' });
   if (error) return { ok: false, error: error.message };
 
   if (addTrailPoint) {
-    const res = await client.from('surveyor_location_points').insert({ user_id: userId, lat, lng, accuracy: accuracy ?? null });
+    const res = await client.from('surveyor_location_points').insert({ user_id: userId, device_id: deviceId, lat, lng, accuracy: accuracy ?? null });
     if (res.error) return { ok: false, error: res.error.message };
   }
   return { ok: true };
@@ -45,7 +48,8 @@ export async function setSurveyorOffline(session) {
   await client
     .from('surveyor_locations')
     .update({ is_active: false, updated_at: new Date().toISOString() })
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .eq('device_id', getSurveyorDeviceId());
 }
 
 /** Admin: latest positions and today's trails */
@@ -58,7 +62,7 @@ export async function fetchLiveSurveyors() {
     client.from('surveyor_locations').select('*'),
     client
       .from('surveyor_location_points')
-      .select('user_id, lat, lng, recorded_at')
+      .select('user_id, device_id, lat, lng, recorded_at')
       .gte('recorded_at', startOfDay.toISOString())
       .order('recorded_at', { ascending: false })
       .limit(5000)

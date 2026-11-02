@@ -33,6 +33,7 @@ Il n'y a plus de portail client à code PIN.
    10. `migrations/20261101000000_attack_simulation_fixes.sql` (parcelles piégées refusées, relevé vérifiable émis par l'admin seul)
    11. `migrations/20261102000000_admin_mfa_and_releve_code.sql` (double vérification de l'admin, code imprimé des relevés)
    12. `migrations/20261103000000_surveyor_server_time.sql` (suivi des arpenteurs : heure fixée par le serveur)
+   13. `migrations/20261104000000_surveyor_devices_shared_account.sql` (plusieurs arpenteurs sur un seul compte)
 4. **Attribuer les rôles** : dans le SQL Editor, exécuter les requêtes `insert into public.profiles`
    de la section 5 du script, en y mettant les vrais e-mails.
 5. **Vérifier** : *Table Editor → parcels* doit afficher « RLS enabled ». Depuis un terminal, sans
@@ -48,9 +49,10 @@ Il n'y a plus de portail client à code PIN.
 ## Gestion courante
 
 - **Changer son mot de passe** : *Outils → Sécurité → Mot de passe*.
-- **Ajouter un arpenteur** : créer le compte (étape 2), puis l'insérer dans `profiles` avec le rôle
-  `arpenteur` et son vrai nom dans `full_name` (étape 4). Un compte par personne : le nom apparaît sur la
-  carte de l'admin, et deux personnes sur le même compte s'afficheraient comme une seule.
+- **Ajouter un arpenteur** : il se connecte avec le compte arpenteur commun. À la première activation du
+  GPS, son téléphone demande son nom : ce nom apparaît sur la carte de l'admin et dans le journal. Il est
+  déclaré par l'utilisateur, sans preuve d'identité. Si quelqu'un quitte l'équipe, changez le mot de passe
+  du compte commun et transmettez le nouveau à ceux qui restent.
 - **Retirer un accès** : supprimer l'utilisateur dans *Authentication → Users*.
 - **Photos des parcelles** : stockées dans *Storage → parcel-photos* (privé). L'admin et les arpenteurs
   peuvent en ajouter, seul l'admin peut en supprimer.

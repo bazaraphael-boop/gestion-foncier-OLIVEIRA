@@ -47,6 +47,8 @@ import { logActivity, clearLocalAuditLogs } from './services/auditService';
 import { useShareSurveyorPosition, useLiveSurveyors } from './hooks/useSurveyorTracking';
 import { useZones } from './hooks/useZones';
 import { sanitizeParcels } from './utils/parcelSafety';
+import { getSurveyorName, saveSurveyorName } from './utils/surveyorDevice';
+import SurveyorNameModal from './components/SurveyorNameModal';
 
 const STORAGE_KEY_PARCELS = 'geocadastre_parcels_v3';
 const STORAGE_KEY_ISETECH = 'geocadastre_isetech_parcels_v3';
@@ -154,6 +156,8 @@ export default function App() {
   // Admin Real-Time GPS Geolocation States
   const [userLocation, setUserLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [surveyorName, setSurveyorName] = useState(getSurveyorName);
+  const [nameModal, setNameModal] = useState(null); // null | 'start' (then starts the GPS) | 'edit'
   const [locationAccuracy, setLocationAccuracy] = useState(null);
   const [isSimulated, setIsSimulated] = useState(false);
   const [flyToTrigger, setFlyToTrigger] = useState(0);
@@ -189,6 +193,12 @@ export default function App() {
   const handleToggleLocation = () => {
     if (isLocating) {
       stopLocation();
+      return;
+    }
+
+    // Shared account: each phone says who is using it before sharing its position
+    if (session?.role === 'arpenteur' && !getSurveyorName()) {
+      setNameModal('start');
       return;
     }
 
@@ -350,7 +360,7 @@ export default function App() {
   // Live tracking: the arpenteur's real GPS position is sent while it is on (nothing is shown to him),
   // the admin follows it on the map
   useShareSurveyorPosition({
-    enabled: isArpenteur && isLocating && !isSimulated && !!userLocation,
+    enabled: isArpenteur && isLocating && !isSimulated && !!userLocation && !!surveyorName,
     session,
     position: userLocation,
     accuracy: locationAccuracy
@@ -976,8 +986,24 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
       {/* Discreet notice: the arpenteur is told that his position is shared while the GPS is on */}
       {isArpenteur && isLocating && !isSimulated && (
         <p className="px-3 py-0.5 text-[9px] leading-tight text-slate-400 text-center bg-white">
-          Position partagée avec l’administrateur tant que le GPS est activé.
+          Position de {surveyorName} partagée avec l’administrateur tant que le GPS est activé.{' '}
+          <button type="button" onClick={() => setNameModal('edit')} className="underline underline-offset-1 cursor-pointer">
+            Changer de nom
+          </button>
         </p>
+      )}
+
+      {nameModal && (
+        <SurveyorNameModal
+          initialName={surveyorName}
+          onCancel={() => setNameModal(null)}
+          onSubmit={(name) => {
+            setSurveyorName(saveSurveyorName(name));
+            const startGps = nameModal === 'start';
+            setNameModal(null);
+            if (startGps) handleToggleLocation();
+          }}
+        />
       )}
 
       {/* Dashboard Analytics */}

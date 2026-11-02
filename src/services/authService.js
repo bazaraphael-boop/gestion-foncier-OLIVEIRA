@@ -61,7 +61,7 @@ async function signIn(email, password, allowedRoles) {
 
   const session = await buildSession(data.session);
   if (!session || !allowedRoles.includes(session.role)) {
-    await client.auth.signOut();
+    await client.auth.signOut({ scope: 'local' });
     return { success: false, error: "Ce compte n'est pas habilité pour cet espace." };
   }
   // Two-step verification active: password alone gives no rights until the phone's code is confirmed
@@ -216,7 +216,8 @@ export async function logout(session) {
   await flushAuditLogs();
   const client = getSupabaseInstance();
   if (client) {
-    await client.auth.signOut();
+    // This device only: other phones of a shared account stay connected
+    await client.auth.signOut({ scope: 'local' });
   }
 }
 

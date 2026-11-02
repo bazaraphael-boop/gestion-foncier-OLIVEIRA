@@ -19,6 +19,11 @@ const ADMIN_REFRESH_MS = 30000; // live updates can be missed when the connectio
 // One colour per arpenteur, stable as long as the list of accounts does not change
 const SURVEYOR_COLORS = ['#ea580c', '#7c3aed', '#0891b2', '#db2777', '#ca8a04', '#4f46e5', '#059669', '#dc2626'];
 
+const STALE_AFTER_MS = 7 * 24 * 3600 * 1000; // a phone silent for a week leaves the admin's list
+
+// One phone = one surveyor, even on a shared account
+const deviceKey = (row) => `${row.user_id}:${row.device_id || 'principal'}`;
+
 const distanceM = (a, b) => gridDistance([a[1], a[0]], [b[1], b[0]]);
 
 /**
@@ -139,12 +144,12 @@ export function useLiveSurveyors(enabled) {
     const applyLocation = (row) =>
       setByUser((prev) => ({
         ...prev,
-        [row.user_id]: { trail: [], ...prev[row.user_id], location: row }
+        [deviceKey(row)]: { trail: [], ...prev[deviceKey(row)], location: row }
       }));
     const applyPoint = (row) =>
       setByUser((prev) => {
-        const entry = prev[row.user_id] || { trail: [], location: null };
-        return { ...prev, [row.user_id]: { ...entry, trail: [...entry.trail, [row.lat, row.lng]] } };
+        const entry = prev[deviceKey(row)] || { trail: [], location: null };
+        return { ...prev, [deviceKey(row)]: { ...entry, trail: [...entry.trail, [row.lat, row.lng]] } };
       });
 
     // Full reload: at the start, then regularly and when the page comes back, so that updates missed
@@ -154,11 +159,11 @@ export function useLiveSurveyors(enabled) {
       if (cancelled || error) return;
       const next = {};
       locations.forEach((row) => {
-        next[row.user_id] = { location: row, trail: [] };
+        next[deviceKey(row)] = { location: row, trail: [] };
       });
       points.forEach((row) => {
-        if (!next[row.user_id]) next[row.user_id] = { location: null, trail: [] };
-        next[row.user_id].trail.push([row.lat, row.lng]);
+        if (!next[deviceKey(row)]) next[deviceKey(row)] = { location: null, trail: [] };
+        next[deviceKey(row)].trail.push([row.lat, row.lng]);
       });
       setByUser(next);
       setNow(Date.now());
@@ -191,6 +196,7 @@ export function useLiveSurveyors(enabled) {
   if (!enabled) return [];
   const located = Object.entries(byUser)
     .filter(([, entry]) => Number.isFinite(entry.location?.lat) && Number.isFinite(entry.location?.lng))
+    .filter(([, entry]) => now - new Date(entry.location.updated_at).getTime() < STALE_AFTER_MS)
     .sort(([a], [b]) => a.localeCompare(b));
   // Accounts sharing a name are numbered so they can be told apart
   const nameCount = {};

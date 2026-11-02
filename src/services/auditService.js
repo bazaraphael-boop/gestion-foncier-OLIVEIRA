@@ -5,6 +5,7 @@
  */
 
 import { getSupabaseInstance } from './supabaseClient';
+import { getSurveyorName } from '../utils/surveyorDevice';
 
 const STORAGE_KEY_AUDIT_LOGS = 'geocadastre_audit_logs_v1';
 const MAX_LOCAL_LOGS = 1000;
@@ -77,7 +78,7 @@ export function logActivity({
     id,
     timestamp,
     role,
-    actor,
+    actor: role === 'arpenteur' && getSurveyorName() ? `${actor} - ${getSurveyorName()}` : actor,
     action,
     actionLabel,
     target: target || '-',
