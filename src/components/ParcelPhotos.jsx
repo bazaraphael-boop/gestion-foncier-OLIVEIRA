@@ -10,7 +10,6 @@ import {
   formatPhotoDate,
   MAX_PHOTOS_PER_PARCEL
 } from '../services/photoService';
-import { askLocationConsent } from '../services/locationConsent';
 
 // Hidden file inputs: one opening the rear camera on phones, one for the gallery (several files).
 // Each picked file is returned with where and when it was taken: { file, location, takenAt }.
@@ -21,10 +20,9 @@ function PhotoInputs({ onPicked, disabled, remaining }) {
   const [locating, setLocating] = useState(false);
 
   const openCamera = () => {
-    // Camera first (a delayed click would be blocked by the phone); the GPS fix starts as soon as
-    // the user allows it, so it is ready when the shot comes back
+    // Start the GPS fix right away so it is ready when the shot comes back
+    devicePosition.current = getDevicePosition();
     cameraRef.current?.click();
-    devicePosition.current = askLocationConsent('photo').then((allowed) => (allowed ? getDevicePosition() : null));
   };
 
   const handle = (fromCamera) => async (e) => {

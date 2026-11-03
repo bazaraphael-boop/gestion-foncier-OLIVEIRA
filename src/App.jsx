@@ -49,8 +49,6 @@ import { useZones } from './hooks/useZones';
 import { sanitizeParcels } from './utils/parcelSafety';
 import { getSurveyorName, saveSurveyorName } from './utils/surveyorDevice';
 import SurveyorNameModal from './components/SurveyorNameModal';
-import LocationConsentDialog from './components/LocationConsentDialog';
-import { askLocationConsent } from './services/locationConsent';
 
 const STORAGE_KEY_PARCELS = 'geocadastre_parcels_v3';
 const STORAGE_KEY_ISETECH = 'geocadastre_isetech_parcels_v3';
@@ -191,9 +189,8 @@ export default function App() {
     };
   }, []);
 
-  // Toggle GPS geolocation watcher. Starting always goes through the consent dialog,
-  // except when the caller has just obtained it ({ consented: true }).
-  const handleToggleLocation = (options) => {
+  // Toggle GPS geolocation watcher
+  const handleToggleLocation = () => {
     if (isLocating) {
       stopLocation();
       return;
@@ -207,13 +204,6 @@ export default function App() {
 
     if (!('geolocation' in navigator)) {
       alert("La géolocalisation n'est pas supportée par votre appareil ou navigateur.");
-      return;
-    }
-
-    if (options?.consented !== true) {
-      askLocationConsent(session?.role === 'arpenteur' ? 'tracking' : 'locate').then((allowed) => {
-        if (allowed) handleToggleLocation({ consented: true });
-      });
       return;
     }
 
@@ -1002,8 +992,6 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
           </button>
         </p>
       )}
-
-      <LocationConsentDialog />
 
       {nameModal && (
         <SurveyorNameModal
