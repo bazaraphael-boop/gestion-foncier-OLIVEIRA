@@ -6,6 +6,7 @@ import { X, Plus, Trash2, MapPin, Compass, CheckCircle2, ShieldAlert, Hexagon, S
 import { PhotoPicker } from './ParcelPhotos';
 import { uploadParcelPhotos } from '../services/photoService';
 import { DocumentPicker } from './ParcelDocuments';
+import { askLocationConsent } from '../services/locationConsent';
 import { uploadParcelDocuments } from '../services/documentService';
 
 export default function ParcelFormModal({
@@ -169,8 +170,8 @@ export default function ParcelFormModal({
     return result;
   };
 
-  const handleAddCurrentLocation = () => {
-    if ('geolocation' in navigator) {
+  const handleAddCurrentLocation = async () => {
+    if ('geolocation' in navigator && (await askLocationConsent('form'))) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const pt = latLngToPoint(pos.coords.latitude, pos.coords.longitude, coordFormat);

@@ -10,6 +10,7 @@ import { useMeasureSettings } from '../hooks/useMeasure';
 import { LiveSurveyorsLayer, LiveSurveyorsPanel } from './LiveSurveyors';
 import { countCachedTiles, clearCachedTiles, useOnlineStatus } from '../utils/offlineTiles';
 import { lngLatToCadastreXY, buildSourceCoordinates } from '../utils/utm';
+import { askLocationConsent } from '../services/locationConsent';
 import {
   Layers3,
   Layers,
@@ -1060,8 +1061,8 @@ export default function MapView({
     }
   }
 
-  const handleLocateMe = () => {
-    if ('geolocation' in navigator) {
+  const handleLocateMe = async () => {
+    if ('geolocation' in navigator && (await askLocationConsent('locate'))) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
@@ -1130,8 +1131,13 @@ export default function MapView({
       }
     } else {
       setIsGpsAcquiring(true);
+      askLocationConsent('borne').then((allowed) => {
+      if (!allowed) {
+        setIsGpsAcquiring(false);
+        return;
+      }
       if (onToggleLocation && !isLocating) {
-        onToggleLocation();
+        onToggleLocation({ consented: true });
       }
       if ('geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(
@@ -1155,6 +1161,7 @@ export default function MapView({
         setIsGpsAcquiring(false);
         alert("La géolocalisation n'est pas supportée. Pointez le viseur ou touchez l'écran pour ajouter des bornes.");
       }
+      });
     }
   };
 
