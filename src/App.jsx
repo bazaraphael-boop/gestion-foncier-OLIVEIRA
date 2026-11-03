@@ -49,6 +49,8 @@ import { useZones } from './hooks/useZones';
 import { sanitizeParcels } from './utils/parcelSafety';
 import { getSurveyorName, saveSurveyorName } from './utils/surveyorDevice';
 import SurveyorNameModal from './components/SurveyorNameModal';
+import OnboardingTour from './components/OnboardingTour';
+import { shouldShowOnboarding } from './utils/onboarding';
 
 const STORAGE_KEY_PARCELS = 'geocadastre_parcels_v3';
 const STORAGE_KEY_ISETECH = 'geocadastre_isetech_parcels_v3';
@@ -397,6 +399,12 @@ export default function App() {
   }, []);
 
   const sessionUserId = session?.user?.id;
+
+  // Guide at the first sign-in of this account on this device
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  useEffect(() => {
+    if (shouldShowOnboarding(sessionUserId)) setShowOnboarding(true);
+  }, [sessionUserId]);
 
   // The admin is reminded until two-step verification is on: until then, a stolen password gives everything
   const [adminMfaMissing, setAdminMfaMissing] = useState(false);
@@ -955,6 +963,7 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
           zones={zones}
           onSelectView={(view) => (view === 'global' ? handleReturnToGlobal() : handleExploreSubZone(view))}
           onOpenZoneManager={isAdmin ? () => setIsZoneManagerOpen(true) : undefined}
+          onOpenGuide={() => setShowOnboarding(true)}
         />
       )}
 
@@ -991,6 +1000,10 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
             Changer de nom
           </button>
         </p>
+      )}
+
+      {showOnboarding && session && (
+        <OnboardingTour role={session.role} userId={session.user.id} onClose={() => setShowOnboarding(false)} />
       )}
 
       {nameModal && (

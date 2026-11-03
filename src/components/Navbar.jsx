@@ -18,7 +18,8 @@ import {
   Pencil,
   PenTool,
   Menu,
-  Layers3
+  Layers3,
+  BookOpen
 } from 'lucide-react';
 import { exportParcelsToGeoJSON, calculateArea } from '../utils/geoUtils';
 
@@ -54,7 +55,8 @@ export default function Navbar({
   activeView,
   onSelectView,
   zones = [],
-  onOpenZoneManager
+  onOpenZoneManager,
+  onOpenGuide
 }) {
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -210,6 +212,12 @@ export default function Navbar({
                 role="menu"
                 className="absolute right-0 top-full mt-2 w-72 bg-white text-slate-800 border border-slate-200 rounded-xl shadow-[0_12px_32px_-8px_rgba(15,37,64,0.35)] p-1.5 z-[1200] animate-in fade-in slide-in-from-top-1 duration-150"
               >
+                {onOpenGuide && (
+                  <button role="menuitem" onClick={runAndClose(onOpenGuide)} className={MENU_ITEM}>
+                    <BookOpen className={MENU_ICON} />
+                    <span>Guide d’utilisation</span>
+                  </button>
+                )}
                 <div className="px-2.5 pt-1.5 pb-1 text-[11px] font-semibold text-slate-400">Données</div>
                 <button role="menuitem" onClick={runAndClose(onOpenGeoJsonImporter)} className={MENU_ITEM}>
                   <FileCode2 className={MENU_ICON} />
