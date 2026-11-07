@@ -1,5 +1,9 @@
 // Service Worker for Concession Manuel Joaquim d'Oliveira PWA
-const CACHE_NAME = 'cadastre-oliveira-pwa-v5';
+const CACHE_NAME = 'cadastre-oliveira-pwa-v6';
+
+// Every file of the built app (pages, scripts, images), filled in by vite.config.js at build time,
+// so that screens never opened online also work offline
+const PRECACHE = [];
 
 // Satellite / map images already viewed, kept on the device: they show instantly and without a
 // connection in the field (src/utils/offlineTiles.js reads and empties this cache)
@@ -19,11 +23,10 @@ const STATIC_ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch((err) => {
-        console.warn('Pre-caching some static icons failed', err);
-      });
-    })
+    caches.open(CACHE_NAME).then((cache) =>
+      // One file failing (bad network) must not cancel the others
+      Promise.allSettled([...new Set([...STATIC_ASSETS, ...PRECACHE])].map((url) => cache.add(url)))
+    )
   );
   self.skipWaiting();
 });
@@ -39,9 +42,21 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    }).then(() => self.clients.claim())
+    })
+      .then(() => pruneOldBuild())
+      .then(() => self.clients.claim())
   );
 });
+
+// Scripts of previous versions are removed once the new version is fully stored
+async function pruneOldBuild() {
+  if (!PRECACHE.length) return;
+  const keep = new Set(PRECACHE.map((path) => new URL(path, self.registration.scope).href));
+  const cache = await caches.open(CACHE_NAME);
+  for (const request of await cache.keys()) {
+    if (request.url.includes('/assets/') && !keep.has(request.url)) await cache.delete(request);
+  }
+}
 
 // The same Google tile comes from mt0…mt3: one copy is kept
 const tileKey = (url) => url.replace(/^https:\/\/mt\d\.google\.com\//, 'https://mt0.google.com/');
@@ -111,7 +126,12 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match(event.request))
+        // Offline: this page if it was stored, else the app's page (any address of the app works)
+        .catch(async () =>
+          (await caches.match(event.request)) ||
+          (await caches.match(new URL('./', self.registration.scope).href)) ||
+          caches.match(new URL('./index.html', self.registration.scope).href)
+        )
     );
     return;
   }

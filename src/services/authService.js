@@ -7,7 +7,7 @@
  * - Data access enforced by Row Level Security (see supabase/migrations)
  */
 
-import { getSupabaseInstance, createTemporaryClient } from './supabaseClient';
+import { getSupabaseInstance, createTemporaryClient, isNetworkError } from './supabaseClient';
 import { logActivity, flushAuditLogs } from './auditService';
 
 const VALID_ROLES = ['admin', 'arpenteur'];
@@ -29,23 +29,71 @@ function translateAuthError(error) {
   return error?.message || 'Une erreur technique est survenue lors de la connexion.';
 }
 
+// Role kept on the device for offline use (screens only: the server still checks every write)
+const PROFILE_CACHE = 'geocadastre_profile_';
+
+function cacheProfile(userId, profile) {
+  try {
+    localStorage.setItem(PROFILE_CACHE + userId, JSON.stringify(profile));
+  } catch {
+    // Storage unavailable: offline use needs the network once more
+  }
+}
+
+function cachedProfile(userId) {
+  try {
+    const profile = JSON.parse(localStorage.getItem(PROFILE_CACHE + userId));
+    return VALID_ROLES.includes(profile?.role) ? profile : null;
+  } catch {
+    return null;
+  }
+}
+
 // Build the app session object from a Supabase auth session
 async function buildSession(authSession) {
   if (!authSession?.user) return null;
   const client = getSupabaseInstance();
-  const { data, error } = await client
-    .from('profiles')
-    .select('role, full_name')
-    .eq('id', authSession.user.id)
-    .maybeSingle();
-
-  if (error || !data || !VALID_ROLES.includes(data.role)) return null;
+  let profile = null;
+  try {
+    const { data, error } = await client
+      .from('profiles')
+      .select('role, full_name')
+      .eq('id', authSession.user.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (data && VALID_ROLES.includes(data.role)) {
+      profile = { role: data.role, full_name: data.full_name };
+      cacheProfile(authSession.user.id, profile);
+    }
+  } catch (err) {
+    // No network: the role last seen on this device
+    if (isNetworkError(err)) profile = cachedProfile(authSession.user.id);
+  }
+  if (!profile) return null;
 
   return {
-    role: data.role,
-    name: data.full_name || authSession.user.email,
+    role: profile.role,
+    name: profile.full_name || authSession.user.email,
     user: { id: authSession.user.id, email: authSession.user.email }
   };
+}
+
+// Session saved by Supabase on this device, read directly when it cannot be renewed offline.
+// A session stopped before the two-step code (verified factor, level aal1) is not used.
+function storedSessionOffline() {
+  if (typeof navigator === 'undefined' || navigator.onLine !== false) return null;
+  try {
+    const keys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i));
+    const key = keys.find((k) => /^sb-.+-auth-token$/.test(k || ''));
+    const stored = key && JSON.parse(localStorage.getItem(key));
+    if (!stored?.user || !stored.access_token) return null;
+    const payload = JSON.parse(atob(stored.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const hasFactor = (stored.user.factors || []).some((f) => f.status === 'verified');
+    if (hasFactor && payload.aal !== 'aal2') return null;
+    return stored;
+  } catch {
+    return null;
+  }
 }
 
 async function signIn(email, password, allowedRoles) {
@@ -178,15 +226,16 @@ export async function getCurrentSession() {
   if (!client) return null;
   try {
     const { data } = await client.auth.getSession();
+    if (!data.session) return await buildSession(storedSessionOffline());
     // A session stopped between the password and the code is not an opened session
-    if (data.session && (await needsMfaCode(client))) {
+    if (await needsMfaCode(client)) {
       await client.auth.signOut({ scope: 'local' });
       return null;
     }
     return await buildSession(data.session);
   } catch (e) {
     console.warn('Lecture de session impossible:', e);
-    return null;
+    return await buildSession(storedSessionOffline());
   }
 }
 

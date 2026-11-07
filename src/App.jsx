@@ -33,6 +33,8 @@ import {
   fetchParcelsFromSupabase,
   saveParcelToSupabase,
   deleteParcelFromSupabase,
+  flushOutbox,
+  getPendingCount,
   bulkSaveParcelsToSupabase,
   bulkDeleteParcelsFromSupabase,
   deleteAllParcelsInSupabase,
@@ -47,6 +49,7 @@ import { logActivity, clearLocalAuditLogs } from './services/auditService';
 import { useShareSurveyorPosition, useLiveSurveyors } from './hooks/useSurveyorTracking';
 import { useZones } from './hooks/useZones';
 import { sanitizeParcels } from './utils/parcelSafety';
+import { useOnlineStatus } from './utils/offlineTiles';
 import { getSurveyorName, saveSurveyorName } from './utils/surveyorDevice';
 import SurveyorNameModal from './components/SurveyorNameModal';
 import OnboardingTour from './components/OnboardingTour';
@@ -445,6 +448,9 @@ export default function App() {
 
     const syncLatestData = async () => {
       try {
+        // 0. Changes made offline are sent first, so the server copy includes them
+        await flushOutbox();
+
         // 1. Sync latest Concession from Supabase Cloud
         const cloudConcession = await fetchConcessionFromSupabase();
         if (isMounted && cloudConcession && cloudConcession.geometry) {
@@ -583,6 +589,12 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    if (
+      getPendingCount() > 0 &&
+      !confirm(`${getPendingCount()} modification(s) faite(s) hors connexion n'ont pas encore été envoyées. Elles seront envoyées à votre prochaine connexion sur cet appareil. Se déconnecter quand même ?`)
+    ) {
+      return;
+    }
     await logout(session);
     clearPrivateLocalData();
     setSession(null);
@@ -594,9 +606,31 @@ export default function App() {
     stopLocation();
   };
 
+  // Offline: changes waiting to be sent, shown in a bar and sent as soon as the network returns
+  const isOnline = useOnlineStatus();
+  const [pendingChanges, setPendingChanges] = useState(getPendingCount);
+  useEffect(() => {
+    const onOutbox = (e) => setPendingChanges(e.detail);
+    const onRefused = (e) =>
+      alert(
+        `Modification(s) faite(s) hors connexion refusée(s) par le serveur :\n\n${e.detail
+          .map((r) => `• Lot ${r.lot} : ${r.reason}`)
+          .join('\n')}`
+      );
+    window.addEventListener('geocadastre:outbox', onOutbox);
+    window.addEventListener('geocadastre:outbox-refused', onRefused);
+    return () => {
+      window.removeEventListener('geocadastre:outbox', onOutbox);
+      window.removeEventListener('geocadastre:outbox-refused', onRefused);
+    };
+  }, []);
+  useEffect(() => {
+    if (isOnline && sessionUserId && pendingChanges > 0) flushOutbox();
+  }, [isOnline, sessionUserId, pendingChanges]);
+
   // A write refused by the server is shown with its reason instead of failing silently
   const reportCloudRefusal = (ok, parcel) => {
-    if (ok) return;
+    if (ok) return; // true: saved; 'queued': kept on the device until the network returns
     const lotRef = parcel?.properties?.lotNumber || parcel?.id || '';
     alert(`Le lot ${lotRef} n'a pas pu être enregistré sur le serveur.
 
@@ -989,6 +1023,14 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
           <button type="button" onClick={() => setIsAdminSecurityOpen(true)} className="font-semibold underline underline-offset-2 cursor-pointer">
             Activer maintenant
           </button>
+        </div>
+      )}
+
+      {session && (!isOnline || pendingChanges > 0) && (
+        <div role="status" className="px-3 py-1 text-[12px] text-amber-900 bg-amber-50 border-b border-amber-200 text-center">
+          {!isOnline
+            ? `Hors connexion : vous pouvez continuer, vos modifications sont gardées sur cet appareil${pendingChanges ? ` (${pendingChanges} en attente)` : ''}.`
+            : `Envoi de ${pendingChanges} modification(s) faite(s) hors connexion…`}
         </div>
       )}
 

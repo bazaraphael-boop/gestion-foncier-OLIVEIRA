@@ -14,7 +14,7 @@ if (window.top !== window.self) {
 if (typeof window !== 'undefined' && 'caches' in window) {
   caches.keys().then((keys) => {
     keys.forEach((key) => {
-      if (key !== 'cadastre-oliveira-pwa-v5' && key !== 'cadastre-tiles-v1') {
+      if (key !== 'cadastre-oliveira-pwa-v6' && key !== 'cadastre-tiles-v1') {
         caches.delete(key);
       }
     });
