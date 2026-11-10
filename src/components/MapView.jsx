@@ -309,7 +309,7 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType, onCenterChange, on
   return (
     <>
       {/* Bottom bar: cursor coordinates + zoom */}
-      <div className="absolute bottom-[76px] md:bottom-3 left-3 z-[1000] h-9 bg-white px-1 rounded-lg border border-slate-200 text-[12px] text-slate-600 flex items-center shadow-[0_4px_14px_-4px_rgba(15,37,64,0.3)] select-none pointer-events-auto">
+      <div className="absolute bottom-3 left-3 z-[1000] h-9 bg-white px-1 rounded-lg border border-slate-200 text-[12px] text-slate-600 flex items-center shadow-[0_4px_14px_-4px_rgba(15,37,64,0.3)] select-none pointer-events-auto">
         <div ref={coordsRef} className="hidden sm:flex items-center gap-3 px-2 font-mono tabular-nums">
           <span>Lat: <strong className="text-slate-900">-5.89880°</strong></span>
           <span>Lng: <strong className="text-slate-900">12.33750°</strong></span>
@@ -354,7 +354,7 @@ function ProfessionalGisHud({ onAddPoint, isDrawing, mapType, onCenterChange, on
       </div>
 
       {/* North arrow */}
-      <div className="absolute bottom-[76px] md:bottom-8 right-3 z-[1000] w-9 h-9 bg-white rounded-lg border border-slate-200 shadow-[0_4px_14px_-4px_rgba(15,37,64,0.3)] flex flex-col items-center justify-center select-none" aria-label="Nord en haut">
+      <div className="absolute bottom-3 md:bottom-8 right-3 z-[1000] w-9 h-9 bg-white rounded-lg border border-slate-200 shadow-[0_4px_14px_-4px_rgba(15,37,64,0.3)] flex flex-col items-center justify-center select-none" aria-label="Nord en haut">
         <Navigation className="w-3.5 h-3.5 text-slate-800 -rotate-45" />
         <span className="text-[9px] font-bold leading-none text-slate-700">N</span>
       </div>
@@ -1826,7 +1826,7 @@ export default function MapView({
         )}
 
         {openMapPanel === 'layers' && (
-          <MapPanel title="Calques & légende" onClose={() => setOpenMapPanel(null)} className="absolute top-0 left-full ml-2 w-72 max-h-[calc(100vh-160px)] overflow-y-auto">
+          <MapPanel title="Calques & légende" onClose={() => setOpenMapPanel(null)} className="absolute top-0 left-full ml-2 w-72 max-h-[calc(100dvh-160px)] overflow-y-auto">
             <LayerSwitch icon={Waves} label="Zonage littoral" detail="Bandes de distance à l'océan" checked={showOceanZones} onChange={setShowOceanZones} />
             <LayerSwitch icon={Hexagon} label="Périmètre de la concession" detail="5 310 ha" checked={showConcession} onChange={setShowConcession} />
             {canViewAndInspectBornes && (

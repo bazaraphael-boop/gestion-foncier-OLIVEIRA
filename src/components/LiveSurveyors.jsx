@@ -104,7 +104,8 @@ export function LiveSurveyorsLayer({ surveyors, focus, showTrails = true }) {
 
 /** Floating list of the arpenteurs, outside the map */
 export function LiveSurveyorsPanel({ surveyors, onFocus, showTrails = true, onToggleTrails }) {
-  const [open, setOpen] = useState(true);
+  // Folded by default on a phone: the open list would hide half the map
+  const [open, setOpen] = useState(() => typeof window === 'undefined' || window.matchMedia('(min-width: 768px)').matches);
   const [, setTick] = useState(0);
 
   // Refreshes the "il y a 12 s" texts
@@ -117,7 +118,7 @@ export function LiveSurveyorsPanel({ surveyors, onFocus, showTrails = true, onTo
   const onlineCount = surveyors.filter((s) => s.online).length;
 
   return (
-    <div className="absolute bottom-[124px] md:bottom-14 left-3 z-[1000] w-64 max-w-[calc(100%-24px)] bg-white border border-slate-200 rounded-xl shadow-[0_8px_24px_-8px_rgba(15,37,64,0.35)] text-[12.5px] text-slate-800 select-none">
+    <div className="absolute bottom-14 left-3 z-[1000] w-64 max-w-[calc(100%-24px)] bg-white border border-slate-200 rounded-xl shadow-[0_8px_24px_-8px_rgba(15,37,64,0.35)] text-[12.5px] text-slate-800 select-none">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -130,7 +131,7 @@ export function LiveSurveyorsPanel({ surveyors, onFocus, showTrails = true, onTo
         {open ? <ChevronDown className="w-4 h-4 ml-auto text-slate-400" /> : <ChevronUp className="w-4 h-4 ml-auto text-slate-400" />}
       </button>
       {open && (
-        <ul className="border-t border-slate-100 max-h-48 overflow-y-auto py-1">
+        <ul className="border-t border-slate-100 max-h-32 md:max-h-48 overflow-y-auto overscroll-contain py-1">
           {surveyors.map((s) => (
             <li key={s.userId}>
               <button

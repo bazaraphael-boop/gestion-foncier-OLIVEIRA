@@ -21,6 +21,12 @@ if (typeof window !== 'undefined' && 'caches' in window) {
   }).catch(() => {});
 }
 
+// iOS ignores user-scalable=no: a pinch outside the map would zoom the whole page and
+// break the layout. Pinches stay for the map, which zooms itself (Leaflet).
+['gesturestart', 'gesturechange'].forEach((type) => {
+  document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+});
+
 // QR code of a relevé: public verification page, without sign-in
 const params = new URLSearchParams(window.location.search);
 const isVerifyPage = params.has('verifier');
