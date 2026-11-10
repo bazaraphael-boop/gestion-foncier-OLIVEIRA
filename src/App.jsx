@@ -956,7 +956,7 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
 
   // --- AUTHENTICATED APP WORKSPACE ---
   return (
-    <div className="min-h-screen h-screen h-[100dvh] w-full bg-slate-100 font-sans flex flex-col antialiased text-slate-800 overflow-hidden select-none">
+    <div className="fixed inset-0 w-full bg-slate-100 font-sans flex flex-col antialiased text-slate-800 overflow-hidden select-none">
       {/* Top Header Navbar depending on role */}
       {isClientRole ? (
         <ClientNavbar
@@ -1068,7 +1068,7 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
       />
 
       {/* Main Workspace */}
-      <div className="flex-1 flex flex-col md:flex-row relative overflow-hidden min-h-0">
+      <div className={`flex-1 flex flex-col md:flex-row relative overflow-hidden min-h-0 ${isClientRole ? '' : 'pb-[calc(60px+max(0.5rem,env(safe-area-inset-bottom)))] md:pb-0'}`}>
         <main className="flex-1 h-full w-full relative transition-all duration-300 min-h-0">
           <MapView
             concessionPolygon={concessionPolygon}
@@ -1146,7 +1146,7 @@ La modification reste visible sur cet appareil mais n'est pas partagée.`);
             className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity"
             onClick={() => setIsSidebarCollapsed(true)}
           />
-          <div className="relative z-10 w-full max-h-[85vh] h-[82vh] bg-white rounded-t-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-250">
+          <div className="relative z-10 w-full max-h-[85dvh] h-[82dvh] bg-white rounded-t-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-250">
             <div
               className="w-full flex justify-center py-2.5 bg-slate-100/90 border-b border-slate-200 cursor-pointer"
               onClick={() => setIsSidebarCollapsed(true)}
