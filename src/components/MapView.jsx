@@ -1190,7 +1190,8 @@ export default function MapView({
 
   const handleMeasureToParcel = () => {
     if (measurePoints.length < 3 || !onOpenCreateFormWithPoints) return;
-    const pointsList = measurePoints.map(([lat, lng]) => ({ latStr: lat.toFixed(6), lngStr: lng.toFixed(6) }));
+    // exact: the full-precision position, so the saved parcel has the surface that was just measured
+    const pointsList = measurePoints.map(([lat, lng]) => ({ latStr: lat.toFixed(6), lngStr: lng.toFixed(6), exact: [lng, lat] }));
     setIsMeasuring(false);
     setMeasurePoints([]);
     onOpenCreateFormWithPoints(pointsList);
@@ -1207,7 +1208,8 @@ export default function MapView({
     }
     const pointsList = drawnPoints.map(([lat, lng]) => ({
       latStr: lat.toFixed(6),
-      lngStr: lng.toFixed(6)
+      lngStr: lng.toFixed(6),
+      exact: [lng, lat]
     }));
 
     setIsDrawing(false);

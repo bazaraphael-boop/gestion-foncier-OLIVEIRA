@@ -71,9 +71,8 @@ export default function ParcelFormModal({
   };
 
   const handlePointChange = (index, field, value) => {
-    const newPts = [...points];
-    newPts[index][field] = value;
-    setPoints(newPts);
+    // A retyped borne is read from its text again (its full-precision position no longer applies)
+    setPoints(points.map((p, i) => (i === index ? { latStr: p.latStr, lngStr: p.lngStr, [field]: value } : p)));
   };
 
   const handleAddPointField = () => {
@@ -95,8 +94,12 @@ export default function ParcelFormModal({
   };
 
   // In UTM formats the two fields hold X (Easting) then Y (Northing), kept as typed (leading zeros)
+  // A borne placed on the map or converted from another format keeps its full-precision position
+  // (p.exact = [lng, lat]): the text shown is rounded (6 decimals = 11 cm, UTM = 1 m) and reading it
+  // back would move the borne and change the surface.
   const pointToLatLng = (p, format = coordFormat) => {
     if (!p.latStr || !p.lngStr) return null;
+    if (p.exact) return { lat: p.exact[1], lng: p.exact[0] };
     let lat;
     let lng;
     if (isUtmFormat(format)) {
@@ -129,7 +132,7 @@ export default function ParcelFormModal({
     setPoints(
       points.map((p) => {
         const ll = pointToLatLng(p);
-        return ll ? latLngToPoint(ll.lat, ll.lng, format) : { latStr: '', lngStr: '' };
+        return ll ? { ...latLngToPoint(ll.lat, ll.lng, format), exact: [ll.lng, ll.lat] } : { latStr: '', lngStr: '' };
       })
     );
     setCoordFormat(format);
@@ -173,11 +176,13 @@ export default function ParcelFormModal({
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const pt = latLngToPoint(pos.coords.latitude, pos.coords.longitude, coordFormat);
+          const pt = {
+            ...latLngToPoint(pos.coords.latitude, pos.coords.longitude, coordFormat),
+            exact: [pos.coords.longitude, pos.coords.latitude]
+          };
           const emptyIdx = points.findIndex((p) => !p.latStr || !p.lngStr);
           if (emptyIdx !== -1) {
-            handlePointChange(emptyIdx, 'latStr', pt.latStr);
-            handlePointChange(emptyIdx, 'lngStr', pt.lngStr);
+            setPoints(points.map((p, i) => (i === emptyIdx ? pt : p)));
           } else {
             setPoints([...points, pt]);
           }

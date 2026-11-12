@@ -84,13 +84,13 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         setVertexFormat('utm');
         setEditVertices(
           source.length === uniqueVerts.length
-            ? source.map((xy) => {
+            ? source.map((xy, i) => {
                 const [xStr = '', yStr = ''] = String(xy).split(',');
-                return { latStr: xStr.trim(), lngStr: yStr.trim() };
+                return { latStr: xStr.trim(), lngStr: yStr.trim(), exact: uniqueVerts[i] };
               })
             : uniqueVerts.map((pt) => {
                 const { xStr, yStr } = lngLatToCadastreXY(pt);
-                return { latStr: xStr, lngStr: yStr };
+                return { latStr: xStr, lngStr: yStr, exact: pt };
               })
         );
       } else {
@@ -98,7 +98,8 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         setEditVertices(
           uniqueVerts.map(([lng, lat]) => ({
             latStr: lat.toFixed(6),
-            lngStr: lng.toFixed(6)
+            lngStr: lng.toFixed(6),
+            exact: [lng, lat]
           }))
         );
       }
@@ -160,7 +161,10 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
   const perimeter = sideLengths.reduce((sum, m) => sum + m, 0);
 
   // A borne field pair -> [lng, lat], or null when it cannot be read. In UTM, latStr holds X and lngStr Y.
+  // A borne that was not retyped keeps its recorded position (v.exact): the text shown is rounded
+  // (6 decimals = 11 cm, X,Y = 1 m) and reading it back would move the borne and change the surface.
   const vertexToLngLat = (v, format = vertexFormat) => {
+    if (v.exact) return v.exact;
     const a = parseDecimal(v.latStr);
     const b = parseDecimal(v.lngStr);
     if (isNaN(a) || isNaN(b)) return null;
@@ -181,9 +185,9 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
         if (!pt) return { latStr: '', lngStr: '' };
         if (format === 'utm') {
           const { xStr, yStr } = lngLatToCadastreXY(pt);
-          return { latStr: xStr, lngStr: yStr };
+          return { latStr: xStr, lngStr: yStr, exact: pt };
         }
-        return { latStr: pt[1].toFixed(7), lngStr: pt[0].toFixed(7) };
+        return { latStr: pt[1].toFixed(7), lngStr: pt[0].toFixed(7), exact: pt };
       })
     );
     setVertexFormat(format);
@@ -206,9 +210,7 @@ export default function ParcelModal({ parcel, onClose, onUpdateParcel, onDeleteP
   };
 
   const handleVertexChange = (index, field, value) => {
-    const newVerts = [...editVertices];
-    newVerts[index][field] = value;
-    setEditVertices(newVerts);
+    setEditVertices(editVertices.map((v, i) => (i === index ? { latStr: v.latStr, lngStr: v.lngStr, [field]: value } : v)));
   };
 
   const handleAddVertexField = () => {
