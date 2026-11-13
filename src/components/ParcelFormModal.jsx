@@ -475,7 +475,7 @@ export default function ParcelFormModal({
                     placeholder={isUtmFormat(coordFormat) ? 'X Easting (ex: 0203417)' : coordFormat === 'dd' ? 'Latitude (ex: -5.914822)' : 'Lat DMS'}
                     value={pt.latStr}
                     onChange={(e) => handlePointChange(idx, 'latStr', e.target.value)}
-                    className="flex-1 px-2.5 py-1 bg-white border border-slate-200 rounded font-mono text-slate-900 focus:outline-none focus:border-slate-400"
+                    className="flex-1 min-w-0 px-2.5 py-1 bg-white border border-slate-200 rounded font-mono text-slate-900 focus:outline-none focus:border-slate-400"
                   />
                   <input
                     type="text"
@@ -483,7 +483,7 @@ export default function ParcelFormModal({
                     placeholder={isUtmFormat(coordFormat) ? 'Y Northing (ex: 9346432)' : coordFormat === 'dd' ? 'Longitude (ex: 12.341789)' : 'Lng DMS'}
                     value={pt.lngStr}
                     onChange={(e) => handlePointChange(idx, 'lngStr', e.target.value)}
-                    className="flex-1 px-2.5 py-1 bg-white border border-slate-200 rounded font-mono text-slate-900 focus:outline-none focus:border-slate-400"
+                    className="flex-1 min-w-0 px-2.5 py-1 bg-white border border-slate-200 rounded font-mono text-slate-900 focus:outline-none focus:border-slate-400"
                   />
                   <button
                     type="button"

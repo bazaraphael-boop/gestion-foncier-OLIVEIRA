@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Polygon, Polyline, Popup, Tooltip, useMap, Marker, useMapEvents, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { STATUS_COLORS, ddToDms, fetchElevation, calculateArea, measurePoints, parseDecimal } from '../utils/geoUtils';
+import { STATUS_COLORS, ddToDms, fetchElevation, calculateArea, measurePoints, parseDecimal, gridDistance, MIN_BORNE_GAP_M } from '../utils/geoUtils';
 import { COASTAL_ZONES, SEPARATION_LINES, getOceanZoneInfo } from '../utils/coastalZones';
 import BorneMoveConfirmModal from './BorneMoveConfirmModal';
 import { MeasureLayer, MeasurePanel, MeasureSheet } from './MeasureTool';
@@ -1084,7 +1084,20 @@ export default function MapView({
     setLastMarkedInfo(null);
   };
 
+  // A borne on top of one already marked gives a parcel without surface: it is refused.
+  // Returns true when the [lat, lng] point is refused.
+  const isBorneAlreadyMarked = (point, viaGps = false) => {
+    const index = drawnPoints.findIndex(([lat, lng]) => gridDistance([lng, lat], [point[1], point[0]]) < MIN_BORNE_GAP_M);
+    if (index === -1) return false;
+    setLastMarkedInfo(`Borne non ajoutée : même endroit que la borne ${index + 1}.`);
+    if (viaGps) {
+      alert(`Le GPS donne la même position que la borne ${index + 1}. Marchez jusqu'à la borne suivante, attendez quelques secondes que la position se mette à jour, puis réessayez.`);
+    }
+    return true;
+  };
+
   const handleAddDrawnPoint = (point) => {
+    if (isBorneAlreadyMarked(point)) return;
     setDrawnPoints((prev) => [...prev, point]);
     setLastMarkedInfo(`Borne ${drawnPoints.length + 1} marquée (${point[0].toFixed(5)}°, ${point[1].toFixed(5)}°)`);
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -1111,6 +1124,7 @@ export default function MapView({
   const handleAddCenterPoint = () => {
     if (centerCoords && centerCoords.length === 2) {
       const pt = [centerCoords[0], centerCoords[1]];
+      if (isBorneAlreadyMarked(pt)) return;
       setDrawnPoints((prev) => [...prev, pt]);
       setLastMarkedInfo(`Borne ${drawnPoints.length + 1} marquée au viseur (${pt[0].toFixed(5)}°, ${pt[1].toFixed(5)}°)`);
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -1123,6 +1137,7 @@ export default function MapView({
   const handleAddCurrentGpsPoint = () => {
     if (effectiveUserLocation && Array.isArray(effectiveUserLocation) && effectiveUserLocation.length >= 2) {
       const pt = [effectiveUserLocation[0], effectiveUserLocation[1]];
+      if (isBorneAlreadyMarked(pt, true)) return;
       setDrawnPoints((prev) => [...prev, pt]);
       setLastMarkedInfo(`Borne ${drawnPoints.length + 1} marquée au GPS (${pt[0].toFixed(5)}°, ${pt[1].toFixed(5)}°)`);
       if (typeof navigator !== 'undefined' && navigator.vibrate) {

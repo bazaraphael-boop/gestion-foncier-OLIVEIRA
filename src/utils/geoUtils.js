@@ -39,6 +39,27 @@ export function gridArea(featureOrGeometry) {
   return 0;
 }
 
+// Two bornes closer than this are the same spot: below what a phone GPS or a finger can tell apart
+export const MIN_BORNE_GAP_M = 0.5;
+
+/** Indexes [i, j] of the first two bornes of [lng, lat] points lying at the same place, or null */
+export function findSamePlaceBornes(pointsLngLat) {
+  const pts = getOpenRing(pointsLngLat);
+  for (let j = 1; j < pts.length; j++) {
+    for (let i = 0; i < j; i++) {
+      if (gridDistance(pts[i], pts[j]) < MIN_BORNE_GAP_M) return [i, j];
+    }
+  }
+  return null;
+}
+
+const getOpenRing = (ring) => {
+  if (!ring || ring.length < 2) return ring || [];
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  return first[0] === last[0] && first[1] === last[1] ? ring.slice(0, -1) : ring;
+};
+
 /** True when two sides of the ring cross (bornes entered in the wrong order) */
 export function hasCrossingSides(ringLngLat) {
   if (!ringLngLat || ringLngLat.length < 4) return false;
@@ -132,6 +153,15 @@ export function validateParcelGeometry(ringCoords, concessionPolygon = null, exi
 
   if (first[0] !== last[0] || first[1] !== last[1]) {
     closedCoords.push([first[0], first[1]]);
+  }
+
+  // Same spot marked several times (GPS button pressed without walking to the next borne)
+  const samePlace = findSamePlaceBornes(ringCoords);
+  if (samePlace) {
+    errors.push(
+      `Les bornes B${samePlace[0] + 1} et B${samePlace[1] + 1} sont au même endroit : la parcelle n’a pas de surface. Placez chaque borne à un coin différent du terrain.`
+    );
+    return { isValid: false, errors, warnings, areaInfo: null };
   }
 
   let parcelPolygon;
